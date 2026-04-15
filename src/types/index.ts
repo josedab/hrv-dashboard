@@ -32,6 +32,12 @@ export interface Session {
   trainingType: string | null;
   /** Free-text notes entered by the user after recording. */
   notes: string | null;
+  /** Hours of sleep the night before (optional, 0–24). */
+  sleepHours: number | null;
+  /** Subjective sleep quality (1–5), set via LogScreen. */
+  sleepQuality: number | null;
+  /** Subjective stress level (1–5), set via LogScreen. */
+  stressLevel: number | null;
 }
 
 /**
