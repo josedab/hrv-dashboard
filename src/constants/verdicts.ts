@@ -1,5 +1,6 @@
 import { VerdictType } from '../types';
 
+/** Display metadata for a readiness verdict. */
 export interface VerdictInfo {
   key: VerdictType;
   label: string;
@@ -7,6 +8,7 @@ export interface VerdictInfo {
   emoji: string;
 }
 
+/** User-facing verdict labels, descriptions, and emojis for each readiness level. */
 export const VERDICT_INFO: Record<VerdictType, VerdictInfo> = {
   go_hard: {
     key: 'go_hard',

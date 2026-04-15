@@ -1,3 +1,7 @@
+/**
+ * Centralized color palette for the dark-themed UI.
+ * Verdict colors match the standard green/amber/red readiness system.
+ */
 export const COLORS = {
   // Verdict colors
   goHard: '#22C55E',      // green
@@ -19,6 +23,7 @@ export const COLORS = {
   success: '#22C55E',
 } as const;
 
+/** Maps each verdict type to its display color. */
 export const VERDICT_COLORS: Record<string, string> = {
   go_hard: COLORS.goHard,
   moderate: COLORS.moderate,
