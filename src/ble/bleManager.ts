@@ -5,8 +5,11 @@ const HEART_RATE_SERVICE_UUID = '0000180d-0000-1000-8000-00805f9b34fb';
 const HEART_RATE_MEASUREMENT_UUID = '00002a37-0000-1000-8000-00805f9b34fb';
 const POLAR_H10_NAME_PREFIX = 'Polar H10';
 const SCAN_TIMEOUT_MS = 15000;
+const CONNECTION_TIMEOUT_MS = 10000;
+const MAX_RECONNECT_ATTEMPTS = 3;
+const RECONNECT_BASE_DELAY_MS = 1000;
 
-export type BleConnectionState = 'disconnected' | 'scanning' | 'connecting' | 'connected' | 'error';
+export type BleConnectionState = 'disconnected' | 'scanning' | 'connecting' | 'connected' | 'reconnecting' | 'error';
 
 export interface BleCallbacks {
   onStateChange: (state: BleConnectionState) => void;
@@ -65,8 +68,29 @@ export async function scanForDevices(
 }
 
 /**
+ * Connects to a device with a timeout.
+ * Rejects if connection takes longer than CONNECTION_TIMEOUT_MS.
+ */
+async function connectWithTimeout(
+  bleManager: BleManager,
+  deviceId: string,
+  timeoutMs: number = CONNECTION_TIMEOUT_MS
+): Promise<Device> {
+  return Promise.race([
+    bleManager.connectToDevice(deviceId, { requestMTU: 512 }),
+    new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        bleManager.cancelDeviceConnection(deviceId).catch(() => {});
+        reject(new Error(`Connection timed out after ${timeoutMs / 1000}s`));
+      }, timeoutMs);
+    }),
+  ]);
+}
+
+/**
  * Connects to a device and subscribes to Heart Rate Measurement notifications.
  * Returns a cleanup function to disconnect and unsubscribe.
+ * Errors are propagated (not caught internally) for retry logic.
  */
 export async function connectAndSubscribe(
   deviceId: string,
@@ -74,54 +98,74 @@ export async function connectAndSubscribe(
 ): Promise<() => void> {
   const bleManager = getManager();
   let subscription: Subscription | null = null;
-  let connectedDevice: Device | null = null;
 
-  try {
-    callbacks.onStateChange('connecting');
+  callbacks.onStateChange('connecting');
 
-    connectedDevice = await bleManager.connectToDevice(deviceId, {
-      requestMTU: 512,
-    });
+  const connectedDevice = await connectWithTimeout(bleManager, deviceId);
+  await connectedDevice.discoverAllServicesAndCharacteristics();
+  callbacks.onStateChange('connected');
 
-    await connectedDevice.discoverAllServicesAndCharacteristics();
-    callbacks.onStateChange('connected');
-
-    subscription = connectedDevice.monitorCharacteristicForService(
-      HEART_RATE_SERVICE_UUID,
-      HEART_RATE_MEASUREMENT_UUID,
-      (error, characteristic) => {
-        if (error) {
-          callbacks.onError(`Notification error: ${error.message}`);
-          return;
-        }
-        if (characteristic?.value) {
-          try {
-            const data = base64ToUint8Array(characteristic.value);
-            const measurement = parseHeartRateMeasurement(data);
-            callbacks.onHeartRateMeasurement(measurement);
-          } catch (parseError) {
-            console.warn('Failed to parse HR measurement:', parseError);
-          }
+  subscription = connectedDevice.monitorCharacteristicForService(
+    HEART_RATE_SERVICE_UUID,
+    HEART_RATE_MEASUREMENT_UUID,
+    (error, characteristic) => {
+      if (error) {
+        callbacks.onError(`Notification error: ${error.message}`);
+        return;
+      }
+      if (characteristic?.value) {
+        try {
+          const data = base64ToUint8Array(characteristic.value);
+          const measurement = parseHeartRateMeasurement(data);
+          callbacks.onHeartRateMeasurement(measurement);
+        } catch (parseError) {
+          console.warn('Failed to parse HR measurement:', parseError);
         }
       }
-    );
+    }
+  );
 
-    // Monitor disconnection
-    bleManager.onDeviceDisconnected(deviceId, () => {
-      callbacks.onStateChange('disconnected');
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown BLE error';
-    callbacks.onStateChange('error');
-    callbacks.onError(message);
-  }
+  // Monitor disconnection — store subscription for cleanup
+  const disconnectSub = bleManager.onDeviceDisconnected(deviceId, () => {
+    callbacks.onStateChange('disconnected');
+  });
 
   return () => {
     subscription?.remove();
-    if (connectedDevice) {
-      bleManager.cancelDeviceConnection(deviceId).catch(() => {});
-    }
+    disconnectSub.remove();
+    bleManager.cancelDeviceConnection(deviceId).catch(() => {});
   };
+}
+
+/**
+ * Attempts to connect with exponential backoff retry.
+ * Retries up to MAX_RECONNECT_ATTEMPTS times on failure.
+ * Reports 'reconnecting' state between attempts.
+ */
+export async function connectWithRetry(
+  deviceId: string,
+  callbacks: BleCallbacks,
+  maxAttempts: number = MAX_RECONNECT_ATTEMPTS
+): Promise<() => void> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await connectAndSubscribe(deviceId, callbacks);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt < maxAttempts - 1) {
+        const delay = RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt);
+        callbacks.onStateChange('reconnecting');
+        callbacks.onError(`Connection failed, retrying in ${delay / 1000}s... (attempt ${attempt + 1}/${maxAttempts})`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  callbacks.onStateChange('error');
+  throw lastError ?? new Error('Failed to connect after retries');
 }
 
 /**
