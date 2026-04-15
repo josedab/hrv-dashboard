@@ -4,6 +4,11 @@ const DATABASE_NAME = 'hrv_readiness.db';
 
 let db: SQLite.SQLiteDatabase | null = null;
 
+/**
+ * Returns the singleton SQLite database instance.
+ * On first call, opens the database and runs migrations to create tables.
+ * Subsequent calls return the cached instance.
+ */
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (db) return db;
   db = await SQLite.openDatabaseAsync(DATABASE_NAME);
@@ -11,6 +16,10 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
+/**
+ * Runs schema migrations: creates `sessions` and `settings` tables,
+ * enables WAL journal mode, and creates timestamp index.
+ */
 async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   await database.execAsync(`
     PRAGMA journal_mode = WAL;
@@ -42,6 +51,10 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   `);
 }
 
+/**
+ * Closes the database connection and clears the singleton reference.
+ * Safe to call even if the database was never opened.
+ */
 export async function closeDatabase(): Promise<void> {
   if (db) {
     await db.closeAsync();
