@@ -3,6 +3,10 @@ import { HeartRateMeasurement } from './heartRateParser';
 import { connectAndSubscribe, BleConnectionState } from './bleManager';
 import { RECORDING_DURATION_SECONDS, MIN_RECORDING_SECONDS } from '../constants/defaults';
 
+/**
+ * Current state of an active BLE recording session.
+ * Tracks connection, timing, accumulated data, and errors.
+ */
 export interface RecordingState {
   connectionState: BleConnectionState;
   isRecording: boolean;
@@ -15,6 +19,9 @@ export interface RecordingState {
   error: string | null;
 }
 
+/**
+ * Actions to control the BLE recording lifecycle.
+ */
 export interface RecordingActions {
   startRecording: (deviceId: string) => Promise<void>;
   stopRecording: () => void;
@@ -33,6 +40,24 @@ const INITIAL_STATE: RecordingState = {
   error: null,
 };
 
+/**
+ * React hook managing the full BLE recording lifecycle.
+ *
+ * Handles device connection, RR interval accumulation, elapsed/remaining
+ * time tracking, early finish eligibility, and automatic stop at the
+ * configured duration limit. Cleans up BLE connection on unmount.
+ *
+ * @returns Tuple of `[RecordingState, RecordingActions]`
+ *
+ * @example
+ * ```tsx
+ * const [state, actions] = useBleRecording();
+ * await actions.startRecording(deviceId);
+ * // state.rrIntervals accumulates over time
+ * // state.canFinishEarly becomes true after MIN_RECORDING_SECONDS
+ * actions.stopRecording(); // or auto-stops at RECORDING_DURATION_SECONDS
+ * ```
+ */
 export function useBleRecording(): [RecordingState, RecordingActions] {
   const [state, setState] = useState<RecordingState>(INITIAL_STATE);
   const cleanupRef = useRef<(() => void) | null>(null);
