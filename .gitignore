@@ -12,3 +12,4 @@ ios/
 android/
 .env
 .env.*
+CLAUDE.md
