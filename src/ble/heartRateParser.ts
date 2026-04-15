@@ -1,3 +1,5 @@
+import { MIN_RR_INTERVAL_MS, MAX_RR_INTERVAL_MS } from '../constants/defaults';
+
 /**
  * Result of parsing a Heart Rate Measurement notification.
  */
@@ -6,6 +8,14 @@ export interface HeartRateMeasurement {
   rrIntervals: number[];      // ms (can have 0, 1, or more per notification)
   energyExpended?: number;    // kJ
   sensorContact: boolean;
+}
+
+/**
+ * Checks if an RR interval is within the physiologically plausible range.
+ * 300ms (~200 bpm) to 2500ms (~24 bpm).
+ */
+export function isValidRrInterval(rrMs: number): boolean {
+  return rrMs >= MIN_RR_INTERVAL_MS && rrMs <= MAX_RR_INTERVAL_MS;
 }
 
 /**
@@ -53,14 +63,17 @@ export function parseHeartRateMeasurement(data: Uint8Array): HeartRateMeasuremen
     offset += 2;
   }
 
-  // Parse RR intervals (if present)
+  // Parse RR intervals (if present), filtering physiologically implausible values
   const rrIntervals: number[] = [];
   if (rrIntervalPresent) {
     while (offset + 1 < data.length) {
       // RR intervals are in 1/1024 second units; convert to milliseconds
       const rrRaw = data[offset] | (data[offset + 1] << 8);
       const rrMs = (rrRaw / 1024) * 1000;
-      rrIntervals.push(Math.round(rrMs * 100) / 100); // round to 2 decimal places
+      const rounded = Math.round(rrMs * 100) / 100;
+      if (isValidRrInterval(rounded)) {
+        rrIntervals.push(rounded);
+      }
       offset += 2;
     }
   }
