@@ -18,6 +18,9 @@ export function sessionsToCSV(sessions: Session[]): string {
     'training_type',
     'notes',
     'rr_interval_count',
+    'sleep_hours',
+    'sleep_quality',
+    'stress_level',
   ];
 
   const rows = sessions.map((s) => [
@@ -34,6 +37,9 @@ export function sessionsToCSV(sessions: Session[]): string {
     s.trainingType ?? '',
     escapeCsvField(s.notes ?? ''),
     s.rrIntervals.length,
+    s.sleepHours ?? '',
+    s.sleepQuality ?? '',
+    s.stressLevel ?? '',
   ]);
 
   const csvLines = [
