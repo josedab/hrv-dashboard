@@ -1,0 +1,39 @@
+/**
+ * HRV Readiness Dashboard — custom theme colors.
+ * Primary: blue (#3B82F6) to match the app's accent color.
+ * Dark mode palette aligned with the app's dark navy theme (#0F172A).
+ */
+
+:root {
+  --ifm-color-primary: #3B82F6;
+  --ifm-color-primary-dark: #2563EB;
+  --ifm-color-primary-darker: #1D4ED8;
+  --ifm-color-primary-darkest: #1E40AF;
+  --ifm-color-primary-light: #60A5FA;
+  --ifm-color-primary-lighter: #93C5FD;
+  --ifm-color-primary-lightest: #BFDBFE;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+  --color-verdict-go: #22C55E;
+  --color-verdict-moderate: #F59E0B;
+  --color-verdict-rest: #EF4444;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #60A5FA;
+  --ifm-color-primary-dark: #3B82F6;
+  --ifm-color-primary-darker: #2563EB;
+  --ifm-color-primary-darkest: #1D4ED8;
+  --ifm-color-primary-light: #93C5FD;
+  --ifm-color-primary-lighter: #BFDBFE;
+  --ifm-color-primary-lightest: #DBEAFE;
+  --ifm-background-color: #0F172A;
+  --ifm-background-surface-color: #1E293B;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Verdict colors used in docs */
+.verdict-go { color: var(--color-verdict-go); font-weight: 700; }
+.verdict-moderate { color: var(--color-verdict-moderate); font-weight: 700; }
+.verdict-rest { color: var(--color-verdict-rest); font-weight: 700; }
