@@ -7,7 +7,7 @@ import { VerdictDisplay } from '../components/VerdictDisplay';
 import { StatCard } from '../components/StatCard';
 import { Sparkline } from '../components/Sparkline';
 import { COLORS } from '../constants/colors';
-import { Session, Settings, DEFAULT_SETTINGS } from '../types';
+import { Session } from '../types';
 import { getTodaySession, getDailyReadings, getSessionDates, getRecentSessions } from '../database/sessionRepository';
 import { loadSettings } from '../database/settingsRepository';
 import { computeBaseline } from '../hrv/baseline';
@@ -98,7 +98,13 @@ export function HomeScreen() {
 
       {/* Verdict */}
       {hasReading ? (
-        <VerdictDisplay verdict={todaySession.verdict} rmssd={todaySession.rmssd} size="large" />
+        <VerdictDisplay
+          verdict={todaySession.verdict}
+          rmssd={todaySession.rmssd}
+          size="large"
+          baselineValue={baselineMedian}
+          percentOfBaseline={baselineMedian ? todaySession.rmssd / baselineMedian : undefined}
+        />
       ) : (
         <View style={styles.noReading}>
           <Text style={styles.noReadingEmoji}>💤</Text>
