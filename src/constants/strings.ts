@@ -221,5 +221,52 @@ export const STRINGS = {
 
   // Privacy
   privacyTitle: 'Privacy Policy',
-  privacyLastUpdated: 'Last updated: April 2026',
+  privacyLastUpdated: 'Last updated: 2025',
+
+  // Reading auto-connect
+  lookingForPaired: 'Looking for your paired sensor...',
+
+  // Filters
+  filterAll: 'All',
+  filterGoHard: 'Go Hard',
+  filterModerate: 'Moderate',
+  filterRest: 'Rest',
+  filterByVerdict: 'Filter by verdict',
+
+  // Session actions
+  editSession: 'Edit Log',
+  deleteSession: 'Delete Session',
+  confirmDeleteTitle: 'Delete Session?',
+  confirmDeleteMessage: 'This permanently removes the session and its RR data.',
+  delete: 'Delete',
+  sessionDeleted: 'Session deleted',
+  undo: 'Undo',
+
+  // Toast confirmations
+  sessionSaved: 'Session saved',
+  logSaved: 'Log saved',
+  settingsUpdated: 'Settings updated',
+
+  // Settings additions
+  recording: 'Recording',
+  breathingExercise: 'Guided breathing',
+  breathingExerciseDesc: 'Show a 2-minute breathing guide before each recording.',
+  moreWaysToRecord: 'More ways to record',
+
+  // Camera disclaimer
+  cameraBeta: '⚠️ Beta — Less Accurate',
+  cameraBetaDesc:
+    'Camera PPG is experimental in this build and noticeably less accurate than a chest strap. Camera sessions are excluded from your baseline.',
+
+  // Generic actions
+  confirm: 'OK',
+  passphraseCreate: 'Create Backup',
+  passphraseCreateMessage: 'Enter a passphrase (min 4 characters) to encrypt your backup.',
+  passphraseRestore: 'Restore Backup',
+  passphraseRestoreMessage: 'Enter the passphrase used when creating this backup.',
+  backupCreated: 'Backup created',
+  backupRestored: 'Restored {count} new sessions',
+  emptyTrendsTitle: 'Not enough data yet',
+  emptyTrendsHint: 'Take a few more readings to unlock trend insights.',
+  takeReading: 'Take a Reading',
 } as const;
