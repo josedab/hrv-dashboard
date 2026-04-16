@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,10 +19,13 @@ import { getDailyReadings } from '../database/sessionRepository';
 import { loadSettings } from '../database/settingsRepository';
 import { generateId } from '../utils/uuid';
 import { ARTIFACT_WARNING_THRESHOLD } from '../constants/defaults';
+import { STRINGS } from '../constants/strings';
+import { BreathingExercise, BREATHING_PRESETS } from '../components/BreathingExercise';
+import { refreshWidget } from '../utils/widgetData';
 
 type ReadingNavProp = NativeStackNavigationProp<RootStackParamList>;
 
-type Phase = 'scanning' | 'recording' | 'complete';
+type Phase = 'scanning' | 'breathing' | 'recording' | 'complete';
 
 export function ReadingScreen() {
   const navigation = useNavigation<ReadingNavProp>();
@@ -32,6 +35,7 @@ export function ReadingScreen() {
   const [stopScan, setStopScan] = useState<(() => void) | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [scanTimedOut, setScanTimedOut] = useState(false);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
 
   // Start scanning on mount
   useEffect(() => {
@@ -90,9 +94,15 @@ export function ReadingScreen() {
     if (connecting) return;
     setConnecting(true);
     stopScan?.();
+    setSelectedDeviceId(device.id);
+    setPhase('breathing');
+  }, [stopScan, connecting]);
+
+  const startAfterBreathing = useCallback(async () => {
+    if (!selectedDeviceId) return;
     setPhase('recording');
-    await actions.startRecording(device.id);
-  }, [stopScan, actions, connecting]);
+    await actions.startRecording(selectedDeviceId);
+  }, [selectedDeviceId, actions]);
 
   // Auto-transition to complete when recording stops with data
   useEffect(() => {
@@ -140,6 +150,7 @@ export function ReadingScreen() {
       };
 
       await saveSession(session);
+      refreshWidget().catch(() => {}); // Fire and forget
       navigation.replace('Log', { sessionId: session.id });
     } catch (error) {
       console.error('Failed to save session:', error);
@@ -152,9 +163,12 @@ export function ReadingScreen() {
     actions.stopRecording();
   }, [actions]);
 
-  const artifactRate = recording.rrIntervals.length > 0
-    ? computeHrvMetrics(recording.rrIntervals).artifactRate
-    : 0;
+  const artifactRate = useMemo(() =>
+    recording.rrIntervals.length > 0
+      ? computeHrvMetrics(recording.rrIntervals).artifactRate
+      : 0,
+    [recording.rrIntervals]
+  );
   const showArtifactWarning = artifactRate > ARTIFACT_WARNING_THRESHOLD;
 
   // Scanning phase
@@ -164,18 +178,18 @@ export function ReadingScreen() {
 
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Connect to Sensor</Text>
+        <Text style={styles.title}>{STRINGS.connectToSensor}</Text>
         {!scanTimedOut || devices.length > 0 ? (
           <>
-            <Text style={styles.subtitle}>Scanning for heart rate monitors...</Text>
+            <Text style={styles.subtitle}>{STRINGS.scanningForDevices}</Text>
             <ActivityIndicator size="large" color={COLORS.accent} style={{ marginVertical: 20 }} />
           </>
         ) : (
           <View style={styles.timeoutContainer}>
             <Text style={styles.timeoutEmoji}>📡</Text>
-            <Text style={styles.timeoutText}>No devices found</Text>
+            <Text style={styles.timeoutText}>{STRINGS.noDevicesFound}</Text>
             <Text style={styles.timeoutHint}>Make sure your heart rate monitor is on and nearby</Text>
-            <TouchableOpacity style={styles.rescanButton} onPress={restartScan}>
+            <TouchableOpacity style={styles.rescanButton} activeOpacity={0.7} onPress={restartScan} accessibilityRole="button" accessibilityLabel="Scan again for heart rate monitors">
               <Text style={styles.rescanButtonText}>Scan Again</Text>
             </TouchableOpacity>
           </View>
@@ -191,7 +205,8 @@ export function ReadingScreen() {
                 onPress={() => selectDevice(device)}
                 accessibilityRole="button"
                 accessibilityLabel={`Connect to ${device.name || 'Polar H10'}`}
-              >
+              activeOpacity={0.7}
+               >
                 <Text style={styles.deviceName}>{device.name || 'Polar H10'}</Text>
                 <Text style={styles.deviceId}>{device.id.slice(-8)}</Text>
               </TouchableOpacity>
@@ -209,7 +224,8 @@ export function ReadingScreen() {
                 onPress={() => selectDevice(device)}
                 accessibilityRole="button"
                 accessibilityLabel={`Connect to ${device.name || 'Unknown Device'}`}
-              >
+              activeOpacity={0.7}
+               >
                 <Text style={styles.deviceName}>{device.name || 'Unknown Device'}</Text>
                 <Text style={styles.deviceId}>{device.id.slice(-8)}</Text>
               </TouchableOpacity>
@@ -222,10 +238,23 @@ export function ReadingScreen() {
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
           accessibilityLabel="Cancel scanning"
+           activeOpacity={0.7}
         >
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
       </View>
+    );
+  }
+
+  // Breathing phase
+  if (phase === 'breathing') {
+    return (
+      <BreathingExercise
+        durationSeconds={120}
+        preset={BREATHING_PRESETS[0]}
+        onComplete={startAfterBreathing}
+        onSkip={startAfterBreathing}
+      />
     );
   }
 
@@ -247,8 +276,8 @@ export function ReadingScreen() {
         <CountdownTimer remainingSeconds={recording.remainingSeconds} />
 
         <View style={styles.liveStats}>
-          <StatCard label="Heart Rate" value={recording.currentHr > 0 ? `${recording.currentHr}` : '--'} unit="bpm" />
-          <StatCard label="RR Count" value={`${recording.rrIntervals.length}`} />
+          <StatCard label={STRINGS.heartRate} value={recording.currentHr > 0 ? `${recording.currentHr}` : '--'} unit={STRINGS.bpm} />
+          <StatCard label={STRINGS.rrCount} value={`${recording.rrIntervals.length}`} />
         </View>
 
         <RRPlot rrIntervals={recording.rrIntervals} width={340} height={120} />
@@ -265,6 +294,7 @@ export function ReadingScreen() {
             onPress={handleFinishEarly}
             accessibilityRole="button"
             accessibilityLabel="Finish recording early"
+             activeOpacity={0.7}
           >
             <Text style={styles.finishButtonText}>Finish Early</Text>
           </TouchableOpacity>
