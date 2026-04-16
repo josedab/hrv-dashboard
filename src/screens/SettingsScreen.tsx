@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, StyleSheet, Share } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, StyleSheet, Share, Switch, Platform } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS } from '../constants/colors';
@@ -8,17 +8,51 @@ import { loadSettings, saveSetting, clearPairedDevice, validateThresholds } from
 import { getAllSessions } from '../database/sessionRepository';
 import { sessionsToCSV } from '../utils/csv';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { Toast } from '../components/Toast';
+import {
+  NotificationSettings,
+  DEFAULT_NOTIFICATION_SETTINGS,
+  loadNotificationSettings,
+  saveNotificationSettings,
+  requestNotificationPermissions,
+  cancelAllReminders,
+} from '../utils/notifications';
+import { createBackup, restoreBackup } from '../utils/backup';
+import {
+  isHealthSyncAvailable,
+  loadHealthSyncSettings,
+  setHealthSyncEnabled,
+  requestHealthPermissions,
+  syncAllPendingSessions,
+  HealthSyncSettings,
+} from '../utils/healthSync';
+import * as DocumentPicker from 'expo-document-picker';
 
 const BASELINE_WINDOW_OPTIONS = [5, 7, 10, 14];
 
 export function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [notifSettings, setNotifSettings] = useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
+  const [healthSync, setHealthSync] = useState<HealthSyncSettings>({ enabled: false, lastSyncTimestamp: null, syncedSessionCount: 0 });
+  const [healthAvailable, setHealthAvailable] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ visible: true, message, type });
+  };
 
   const load = useCallback(async () => {
-    const s = await loadSettings();
+    const [s, ns, hs] = await Promise.all([
+      loadSettings(),
+      loadNotificationSettings(),
+      loadHealthSyncSettings(),
+    ]);
     setSettings(s);
+    setNotifSettings(ns);
+    setHealthSync(hs);
+    setHealthAvailable(isHealthSyncAvailable());
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -76,12 +110,20 @@ export function SettingsScreen() {
         message: csv,
         title: 'HRV Sessions Export',
       });
+      showToast(`Exported ${sessions.length} sessions`);
     } catch (error) {
-      Alert.alert('Error', 'Failed to export data.');
+      showToast('Failed to export data', 'error');
     }
   };
 
   return (
+    <View style={{ flex: 1 }}>
+      <Toast
+        message={toast.message}
+        visible={toast.visible}
+        type={toast.type}
+        onHide={() => setToast((prev) => ({ ...prev, visible: false }))}
+      />
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Settings</Text>
 
@@ -97,6 +139,7 @@ export function SettingsScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Baseline window: ${days} days`}
             accessibilityState={{ selected: settings.baselineWindowDays === days }}
+             activeOpacity={0.7}
           >
             <Text style={[styles.optionText, settings.baselineWindowDays === days && styles.optionTextSelected]}>
               {days}d
@@ -106,7 +149,7 @@ export function SettingsScreen() {
       </View>
 
       {/* Advanced Thresholds */}
-      <TouchableOpacity style={styles.advancedToggle} onPress={() => setShowAdvanced(!showAdvanced)}>
+      <TouchableOpacity style={styles.advancedToggle} activeOpacity={0.7} onPress={() => setShowAdvanced(!showAdvanced)} accessibilityRole="button" accessibilityLabel={showAdvanced ? 'Hide advanced thresholds' : 'Show advanced thresholds'} accessibilityState={{ expanded: showAdvanced }}>
         <Text style={styles.advancedToggleText}>
           {showAdvanced ? '▼' : '▶'} Advanced Thresholds
         </Text>
@@ -129,6 +172,7 @@ export function SettingsScreen() {
                   ]}
                   onPress={() => updateThreshold('goHardThreshold', pct / 100)}
                   disabled={isDisabled}
+                 activeOpacity={0.7}
                 >
                   <Text style={[
                     styles.optionText,
@@ -157,6 +201,7 @@ export function SettingsScreen() {
                   ]}
                   onPress={() => updateThreshold('moderateThreshold', pct / 100)}
                   disabled={isDisabled}
+                 activeOpacity={0.7}
                 >
                   <Text style={[
                     styles.optionText,
@@ -170,18 +215,101 @@ export function SettingsScreen() {
             })}
           </View>
 
-          <TouchableOpacity style={[styles.exportButton, { marginTop: 16 }]} onPress={resetThresholds}>
+          <TouchableOpacity style={[styles.exportButton, { marginTop: 16 }]} activeOpacity={0.7} onPress={resetThresholds} accessibilityRole="button" accessibilityLabel="Reset thresholds to default values">
             <Text style={styles.exportButtonText}>Reset to Defaults</Text>
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Notifications */}
+      <Text style={styles.sectionTitle}>Notifications</Text>
+      <View style={styles.settingRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.settingLabel}>Morning Reminder</Text>
+          <Text style={styles.sectionDesc}>
+            Daily reminder at {String(notifSettings.morningReminderHour).padStart(2, '0')}:{String(notifSettings.morningReminderMinute).padStart(2, '0')}
+          </Text>
+        </View>
+        <Switch
+          value={notifSettings.morningReminderEnabled}
+          onValueChange={async (enabled) => {
+            if (enabled) {
+              const granted = await requestNotificationPermissions();
+              if (!granted) {
+                Alert.alert('Permissions Required', 'Enable notifications in Settings to use reminders.');
+                return;
+              }
+            }
+            const updated = { ...notifSettings, morningReminderEnabled: enabled };
+            setNotifSettings(updated);
+            await saveNotificationSettings(updated);
+          }}
+          trackColor={{ false: COLORS.surfaceLight, true: COLORS.accent }}
+          thumbColor={COLORS.text}
+        />
+      </View>
+
+      {notifSettings.morningReminderEnabled && (
+        <View style={styles.optionRow}>
+          {[
+            { h: 5, m: 30, label: '5:30' },
+            { h: 6, m: 0, label: '6:00' },
+            { h: 6, m: 30, label: '6:30' },
+            { h: 7, m: 0, label: '7:00' },
+            { h: 7, m: 30, label: '7:30' },
+          ].map(({ h, m, label }) => (
+            <TouchableOpacity
+              key={label}
+              style={[
+                styles.optionButton,
+                notifSettings.morningReminderHour === h && notifSettings.morningReminderMinute === m && styles.optionButtonSelected,
+              ]}
+              onPress={async () => {
+                const updated = { ...notifSettings, morningReminderHour: h, morningReminderMinute: m };
+                setNotifSettings(updated);
+                await saveNotificationSettings(updated);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.optionText,
+                notifSettings.morningReminderHour === h && notifSettings.morningReminderMinute === m && styles.optionTextSelected,
+              ]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      <View style={[styles.settingRow, { marginTop: 12 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.settingLabel}>Streak Protection</Text>
+          <Text style={styles.sectionDesc}>Remind at 10 AM if no reading taken</Text>
+        </View>
+        <Switch
+          value={notifSettings.streakReminderEnabled}
+          onValueChange={async (enabled) => {
+            if (enabled && !notifSettings.morningReminderEnabled) {
+              const granted = await requestNotificationPermissions();
+              if (!granted) return;
+            }
+            const updated = { ...notifSettings, streakReminderEnabled: enabled };
+            setNotifSettings(updated);
+            await saveNotificationSettings(updated);
+            if (!enabled) await cancelAllReminders();
+          }}
+          trackColor={{ false: COLORS.surfaceLight, true: COLORS.accent }}
+          thumbColor={COLORS.text}
+        />
+      </View>
 
       {/* Paired Device */}
       <Text style={styles.sectionTitle}>Paired Device</Text>
       {settings.pairedDeviceName ? (
         <View style={styles.deviceInfo}>
           <Text style={styles.deviceName}>{settings.pairedDeviceName}</Text>
-          <TouchableOpacity onPress={forgetDevice}>
+          <TouchableOpacity activeOpacity={0.7} onPress={forgetDevice} accessibilityRole="button" accessibilityLabel="Forget paired device">
             <Text style={styles.forgetText}>Forget</Text>
           </TouchableOpacity>
         </View>
@@ -189,15 +317,124 @@ export function SettingsScreen() {
         <Text style={styles.noDevice}>No device paired. Connect during your next reading.</Text>
       )}
 
-      {/* Export */}
+      {/* Health Integration */}
+      {healthAvailable && (
+        <>
+          <Text style={styles.sectionTitle}>Health Integration</Text>
+          <View style={styles.settingRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.settingLabel}>
+                {Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'}
+              </Text>
+              <Text style={styles.sectionDesc}>
+                {healthSync.enabled
+                  ? `${healthSync.syncedSessionCount} sessions synced`
+                  : 'Sync HRV data to your health platform'}
+              </Text>
+            </View>
+            <Switch
+              value={healthSync.enabled}
+              onValueChange={async (enabled) => {
+                if (enabled) {
+                  const granted = await requestHealthPermissions();
+                  if (!granted) {
+                    Alert.alert(
+                      'Permission Required',
+                      Platform.OS === 'ios'
+                        ? 'Please grant Health access in Settings > Privacy > Health.'
+                        : 'Please grant Health Connect access when prompted.'
+                    );
+                    return;
+                  }
+                }
+                await setHealthSyncEnabled(enabled);
+                setHealthSync((prev) => ({ ...prev, enabled }));
+
+                if (enabled) {
+                  const sessions = await getAllSessions();
+                  const synced = await syncAllPendingSessions(sessions);
+                  if (synced > 0) {
+                    Alert.alert('Synced', `${synced} sessions synced to Health.`);
+                    const hs = await loadHealthSyncSettings();
+                    setHealthSync(hs);
+                  }
+                }
+              }}
+              trackColor={{ false: COLORS.surfaceLight, true: COLORS.accent }}
+              thumbColor={COLORS.text}
+            />
+          </View>
+        </>
+      )}
+
+      {/* Data */}
       <Text style={styles.sectionTitle}>Data</Text>
       <TouchableOpacity
         style={styles.exportButton}
         onPress={exportCSV}
         accessibilityRole="button"
         accessibilityLabel="Export sessions as CSV"
+        activeOpacity={0.7}
       >
         <Text style={styles.exportButtonText}>Export as CSV</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.exportButton, { marginTop: 8 }]}
+        onPress={() => {
+          Alert.prompt(
+            'Create Backup',
+            'Enter a passphrase to encrypt your backup:',
+            async (passphrase) => {
+              if (!passphrase || passphrase.length < 4) {
+                Alert.alert('Error', 'Passphrase must be at least 4 characters.');
+                return;
+              }
+              try {
+                await createBackup(passphrase);
+              } catch {
+                Alert.alert('Error', 'Failed to create backup.');
+              }
+            },
+            'secure-text'
+          );
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Create encrypted backup"
+        activeOpacity={0.7}
+      >
+        <Text style={styles.exportButtonText}>🔒 Create Backup</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.exportButton, { marginTop: 8 }]}
+        onPress={async () => {
+          try {
+            const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
+            if (result.canceled || !result.assets?.[0]) return;
+            Alert.prompt(
+              'Restore Backup',
+              'Enter the passphrase used when creating this backup:',
+              async (passphrase) => {
+                if (!passphrase) return;
+                try {
+                  const count = await restoreBackup(result.assets[0].uri, passphrase);
+                  Alert.alert('Success', `Restored ${count} new sessions.`);
+                } catch (err) {
+                  Alert.alert('Error', err instanceof Error ? err.message : 'Restore failed.');
+                }
+              },
+              'secure-text'
+            );
+          } catch {
+            Alert.alert('Error', 'Failed to select file.');
+          }
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Restore from backup"
+        activeOpacity={0.7}
+      >
+        <Text style={styles.exportButtonText}>📥 Restore Backup</Text>
       </TouchableOpacity>
 
       {/* About */}
@@ -209,10 +446,12 @@ export function SettingsScreen() {
       <TouchableOpacity
         style={styles.exportButton}
         onPress={() => navigation.navigate('PrivacyPolicy')}
+        activeOpacity={0.7}
       >
         <Text style={styles.exportButtonText}>Privacy Policy</Text>
       </TouchableOpacity>
     </ScrollView>
+    </View>
   );
 }
 
@@ -345,5 +584,19 @@ const styles = StyleSheet.create({
   aboutText: {
     fontSize: 13,
     color: COLORS.textMuted,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
   },
 });
