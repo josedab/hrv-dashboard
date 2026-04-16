@@ -34,13 +34,19 @@ export default function App() {
   }, []);
 
   const handleOnboardingComplete = async () => {
-    const db = await getDatabase();
-    await db.runAsync(
-      'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
-      'onboarding_complete',
-      'true'
-    );
-    setShowOnboarding(false);
+    try {
+      const db = await getDatabase();
+      await db.runAsync(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        'onboarding_complete',
+        'true'
+      );
+      setShowOnboarding(false);
+    } catch (err) {
+      console.error('Failed to save onboarding state:', err);
+      // Still allow the user to proceed even if save fails
+      setShowOnboarding(false);
+    }
   };
 
   if (error) {
