@@ -27,6 +27,10 @@ export async function loadSettings(): Promise<Settings> {
       : DEFAULT_SETTINGS.moderateThreshold,
     pairedDeviceId: stored.pairedDeviceId ?? DEFAULT_SETTINGS.pairedDeviceId,
     pairedDeviceName: stored.pairedDeviceName ?? DEFAULT_SETTINGS.pairedDeviceName,
+    breathingExerciseEnabled:
+      stored.breathingExerciseEnabled !== undefined
+        ? stored.breathingExerciseEnabled === 'true'
+        : DEFAULT_SETTINGS.breathingExerciseEnabled,
   };
 }
 

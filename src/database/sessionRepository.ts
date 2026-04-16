@@ -7,8 +7,8 @@ import { getDatabase } from './database';
 export async function saveSession(session: Session): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO sessions (id, timestamp, duration_seconds, rr_intervals, rmssd, sdnn, mean_hr, pnn50, artifact_rate, verdict, perceived_readiness, training_type, notes, sleep_hours, sleep_quality, stress_level)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sessions (id, timestamp, duration_seconds, rr_intervals, rmssd, sdnn, mean_hr, pnn50, artifact_rate, verdict, perceived_readiness, training_type, notes, sleep_hours, sleep_quality, stress_level, source)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     session.id,
     session.timestamp,
     session.durationSeconds,
@@ -24,8 +24,17 @@ export async function saveSession(session: Session): Promise<void> {
     session.notes,
     session.sleepHours,
     session.sleepQuality,
-    session.stressLevel
+    session.stressLevel,
+    session.source
   );
+}
+
+/**
+ * Deletes a session by id. Idempotent: silent if id is not present.
+ */
+export async function deleteSession(sessionId: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(`DELETE FROM sessions WHERE id = ?`, sessionId);
 }
 
 /**
@@ -114,8 +123,9 @@ export async function getSessionsInRange(startDate: string, endDate: string): Pr
 
 /**
  * Gets daily readings for baseline computation.
- * Returns the first reading of each local calendar day within the window.
- * Uses MIN(timestamp) subquery to guarantee first-of-day selection.
+ * Returns the first chest-strap reading of each local calendar day within the window.
+ * Camera-based PPG sessions are excluded because their accuracy is materially lower
+ * and would bias the baseline.
  */
 export async function getDailyReadings(windowDays: number): Promise<DailyReading[]> {
   const db = await getDatabase();
@@ -135,6 +145,7 @@ export async function getDailyReadings(windowDays: number): Promise<DailyReading
        SELECT date(timestamp, 'localtime') as day, MIN(timestamp) as first_ts
        FROM sessions
        WHERE date(timestamp, 'localtime') >= ?
+         AND source = 'chest_strap'
        GROUP BY date(timestamp, 'localtime')
      ) first ON s.timestamp = first.first_ts
      ORDER BY date_str ASC`,
@@ -204,6 +215,7 @@ interface SessionRow {
   sleep_hours: number | null;
   sleep_quality: number | null;
   stress_level: number | null;
+  source: string | null;
 }
 
 function parseRrIntervals(json: string): number[] {
@@ -234,5 +246,6 @@ function mapRowToSession(row: SessionRow): Session {
     sleepHours: row.sleep_hours ?? null,
     sleepQuality: row.sleep_quality ?? null,
     stressLevel: row.stress_level ?? null,
+    source: row.source === 'camera' ? 'camera' : 'chest_strap',
   };
 }

@@ -16,7 +16,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
-const CURRENT_SCHEMA_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 4;
 
 /**
  * Runs schema migrations: creates `sessions` and `settings` tables,
@@ -83,6 +83,17 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
         created_at TEXT DEFAULT (datetime('now'))
       );
     `);
+  }
+
+  if (currentVersion < 4) {
+    // v4: add session source column (chest_strap | camera) for baseline filtering
+    const columns = await database.getAllAsync<{ name: string }>(`PRAGMA table_info(sessions)`);
+    const columnNames = new Set(columns.map((c) => c.name));
+    if (!columnNames.has('source')) {
+      await database.execAsync(
+        `ALTER TABLE sessions ADD COLUMN source TEXT NOT NULL DEFAULT 'chest_strap'`
+      );
+    }
   }
 
   // Update schema version
