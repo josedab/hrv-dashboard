@@ -6,11 +6,13 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { Sparkline } from '../components/Sparkline';
 import { COLORS, VERDICT_COLORS } from '../constants/colors';
 import { Session } from '../types';
-import { getAllSessions, getRecentSessions } from '../database/sessionRepository';
+import { getSessionsPaginated, getSessionCount, getRecentSessions } from '../database/sessionRepository';
 import { VERDICT_INFO } from '../constants/verdicts';
 import { formatDate } from '../utils/date';
 
 type HistoryNavProp = NativeStackNavigationProp<RootStackParamList>;
+
+const PAGE_SIZE = 30;
 
 export function HistoryScreen() {
   const navigation = useNavigation<HistoryNavProp>();
@@ -18,15 +20,19 @@ export function HistoryScreen() {
   const [chartData, setChartData] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   const loadData = useCallback(async () => {
     try {
-      const [allSessions, recent30] = await Promise.all([
-        getAllSessions(),
+      const [paginated, recent30, totalCount] = await Promise.all([
+        getSessionsPaginated(PAGE_SIZE, 0),
         getRecentSessions(30),
+        getSessionCount(),
       ]);
-      setSessions(allSessions);
+      setSessions(paginated);
       setChartData(recent30.map((s) => s.rmssd));
+      setHasMore(paginated.length < totalCount);
     } catch (error) {
       console.error('Failed to load history:', error);
     } finally {
@@ -45,6 +51,24 @@ export function HistoryScreen() {
     await loadData();
     setRefreshing(false);
   }, [loadData]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = await getSessionsPaginated(PAGE_SIZE, sessions.length);
+      if (nextPage.length === 0) {
+        setHasMore(false);
+      } else {
+        setSessions((prev) => [...prev, ...nextPage]);
+        setHasMore(nextPage.length === PAGE_SIZE);
+      }
+    } catch (error) {
+      console.error('Failed to load more sessions:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, sessions.length]);
 
   const renderSession = useCallback(({ item }: { item: Session }) => {
     const verdictInfo = item.verdict ? VERDICT_INFO[item.verdict] : null;
@@ -88,6 +112,8 @@ export function HistoryScreen() {
         renderItem={renderSession}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />}
         contentContainerStyle={styles.listContent}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
         ListHeaderComponent={
           <View>
             <Text style={styles.title}>History</Text>
@@ -104,6 +130,11 @@ export function HistoryScreen() {
             <Text style={styles.emptyText}>No sessions yet</Text>
             <Text style={styles.emptySubtext}>Complete your first reading to see history</Text>
           </View>
+        }
+        ListFooterComponent={
+          loadingMore ? (
+            <ActivityIndicator size="small" color={COLORS.accent} style={{ paddingVertical: 16 }} />
+          ) : null
         }
       />
     </View>
