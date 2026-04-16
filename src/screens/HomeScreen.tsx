@@ -7,7 +7,9 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -56,6 +58,7 @@ function RecoveryBar({ label, value }: { label: string; value: number }) {
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeNavProp>();
+  const insets = useSafeAreaInsets();
   const [todaySession, setTodaySession] = useState<Session | null>(null);
   const [sparklineData, setSparklineData] = useState<number[]>([]);
   const [baselineMedian, setBaselineMedian] = useState<number | undefined>(undefined);
@@ -64,6 +67,8 @@ export function HomeScreen() {
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showRecoveryInfo, setShowRecoveryInfo] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -140,7 +145,7 @@ export function HomeScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
       }
@@ -173,7 +178,18 @@ export function HomeScreen() {
       {/* Recovery Score */}
       {recoveryScore && (
         <View style={styles.recoveryContainer}>
-          <Text style={styles.sectionLabel}>{STRINGS.recoveryScore}</Text>
+          <View style={styles.recoveryHeader}>
+            <Text style={styles.sectionLabel}>{STRINGS.recoveryScore}</Text>
+            <TouchableOpacity
+              onPress={() => setShowRecoveryInfo(true)}
+              accessibilityRole="button"
+              accessibilityLabel="What is the Recovery Score?"
+              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              activeOpacity={0.6}
+            >
+              <Text style={styles.infoBadge}>ⓘ</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.recoveryRow}>
             <View style={styles.recoveryScoreCircle}>
               <Text style={styles.recoveryScoreValue}>{recoveryScore.score}</Text>
@@ -250,33 +266,49 @@ export function HomeScreen() {
             <Text style={styles.startButtonText}>Start Reading</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.startButton,
-              { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
-            ]}
-            onPress={() => navigation.navigate('Orthostatic')}
+            onPress={() => setShowMoreOptions((s) => !s)}
             accessibilityRole="button"
-            accessibilityLabel="Start orthostatic test"
+            accessibilityLabel={STRINGS.moreWaysToRecord}
+            accessibilityState={{ expanded: showMoreOptions }}
             activeOpacity={0.7}
+            style={styles.moreToggle}
           >
-            <Text style={[styles.startButtonText, { color: COLORS.accent }]}>
-              🧍 Orthostatic Test
+            <Text style={styles.moreToggleText}>
+              {showMoreOptions ? '▾' : '▸'} {STRINGS.moreWaysToRecord}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.startButton,
-              { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
-            ]}
-            onPress={() => navigation.navigate('CameraReading')}
-            accessibilityRole="button"
-            accessibilityLabel="Camera-based reading without chest strap"
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.startButtonText, { color: COLORS.accent }]}>
-              📸 Camera Reading (No Strap)
-            </Text>
-          </TouchableOpacity>
+          {showMoreOptions && (
+            <View style={{ gap: 12 }}>
+              <TouchableOpacity
+                style={[
+                  styles.startButton,
+                  { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
+                ]}
+                onPress={() => navigation.navigate('Orthostatic')}
+                accessibilityRole="button"
+                accessibilityLabel="Start orthostatic test"
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.startButtonText, { color: COLORS.accent }]}>
+                  🧍 Orthostatic Test
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.startButton,
+                  { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
+                ]}
+                onPress={() => navigation.navigate('CameraReading')}
+                accessibilityRole="button"
+                accessibilityLabel="Camera-based reading without chest strap (beta)"
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.startButtonText, { color: COLORS.accent }]}>
+                  📸 Camera Reading · Beta
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 
@@ -302,6 +334,53 @@ export function HomeScreen() {
           </Text>
         </TouchableOpacity>
       )}
+
+      <Modal
+        visible={showRecoveryInfo}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRecoveryInfo(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowRecoveryInfo(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={() => {}}>
+            <Text style={styles.modalTitle}>About the Recovery Score</Text>
+            <Text style={styles.modalBody}>
+              A 0–100 estimate of how prepared your body is for hard training today, blended from
+              four signals:
+            </Text>
+            <Text style={styles.modalBullet}>
+              <Text style={styles.modalBulletKey}>HRV</Text> — today&apos;s rMSSD vs. your 7-day
+              baseline.
+            </Text>
+            <Text style={styles.modalBullet}>
+              <Text style={styles.modalBulletKey}>Sleep</Text> — last night&apos;s self-reported
+              hours and quality.
+            </Text>
+            <Text style={styles.modalBullet}>
+              <Text style={styles.modalBulletKey}>Stress</Text> — your morning stress rating
+              (inverted).
+            </Text>
+            <Text style={styles.modalBullet}>
+              <Text style={styles.modalBulletKey}>Readiness</Text> — your subjective readiness
+              rating.
+            </Text>
+            <Text style={styles.modalFooter}>
+              The score is a rough guide, not medical advice. Trust how you feel.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowRecoveryInfo(false)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.modalButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 }
@@ -313,7 +392,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingTop: 60,
     paddingBottom: 40,
   },
   header: {
@@ -380,11 +458,85 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text,
   },
+  moreToggle: {
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  moreToggleText: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   recoveryContainer: {
     marginTop: 20,
     backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: 16,
+  },
+  recoveryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoBadge: {
+    fontSize: 18,
+    color: COLORS.textMuted,
+    paddingHorizontal: 4,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 12,
+  },
+  modalBody: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  modalBullet: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  modalBulletKey: {
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  modalFooter: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    fontStyle: 'italic',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  modalButton: {
+    backgroundColor: COLORS.accent,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
   recoveryRow: {
     flexDirection: 'row',
