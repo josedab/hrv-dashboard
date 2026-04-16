@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Text, StyleSheet, Animated } from 'react-native';
+import { Text, StyleSheet, Animated, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '../constants/colors';
 
 interface ToastProps {
@@ -8,13 +8,24 @@ interface ToastProps {
   duration?: number;
   type?: 'success' | 'error' | 'info';
   onHide?: () => void;
+  /** Optional action button (e.g. "Undo"). When pressed, fires onAction and dismisses. */
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 /**
  * Animated toast notification that slides down from the top.
- * Auto-hides after the specified duration.
+ * Auto-hides after the specified duration. Optionally renders an action button.
  */
-export function Toast({ message, visible, duration = 2500, type = 'success', onHide }: ToastProps) {
+export function Toast({
+  message,
+  visible,
+  duration = 2500,
+  type = 'success',
+  onHide,
+  actionLabel,
+  onAction,
+}: ToastProps) {
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -52,10 +63,26 @@ export function Toast({ message, visible, duration = 2500, type = 'success', onH
       accessibilityRole="alert"
       accessibilityLiveRegion="assertive"
     >
-      <Text style={styles.text}>
-        {type === 'success' ? '✓ ' : type === 'error' ? '✗ ' : 'ℹ '}
-        {message}
-      </Text>
+      <View style={styles.row}>
+        <Text style={styles.text}>
+          {type === 'success' ? '✓ ' : type === 'error' ? '✗ ' : 'ℹ '}
+          {message}
+        </Text>
+        {actionLabel && onAction && (
+          <TouchableOpacity
+            onPress={() => {
+              onAction();
+              onHide?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={actionLabel}
+            style={styles.actionButton}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.actionText}>{actionLabel}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </Animated.View>
   );
 }
@@ -76,10 +103,28 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   text: {
     color: COLORS.text,
     fontSize: 15,
     fontWeight: '600',
     textAlign: 'center',
+    flexShrink: 1,
+  },
+  actionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  actionText: {
+    color: COLORS.text,
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
