@@ -22,14 +22,16 @@ export interface HealthSyncSettings {
   syncedSessionCount: number;
 }
 
-let _healthModule: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Health SDK types vary by platform and version
+let _healthModule: Record<string, any> | null = null;
 let _moduleChecked = false;
 
 /**
  * Attempts to load the platform-specific health module at runtime.
  * Returns the module if available, null if not installed.
  */
-function getHealthModule(): any {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Return type varies by platform SDK
+function getHealthModule(): Record<string, any> | null {
   if (_moduleChecked) return _healthModule;
   _moduleChecked = true;
 
@@ -76,7 +78,7 @@ export async function requestHealthPermissions(): Promise<boolean> {
           },
         };
 
-        health.initHealthKit(permissions, (err: any) => {
+        health.initHealthKit(permissions, (err: Error | null) => {
           resolve(!err);
         });
       });
@@ -111,16 +113,24 @@ export async function syncSessionToHealth(session: Session): Promise<boolean> {
       // Write SDNN sample (HealthKit uses SDNN for HRV, not rMSSD)
       await new Promise<void>((resolve, reject) => {
         health.saveHeartRateVariabilitySample?.(
-          { value: session.sdnn / 1000, startDate: startDate.toISOString(), endDate: endDate.toISOString() },
-          (err: any) => err ? reject(err) : resolve()
+          {
+            value: session.sdnn / 1000,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+          },
+          (err: Error | null) => (err ? reject(err) : resolve())
         );
       });
 
       // Write heart rate sample
       await new Promise<void>((resolve, reject) => {
         health.saveHeartRateSample?.(
-          { value: session.meanHr, startDate: startDate.toISOString(), endDate: endDate.toISOString() },
-          (err: any) => err ? reject(err) : resolve()
+          {
+            value: session.meanHr,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+          },
+          (err: Error | null) => (err ? reject(err) : resolve())
         );
       });
 
@@ -205,9 +215,7 @@ export async function loadHealthSyncSettings(): Promise<HealthSyncSettings> {
     stored[row.key] = row.value;
   }
 
-  const syncedIds: string[] = stored.health_synced_ids
-    ? JSON.parse(stored.health_synced_ids)
-    : [];
+  const syncedIds: string[] = stored.health_synced_ids ? JSON.parse(stored.health_synced_ids) : [];
 
   return {
     enabled: stored.health_enabled === 'true',
