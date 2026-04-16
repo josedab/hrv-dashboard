@@ -7,12 +7,15 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ReadinessSlider } from '../components/ReadinessSlider';
 import { VerdictDisplay } from '../components/VerdictDisplay';
+import { Toast } from '../components/Toast';
 import { COLORS } from '../constants/colors';
 import { TRAINING_TYPES } from '../constants/defaults';
 import { STRINGS } from '../constants/strings';
@@ -34,11 +37,22 @@ export function LogScreen() {
   const [sleepHours, setSleepHours] = useState<number | null>(null);
   const [sleepQuality, setSleepQuality] = useState<number | null>(null);
   const [stressLevel, setStressLevel] = useState<number | null>(null);
+  const [toastVisible, setToastVisible] = useState(false);
 
   const NOTES_MAX_LENGTH = 500;
 
   useEffect(() => {
-    getSessionById(sessionId).then(setSession);
+    getSessionById(sessionId).then((s) => {
+      if (!s) return;
+      setSession(s);
+      // Pre-populate when editing an existing logged session.
+      setReadiness(s.perceivedReadiness ?? null);
+      setTrainingType(s.trainingType ?? null);
+      setNotes(s.notes ?? '');
+      setSleepHours(s.sleepHours ?? null);
+      setSleepQuality(s.sleepQuality ?? null);
+      setStressLevel(s.stressLevel ?? null);
+    });
   }, [sessionId]);
 
   const handleSave = async () => {
@@ -52,7 +66,9 @@ export function LogScreen() {
         sleepQuality,
         stressLevel
       );
-      navigation.popToTop();
+      setToastVisible(true);
+      // Brief delay so toast is visible before dismissal
+      setTimeout(() => navigation.popToTop(), 700);
     } catch (error) {
       Alert.alert('Error', 'Failed to save log.');
     }
@@ -65,7 +81,15 @@ export function LogScreen() {
   if (!session) return null;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: COLORS.background }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
       <VerdictDisplay verdict={session.verdict} rmssd={session.rmssd} size="small" />
 
       <ReadinessSlider value={readiness} onChange={setReadiness} />
@@ -186,7 +210,14 @@ export function LogScreen() {
       >
         <Text style={styles.skipButtonText}>{STRINGS.skip}</Text>
       </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+      <Toast
+        visible={toastVisible}
+        message={STRINGS.logSaved}
+        duration={1500}
+        onHide={() => setToastVisible(false)}
+      />
+    </KeyboardAvoidingView>
   );
 }
 
