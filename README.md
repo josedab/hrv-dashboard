@@ -173,10 +173,14 @@ All data is stored locally in SQLite. No cloud sync, no user accounts.
 | `perceived_readiness` | INTEGER | Subjective readiness 1–5 (optional) |
 | `training_type` | TEXT | Strength, BJJ, Cycling, Rest, Other (optional) |
 | `notes` | TEXT | Free-text notes (optional) |
+| `sleep_hours` | REAL | Hours of sleep the night before (optional, 0–24) |
+| `sleep_quality` | INTEGER | Subjective sleep quality 1–5 (optional) |
+| `stress_level` | INTEGER | Subjective stress level 1–5 (optional) |
+| `created_at` | TEXT | Auto-set via `datetime('now')` |
 
 ### Settings Table
 
-Key-value store for user preferences: baseline window, verdict thresholds, paired device.
+Key-value store for user preferences: baseline window, verdict thresholds, paired device. Also stores internal state like `schema_version` and `onboarding_complete`.
 
 ## Testing
 

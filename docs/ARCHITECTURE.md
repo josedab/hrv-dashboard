@@ -204,6 +204,9 @@ erDiagram
         INTEGER perceived_readiness "1-5 subjective"
         TEXT training_type "Strength | BJJ | Cycling | Rest | Other"
         TEXT notes "Free-text"
+        REAL sleep_hours "0-24 hours (v2)"
+        INTEGER sleep_quality "1-5 subjective (v2)"
+        INTEGER stress_level "1-5 subjective (v2)"
         TEXT created_at "datetime('now')"
     }
 
@@ -223,6 +226,24 @@ erDiagram
 | `pairedDeviceId` | string | `null` | Remembered BLE device ID |
 | `pairedDeviceName` | string | `null` | Remembered BLE device name |
 | `onboarding_complete` | string | — | `"true"` after onboarding |
+| `schema_version` | string | — | Current DB schema version (currently `"2"`) |
+
+## Database Migrations
+
+The database uses a version-tracked migration system. The current version is stored in the `settings` table under the `schema_version` key.
+
+| Version | Changes |
+|---------|---------|
+| 0 → 1 | Initial schema: `sessions` and `settings` tables, `idx_sessions_timestamp` index |
+| 1 → 2 | Added `sleep_hours` (REAL), `sleep_quality` (INTEGER), `stress_level` (INTEGER) columns to `sessions` |
+
+**How it works:**
+1. On first call to `getDatabase()`, the singleton opens `hrv_readiness.db` and runs `runMigrations()`
+2. Migrations create core tables idempotently (`CREATE TABLE IF NOT EXISTS`)
+3. The current `schema_version` is read from `settings`
+4. Any versioned `ALTER TABLE` migrations for versions above the stored version are applied
+5. Column existence is checked before adding (`PRAGMA table_info`) to avoid errors on re-run
+6. The `schema_version` is updated to `CURRENT_SCHEMA_VERSION`
 
 ## Navigation Structure
 

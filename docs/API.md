@@ -60,10 +60,13 @@ interface Session {
   perceivedReadiness: number | null; // 1–5
   trainingType: string | null;
   notes: string | null;
+  sleepHours: number | null;    // 0–24
+  sleepQuality: number | null;  // 1–5
+  stressLevel: number | null;   // 1–5
 }
 ```
 
-A complete HRV recording session with objective metrics and optional subjective log data.
+A complete HRV recording session with objective metrics and optional subjective log data (perceived readiness, training type, notes, sleep, and stress).
 
 ### `HrvMetrics`
 
@@ -160,6 +163,8 @@ const VERDICT_COLORS: Record<string, string>;
 
 | Constant | Value | Description |
 |----------|-------|-------------|
+| `MIN_RR_INTERVAL_MS` | `300` | Lower bound for physiologically plausible RR (~200 bpm) |
+| `MAX_RR_INTERVAL_MS` | `2500` | Upper bound for physiologically plausible RR (~24 bpm) |
 | `RECORDING_DURATION_SECONDS` | `300` | Full recording length (5 min) |
 | `MIN_RECORDING_SECONDS` | `120` | Earliest early-finish (2 min) |
 | `MIN_BASELINE_DAYS` | `5` | Days required for verdict |
@@ -383,7 +388,7 @@ computeVerdict(42, { median: 40, dayCount: 3, values: [] }); // null (< 5 days)
 #### Types
 
 ```ts
-type BleConnectionState = 'disconnected' | 'scanning' | 'connecting' | 'connected' | 'error';
+type BleConnectionState = 'disconnected' | 'scanning' | 'connecting' | 'connected' | 'reconnecting' | 'error';
 
 interface BleCallbacks {
   onStateChange: (state: BleConnectionState) => void;
@@ -417,6 +422,20 @@ async function connectAndSubscribe(
 ```
 
 Requests MTU of 512. Monitors disconnection events. The returned cleanup function removes the subscription and disconnects.
+
+#### `connectWithRetry(deviceId, callbacks, maxAttempts?)`
+
+Attempts to connect with exponential backoff retry. Retries up to `maxAttempts` times (default 3) on failure, with delays of 1s, 2s, 4s between attempts. Reports `'reconnecting'` state between attempts.
+
+```ts
+async function connectWithRetry(
+  deviceId: string,
+  callbacks: BleCallbacks,
+  maxAttempts?: number  // default: 3
+): Promise<() => void>  // returns cleanup function
+```
+
+**Throws:** The last connection error if all attempts fail.
 
 #### `isBleAvailable()`
 
@@ -457,6 +476,14 @@ interface HeartRateMeasurement {
   energyExpended?: number;    // kJ (optional)
   sensorContact: boolean;     // true if contact confirmed or not supported
 }
+```
+
+#### `isValidRrInterval(rrMs)`
+
+Checks if an RR interval falls within the physiologically plausible range: 300 ms (~200 bpm) to 2500 ms (~24 bpm). Used to filter out implausible values during GATT parsing before they reach the HRV engine.
+
+```ts
+function isValidRrInterval(rrMs: number): boolean
 ```
 
 #### `parseHeartRateMeasurement(data)`
@@ -559,9 +586,10 @@ interface RecordingActions {
 ```
 
 **Behavior:**
-- `startRecording` — Resets state, connects to device, starts 1-second timer
+- `startRecording` — Resets state, connects to device via `connectWithRetry`, starts 1-second timer
 - Auto-stops at `RECORDING_DURATION_SECONDS` (300s)
 - `canFinishEarly` becomes `true` at `MIN_RECORDING_SECONDS` (120s)
+- **Mid-recording reconnect** — If the device disconnects during a recording, the hook automatically calls `connectWithRetry` to re-establish the connection. Previously accumulated RR intervals are preserved. The `connectionState` transitions through `'reconnecting'` during this process.
 - Cleanup on component unmount (stops timer, disconnects BLE)
 
 ---
@@ -609,7 +637,7 @@ Inserts a new session. RR intervals are stored as a JSON string.
 async function saveSession(session: Session): Promise<void>
 ```
 
-#### `updateSessionLog(sessionId, perceivedReadiness, trainingType, notes)`
+#### `updateSessionLog(sessionId, perceivedReadiness, trainingType, notes, sleepHours?, sleepQuality?, stressLevel?)`
 
 Updates only the subjective log fields of an existing session.
 
@@ -618,7 +646,10 @@ async function updateSessionLog(
   sessionId: string,
   perceivedReadiness: number | null,
   trainingType: string | null,
-  notes: string | null
+  notes: string | null,
+  sleepHours?: number | null,      // default: null
+  sleepQuality?: number | null,    // default: null
+  stressLevel?: number | null      // default: null
 ): Promise<void>
 ```
 
@@ -660,6 +691,22 @@ Returns distinct session dates (YYYY-MM-DD) for streak calculation.
 
 ```ts
 async function getSessionDates(): Promise<string[]>
+```
+
+#### `getSessionsPaginated(limit, offset)`
+
+Returns a paginated list of sessions, most recent first. Uses stable sort (`timestamp DESC, id DESC`) to avoid duplicates across pages.
+
+```ts
+async function getSessionsPaginated(limit: number, offset: number): Promise<Session[]>
+```
+
+#### `getSessionCount()`
+
+Returns the total number of sessions in the database.
+
+```ts
+async function getSessionCount(): Promise<number>
 ```
 
 #### `getSessionById(id)`
@@ -707,6 +754,16 @@ Saves multiple settings at once. Skips `undefined` values.
 ```ts
 async function saveSettings(settings: Partial<Settings>): Promise<void>
 ```
+
+#### `validateThresholds(goHard, moderate)`
+
+Validates that verdict threshold settings are logically consistent. Both values must be between 0 and 1, and `moderate` must be strictly less than `goHard`.
+
+```ts
+function validateThresholds(goHard: number, moderate: number): string | null
+```
+
+**Returns:** `null` if valid, or an error message string if invalid.
 
 #### `clearPairedDevice()`
 
@@ -766,6 +823,23 @@ Formats as date and time: `"Wed, Mar 15, 8:30 AM"`.
 function formatDateTime(isoTimestamp: string): string
 ```
 
+#### `localDateString(date)`
+
+Formats a `Date` object as `YYYY-MM-DD` in local time. Uses explicit year/month/day to avoid locale-dependent formatting.
+
+```ts
+function localDateString(date: Date): string
+```
+
+#### `daysAgo(n, from?)`
+
+Returns a date N days before the given date (defaults to today), as `YYYY-MM-DD` in local time. Uses noon to avoid DST boundary issues.
+
+```ts
+function daysAgo(n: number, from?: Date): string
+// daysAgo(7) → '2025-03-08' (if today is 2025-03-15)
+```
+
 #### `calculateStreak(dates)`
 
 Computes the consecutive-day measurement streak ending at today or yesterday.
@@ -805,7 +879,7 @@ Exports an array of sessions to CSV format with proper escaping.
 function sessionsToCSV(sessions: Session[]): string
 ```
 
-**Columns:** `id`, `timestamp`, `duration_seconds`, `rmssd` (2dp), `sdnn` (2dp), `mean_hr` (1dp), `pnn50` (1dp), `artifact_rate` (4dp), `verdict`, `perceived_readiness`, `training_type`, `notes`, `rr_interval_count`
+**Columns:** `id`, `timestamp`, `duration_seconds`, `rmssd` (2dp), `sdnn` (2dp), `mean_hr` (1dp), `pnn50` (1dp), `artifact_rate` (4dp), `verdict`, `perceived_readiness`, `training_type`, `notes`, `rr_interval_count`, `sleep_hours`, `sleep_quality`, `stress_level`
 
 **Escaping:** Fields containing commas, double quotes, or newlines are wrapped in double quotes with internal quotes doubled.
 
@@ -815,11 +889,11 @@ function sessionsToCSV(sessions: Session[]): string
 
 **Module:** `src/utils/crashReporting.ts`
 
-Console-based stub for crash reporting. Designed to be replaced with Sentry in production.
+Crash reporting utility backed by [Sentry](https://sentry.io). Initializes with the `SENTRY_DSN` or `EXPO_PUBLIC_SENTRY_DSN` environment variable. When no DSN is configured, all methods fall back to `console` logging — no crash in production if Sentry is not set up.
 
 #### `initCrashReporting()`
 
-Sets up global error handlers via `ErrorUtils`. Idempotent — safe to call multiple times.
+Sets up Sentry error tracking (or console fallback). Idempotent — safe to call multiple times. Configures `tracesSampleRate: 0.2` and `enableAutoSessionTracking: true` when Sentry DSN is available.
 
 ```ts
 function initCrashReporting(): void
