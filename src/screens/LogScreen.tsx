@@ -22,6 +22,11 @@ export function LogScreen() {
   const [readiness, setReadiness] = useState<number | null>(null);
   const [trainingType, setTrainingType] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+  const [sleepHours, setSleepHours] = useState<number | null>(null);
+  const [sleepQuality, setSleepQuality] = useState<number | null>(null);
+  const [stressLevel, setStressLevel] = useState<number | null>(null);
+
+  const NOTES_MAX_LENGTH = 500;
 
   useEffect(() => {
     getSessionById(sessionId).then(setSession);
@@ -29,7 +34,7 @@ export function LogScreen() {
 
   const handleSave = async () => {
     try {
-      await updateSessionLog(sessionId, readiness, trainingType, notes || null);
+      await updateSessionLog(sessionId, readiness, trainingType, notes || null, sleepHours, sleepQuality, stressLevel);
       navigation.popToTop();
     } catch (error) {
       Alert.alert('Error', 'Failed to save log.');
@@ -71,8 +76,52 @@ export function LogScreen() {
         multiline
         value={notes}
         onChangeText={setNotes}
-        maxLength={500}
+        maxLength={NOTES_MAX_LENGTH}
       />
+      <Text style={styles.charCount}>{notes.length}/{NOTES_MAX_LENGTH}</Text>
+
+      <Text style={styles.label}>Sleep (optional)</Text>
+      <View style={styles.sleepRow}>
+        {[5, 6, 7, 8, 9].map((hrs) => (
+          <TouchableOpacity
+            key={`sleep-${hrs}`}
+            style={[styles.chip, sleepHours === hrs && styles.chipSelected]}
+            onPress={() => setSleepHours(sleepHours === hrs ? null : hrs)}
+          >
+            <Text style={[styles.chipText, sleepHours === hrs && styles.chipTextSelected]}>{hrs}h</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={styles.label}>Sleep Quality</Text>
+      <View style={styles.sleepRow}>
+        {[1, 2, 3, 4, 5].map((q) => (
+          <TouchableOpacity
+            key={`sq-${q}`}
+            style={[styles.chip, sleepQuality === q && styles.chipSelected]}
+            onPress={() => setSleepQuality(sleepQuality === q ? null : q)}
+          >
+            <Text style={[styles.chipText, sleepQuality === q && styles.chipTextSelected]}>
+              {['😴', '😕', '😐', '🙂', '😊'][q - 1]}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={styles.label}>Stress Level</Text>
+      <View style={styles.sleepRow}>
+        {[1, 2, 3, 4, 5].map((s) => (
+          <TouchableOpacity
+            key={`stress-${s}`}
+            style={[styles.chip, stressLevel === s && styles.chipSelected]}
+            onPress={() => setStressLevel(stressLevel === s ? null : s)}
+          >
+            <Text style={[styles.chipText, stressLevel === s && styles.chipTextSelected]}>
+              {['😌', '🙂', '😐', '😰', '🤯'][s - 1]}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
         <Text style={styles.saveButtonText}>Save</Text>
@@ -136,6 +185,17 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  charCount: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  sleepRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   saveButton: {
     backgroundColor: COLORS.accent,
