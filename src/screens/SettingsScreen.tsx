@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, StyleSheet, Share, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, StyleSheet, Share } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS } from '../constants/colors';
 import { Settings, DEFAULT_SETTINGS } from '../types';
-import { loadSettings, saveSetting, clearPairedDevice } from '../database/settingsRepository';
+import { loadSettings, saveSetting, clearPairedDevice, validateThresholds } from '../database/settingsRepository';
 import { getAllSessions } from '../database/sessionRepository';
 import { sessionsToCSV } from '../utils/csv';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -29,6 +29,13 @@ export function SettingsScreen() {
   };
 
   const updateThreshold = async (key: 'goHardThreshold' | 'moderateThreshold', value: number) => {
+    const newGoHard = key === 'goHardThreshold' ? value : settings.goHardThreshold;
+    const newModerate = key === 'moderateThreshold' ? value : settings.moderateThreshold;
+    const error = validateThresholds(newGoHard, newModerate);
+    if (error) {
+      Alert.alert('Invalid Threshold', error);
+      return;
+    }
     await saveSetting(key, String(value));
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
@@ -110,33 +117,57 @@ export function SettingsScreen() {
           <Text style={styles.thresholdLabel}>Go Hard threshold</Text>
           <Text style={styles.sectionDesc}>rMSSD at or above this % of baseline → Go Hard</Text>
           <View style={styles.optionRow}>
-            {[90, 95, 100].map((pct) => (
-              <TouchableOpacity
-                key={`go-${pct}`}
-                style={[styles.optionButton, settings.goHardThreshold === pct / 100 && styles.optionButtonSelected]}
-                onPress={() => updateThreshold('goHardThreshold', pct / 100)}
-              >
-                <Text style={[styles.optionText, settings.goHardThreshold === pct / 100 && styles.optionTextSelected]}>
-                  {pct}%
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {[90, 95, 100].map((pct) => {
+              const isDisabled = pct / 100 <= settings.moderateThreshold;
+              return (
+                <TouchableOpacity
+                  key={`go-${pct}`}
+                  style={[
+                    styles.optionButton,
+                    settings.goHardThreshold === pct / 100 && styles.optionButtonSelected,
+                    isDisabled && styles.optionButtonDisabled,
+                  ]}
+                  onPress={() => updateThreshold('goHardThreshold', pct / 100)}
+                  disabled={isDisabled}
+                >
+                  <Text style={[
+                    styles.optionText,
+                    settings.goHardThreshold === pct / 100 && styles.optionTextSelected,
+                    isDisabled && styles.optionTextDisabled,
+                  ]}>
+                    {pct}%
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           <Text style={[styles.thresholdLabel, { marginTop: 16 }]}>Moderate threshold</Text>
           <Text style={styles.sectionDesc}>rMSSD at or above this % of baseline → Moderate</Text>
           <View style={styles.optionRow}>
-            {[70, 75, 80, 85].map((pct) => (
-              <TouchableOpacity
-                key={`mod-${pct}`}
-                style={[styles.optionButton, settings.moderateThreshold === pct / 100 && styles.optionButtonSelected]}
-                onPress={() => updateThreshold('moderateThreshold', pct / 100)}
-              >
-                <Text style={[styles.optionText, settings.moderateThreshold === pct / 100 && styles.optionTextSelected]}>
-                  {pct}%
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {[70, 75, 80, 85].map((pct) => {
+              const isDisabled = pct / 100 >= settings.goHardThreshold;
+              return (
+                <TouchableOpacity
+                  key={`mod-${pct}`}
+                  style={[
+                    styles.optionButton,
+                    settings.moderateThreshold === pct / 100 && styles.optionButtonSelected,
+                    isDisabled && styles.optionButtonDisabled,
+                  ]}
+                  onPress={() => updateThreshold('moderateThreshold', pct / 100)}
+                  disabled={isDisabled}
+                >
+                  <Text style={[
+                    styles.optionText,
+                    settings.moderateThreshold === pct / 100 && styles.optionTextSelected,
+                    isDisabled && styles.optionTextDisabled,
+                  ]}>
+                    {pct}%
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           <TouchableOpacity style={[styles.exportButton, { marginTop: 16 }]} onPress={resetThresholds}>
@@ -232,6 +263,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent,
     borderColor: COLORS.accent,
   },
+  optionButtonDisabled: {
+    opacity: 0.35,
+  },
   optionText: {
     fontSize: 15,
     fontWeight: '600',
@@ -239,6 +273,9 @@ const styles = StyleSheet.create({
   },
   optionTextSelected: {
     color: COLORS.text,
+  },
+  optionTextDisabled: {
+    color: COLORS.textMuted,
   },
   advancedToggle: {
     marginTop: 20,
