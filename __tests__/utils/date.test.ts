@@ -3,6 +3,8 @@ import {
   formatDuration,
   calculateStreak,
   todayString,
+  localDateString,
+  daysAgo,
   formatDate,
   formatDateTime,
 } from '../../src/utils/date';
@@ -90,11 +92,38 @@ describe('formatDateTime', () => {
   });
 });
 
+describe('localDateString', () => {
+  it('formats a Date as YYYY-MM-DD in local time', () => {
+    const d = new Date(2024, 0, 15, 8, 30); // Jan 15 2024 08:30 local
+    expect(localDateString(d)).toBe('2024-01-15');
+  });
+
+  it('pads single-digit months and days', () => {
+    const d = new Date(2024, 2, 5); // Mar 5
+    expect(localDateString(d)).toBe('2024-03-05');
+  });
+});
+
+describe('daysAgo', () => {
+  it('returns today for n=0', () => {
+    expect(daysAgo(0)).toBe(todayString());
+  });
+
+  it('returns correct date for n=1', () => {
+    const expected = new Date();
+    expected.setDate(expected.getDate() - 1);
+    expect(daysAgo(1)).toBe(localDateString(expected));
+  });
+
+  it('handles month boundaries', () => {
+    const from = new Date(2024, 2, 1, 12); // Mar 1
+    expect(daysAgo(1, from)).toBe('2024-02-29'); // 2024 is leap year
+  });
+});
+
 describe('calculateStreak', () => {
   function daysAgoStr(n: number): string {
-    const d = new Date();
-    d.setDate(d.getDate() - n);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return daysAgo(n);
   }
 
   it('returns 0 for empty array', () => {

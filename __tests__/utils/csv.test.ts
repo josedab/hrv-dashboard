@@ -16,6 +16,9 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     perceivedReadiness: 4,
     trainingType: 'Strength',
     notes: 'Felt great',
+    sleepHours: null,
+    sleepQuality: null,
+    stressLevel: null,
     ...overrides,
   };
 }
@@ -25,7 +28,7 @@ describe('sessionsToCSV', () => {
     const csv = sessionsToCSV([]);
     const headers = csv.split('\n')[0];
     expect(headers).toBe(
-      'id,timestamp,duration_seconds,rmssd,sdnn,mean_hr,pnn50,artifact_rate,verdict,perceived_readiness,training_type,notes,rr_interval_count'
+      'id,timestamp,duration_seconds,rmssd,sdnn,mean_hr,pnn50,artifact_rate,verdict,perceived_readiness,training_type,notes,rr_interval_count,sleep_hours,sleep_quality,stress_level'
     );
   });
 
@@ -138,11 +141,22 @@ describe('sessionsToCSV', () => {
     expect(fields[7]).toBe('0.0512');
   });
 
-  it('outputs rr_interval_count as last field', () => {
+  it('outputs rr_interval_count field', () => {
     const session = makeSession({ rrIntervals: [800, 810, 790, 800, 815] });
     const csv = sessionsToCSV([session]);
     const lines = csv.split('\n');
     const fields = lines[1].split(',');
-    expect(fields[fields.length - 1]).toBe('5');
+    // rr_interval_count is at index 12 (0-based)
+    expect(fields[12]).toBe('5');
+  });
+
+  it('outputs sleep and stress fields', () => {
+    const session = makeSession({ sleepHours: 7, sleepQuality: 4, stressLevel: 2 });
+    const csv = sessionsToCSV([session]);
+    const lines = csv.split('\n');
+    const fields = lines[1].split(',');
+    expect(fields[13]).toBe('7');
+    expect(fields[14]).toBe('4');
+    expect(fields[15]).toBe('2');
   });
 });
