@@ -16,9 +16,12 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
+const CURRENT_SCHEMA_VERSION = 2;
+
 /**
  * Runs schema migrations: creates `sessions` and `settings` tables,
- * enables WAL journal mode, and creates timestamp index.
+ * enables WAL journal mode, creates timestamp index, and manages
+ * schema versioning for future upgrades.
  */
 async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   await database.execAsync(`
@@ -49,6 +52,34 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
 
     CREATE INDEX IF NOT EXISTS idx_sessions_timestamp ON sessions(timestamp);
   `);
+
+  // Run versioned migrations
+  const versionRow = await database.getFirstAsync<{ value: string }>(
+    `SELECT value FROM settings WHERE key = 'schema_version'`
+  );
+  const currentVersion = versionRow ? parseInt(versionRow.value, 10) : 0;
+
+  if (currentVersion < 2) {
+    // v2: add sleep/stress/context fields for expanded logging
+    const columns = await database.getAllAsync<{ name: string }>(
+      `PRAGMA table_info(sessions)`
+    );
+    const columnNames = new Set(columns.map((c) => c.name));
+
+    if (!columnNames.has('sleep_hours')) {
+      await database.execAsync(`
+        ALTER TABLE sessions ADD COLUMN sleep_hours REAL;
+        ALTER TABLE sessions ADD COLUMN sleep_quality INTEGER;
+        ALTER TABLE sessions ADD COLUMN stress_level INTEGER;
+      `);
+    }
+  }
+
+  // Update schema version
+  await database.runAsync(
+    `INSERT OR REPLACE INTO settings (key, value) VALUES ('schema_version', ?)`,
+    String(CURRENT_SCHEMA_VERSION)
+  );
 }
 
 /**
