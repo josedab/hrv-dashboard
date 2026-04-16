@@ -11,10 +11,12 @@ import { computeHrvMetrics } from '../hrv/metrics';
 import { computeBaseline } from '../hrv/baseline';
 import { computeVerdict } from '../hrv/verdict';
 import { saveSession } from '../database/sessionRepository';
+import type { Session } from '../types';
 import { getDailyReadings } from '../database/sessionRepository';
 import { loadSettings } from '../database/settingsRepository';
 import { generateId } from '../utils/uuid';
 import { refreshWidget } from '../utils/widgetData';
+import { STRINGS } from '../constants/strings';
 
 const CAMERA_DURATION_SECONDS = 60;
 const CAPTURE_FPS = 30;
@@ -162,7 +164,7 @@ export function CameraReadingScreen() {
       const baseline = computeBaseline(dailyReadings, settings.baselineWindowDays);
       const verdict = computeVerdict(metrics.rmssd, baseline, settings);
 
-      const session = {
+      const session: Session = {
         id: generateId(),
         timestamp: new Date().toISOString(),
         durationSeconds: CAMERA_DURATION_SECONDS,
@@ -179,6 +181,7 @@ export function CameraReadingScreen() {
         sleepHours: null,
         sleepQuality: null,
         stressLevel: null,
+        source: 'camera',
       };
 
       await saveSession(session);
@@ -215,10 +218,8 @@ export function CameraReadingScreen() {
           </Text>
         </View>
         <View style={styles.accuracyBanner}>
-          <Text style={styles.accuracyText}>
-            ⚠️ Camera PPG is less accurate than a chest strap. Best for days when your HR monitor
-            isn't available.
-          </Text>
+          <Text style={styles.accuracyTitle}>{STRINGS.cameraBeta}</Text>
+          <Text style={styles.accuracyText}>{STRINGS.cameraBetaDesc}</Text>
         </View>
         <TouchableOpacity
           style={styles.startButton}
@@ -303,11 +304,20 @@ const styles = StyleSheet.create({
   accuracyBanner: {
     backgroundColor: 'rgba(245, 158, 11, 0.15)',
     borderRadius: 8,
-    padding: 12,
+    padding: 14,
     marginBottom: 24,
     alignSelf: 'stretch',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
   },
-  accuracyText: { fontSize: 13, color: COLORS.warning, textAlign: 'center' },
+  accuracyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.warning,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  accuracyText: { fontSize: 13, color: COLORS.warning, textAlign: 'center', lineHeight: 18 },
   startButton: {
     backgroundColor: COLORS.accent,
     borderRadius: 16,
