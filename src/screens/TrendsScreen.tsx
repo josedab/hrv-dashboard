@@ -1,6 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS } from '../constants/colors';
 import { VERDICT_COLORS } from '../constants/colors';
 import { STRINGS } from '../constants/strings';
@@ -16,6 +19,8 @@ import {
 } from '../hrv/analytics';
 
 export function TrendsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   const [sparklineData, setSparklineData] = useState<number[]>([]);
   const [sleepCorrelation, setSleepCorrelation] = useState<CorrelationResult | null>(null);
@@ -64,6 +69,15 @@ export function TrendsScreen() {
         <Text style={styles.emptyEmoji}>📈</Text>
         <Text style={styles.emptyText}>{STRINGS.notEnoughData}</Text>
         <Text style={styles.emptyHint}>{STRINGS.notEnoughDataHint}</Text>
+        <TouchableOpacity
+          style={styles.emptyCta}
+          onPress={() => navigation.navigate('Reading')}
+          accessibilityRole="button"
+          accessibilityLabel={STRINGS.takeReading}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.emptyCtaText}>❤️ {STRINGS.takeReading}</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -82,7 +96,7 @@ export function TrendsScreen() {
         : COLORS.textSecondary;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}>
       <Text style={styles.title}>{STRINGS.trends}</Text>
 
       {/* Trend Direction */}
@@ -165,24 +179,24 @@ export function TrendsScreen() {
           {sleepCorrelation && (
             <View style={styles.correlationCard}>
               <Text style={styles.correlationTitle}>😴 {sleepCorrelation.factor} ↔ HRV</Text>
-              <Text style={styles.correlationValue}>
-                r = {sleepCorrelation.correlation.toFixed(2)} ({sleepCorrelation.sampleSize}{' '}
-                sessions)
-              </Text>
               <Text style={styles.correlationInterpretation}>
                 {sleepCorrelation.interpretation}
+              </Text>
+              <Text style={styles.correlationValue}>
+                r = {sleepCorrelation.correlation.toFixed(2)} · {sleepCorrelation.sampleSize}{' '}
+                sessions
               </Text>
             </View>
           )}
           {stressCorrelation && (
             <View style={styles.correlationCard}>
               <Text style={styles.correlationTitle}>😰 {stressCorrelation.factor} ↔ HRV</Text>
-              <Text style={styles.correlationValue}>
-                r = {stressCorrelation.correlation.toFixed(2)} ({stressCorrelation.sampleSize}{' '}
-                sessions)
-              </Text>
               <Text style={styles.correlationInterpretation}>
                 {stressCorrelation.interpretation}
+              </Text>
+              <Text style={styles.correlationValue}>
+                r = {stressCorrelation.correlation.toFixed(2)} · {stressCorrelation.sampleSize}{' '}
+                sessions
               </Text>
             </View>
           )}
@@ -194,7 +208,7 @@ export function TrendsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: 40 },
   center: {
     flex: 1,
     justifyContent: 'center',
@@ -204,7 +218,19 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '700', color: COLORS.text, marginBottom: 20 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyText: { fontSize: 18, color: COLORS.textSecondary, fontWeight: '600' },
-  emptyHint: { fontSize: 14, color: COLORS.textMuted, marginTop: 4 },
+  emptyHint: { fontSize: 14, color: COLORS.textMuted, marginTop: 4, textAlign: 'center' },
+  emptyCta: {
+    marginTop: 24,
+    backgroundColor: COLORS.accent,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+  },
+  emptyCtaText: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
   trendBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -256,11 +282,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   correlationTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text },
-  correlationValue: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },
+  correlationValue: { fontSize: 12, color: COLORS.textMuted, marginTop: 8 },
   correlationInterpretation: {
     fontSize: 14,
-    color: COLORS.textMuted,
-    marginTop: 2,
+    color: COLORS.textSecondary,
+    marginTop: 6,
+    lineHeight: 20,
     fontStyle: 'italic',
   },
 });
