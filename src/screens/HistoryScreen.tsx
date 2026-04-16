@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,14 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Sparkline } from '../components/Sparkline';
 import { COLORS, VERDICT_COLORS } from '../constants/colors';
 import { STRINGS } from '../constants/strings';
-import { Session } from '../types';
+import { Session, VerdictType } from '../types';
 import {
   getSessionsPaginated,
   getSessionCount,
@@ -27,14 +28,30 @@ type HistoryNavProp = NativeStackNavigationProp<RootStackParamList>;
 
 const PAGE_SIZE = 30;
 
+type VerdictFilter = 'all' | VerdictType;
+
+const FILTER_OPTIONS: { id: VerdictFilter; label: string; emoji: string }[] = [
+  { id: 'all', label: STRINGS.filterAll, emoji: '◍' },
+  { id: 'go_hard', label: STRINGS.filterGoHard, emoji: '🟢' },
+  { id: 'moderate', label: STRINGS.filterModerate, emoji: '🟡' },
+  { id: 'rest', label: STRINGS.filterRest, emoji: '🔴' },
+];
+
 export function HistoryScreen() {
   const navigation = useNavigation<HistoryNavProp>();
+  const insets = useSafeAreaInsets();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [chartData, setChartData] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [filter, setFilter] = useState<VerdictFilter>('all');
+
+  const filteredSessions = useMemo(() => {
+    if (filter === 'all') return sessions;
+    return sessions.filter((s) => s.verdict === filter);
+  }, [sessions, filter]);
 
   const loadData = useCallback(async () => {
     try {
@@ -134,13 +151,13 @@ export function HistoryScreen() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={sessions}
+        data={filteredSessions}
         keyExtractor={(item) => item.id}
         renderItem={renderSession}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
         }
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 12 }]}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListHeaderComponent={
@@ -152,13 +169,55 @@ export function HistoryScreen() {
                 <Sparkline data={chartData} width={340} height={100} />
               </View>
             )}
+            {sessions.length > 0 && (
+              <View
+                style={styles.filterRow}
+                accessibilityRole="tablist"
+                accessibilityLabel={STRINGS.filterByVerdict}
+              >
+                {FILTER_OPTIONS.map((opt) => {
+                  const active = filter === opt.id;
+                  return (
+                    <TouchableOpacity
+                      key={opt.id}
+                      onPress={() => setFilter(opt.id)}
+                      style={[styles.chip, active && styles.chipActive]}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={`${opt.label} filter`}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {opt.emoji} {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>{STRINGS.noSessionsYet}</Text>
-            <Text style={styles.emptySubtext}>{STRINGS.noSessionsHint}</Text>
-          </View>
+          sessions.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>{STRINGS.noSessionsYet}</Text>
+              <Text style={styles.emptySubtext}>{STRINGS.noSessionsHint}</Text>
+              <TouchableOpacity
+                style={styles.emptyCta}
+                onPress={() => navigation.navigate('Reading')}
+                accessibilityRole="button"
+                accessibilityLabel="Take your first reading"
+                activeOpacity={0.8}
+              >
+                <Text style={styles.emptyCtaText}>❤️ {STRINGS.startReading}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No sessions match this filter</Text>
+              <Text style={styles.emptySubtext}>Try a different verdict.</Text>
+            </View>
+          )
         }
         ListFooterComponent={
           loadingMore ? (
@@ -177,7 +236,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 20,
-    paddingTop: 60,
     paddingBottom: 40,
   },
   title: {
@@ -253,5 +311,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textMuted,
     marginTop: 4,
+  },
+  emptyCta: {
+    marginTop: 24,
+    backgroundColor: COLORS.accent,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+  },
+  emptyCtaText: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+    flexWrap: 'wrap',
+  },
+  chip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  chipActive: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+  },
+  chipText: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  chipTextActive: {
+    color: COLORS.text,
   },
 });
