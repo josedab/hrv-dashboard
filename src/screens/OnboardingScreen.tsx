@@ -9,6 +9,7 @@ import {
   ViewToken,
 } from 'react-native';
 import { COLORS } from '../constants/colors';
+import { STRINGS } from '../constants/strings';
 
 const { width } = Dimensions.get('window');
 
@@ -19,29 +20,12 @@ interface OnboardingSlide {
   description: string;
 }
 
-const SLIDES: OnboardingSlide[] = [
-  {
-    id: '1',
-    emoji: '❤️',
-    title: 'Morning Readiness\nin 5 Minutes',
-    description:
-      'Connect your Polar H10 chest strap each morning and get a clear, science-backed readiness verdict for your training day.',
-  },
-  {
-    id: '2',
-    emoji: '📊',
-    title: 'How It Works',
-    description:
-      "The app records your heart's RR intervals for 5 minutes, computes HRV metrics (rMSSD), and compares against your personal baseline to determine readiness.",
-  },
-  {
-    id: '3',
-    emoji: '🟢',
-    title: 'Three Simple Verdicts',
-    description:
-      'Go Hard — train at full intensity\nModerate — train, but skip max effort\nRest or Easy — prioritize recovery\n\nNo interpretation needed. Just follow the verdict.',
-  },
-];
+const SLIDES: OnboardingSlide[] = STRINGS.onboardingSlides.map((slide, idx) => ({
+  id: String(idx + 1),
+  emoji: slide.emoji,
+  title: slide.title,
+  description: slide.description,
+}));
 
 interface OnboardingScreenProps {
   onComplete: () => void;
