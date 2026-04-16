@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Device } from 'react-native-ble-plx';
@@ -30,6 +30,8 @@ export function ReadingScreen() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [recording, actions] = useBleRecording();
   const [stopScan, setStopScan] = useState<(() => void) | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [scanTimedOut, setScanTimedOut] = useState(false);
 
   // Start scanning on mount
   useEffect(() => {
@@ -54,6 +56,10 @@ export function ReadingScreen() {
         });
         if (!cancelled) {
           setStopScan(() => stop);
+          // Show timeout message after scan completes
+          setTimeout(() => {
+            if (!cancelled) setScanTimedOut(true);
+          }, 15000);
         }
       } catch (error) {
         console.error('Scan error:', error);
@@ -63,11 +69,30 @@ export function ReadingScreen() {
     return () => { cancelled = true; };
   }, []);
 
+  const restartScan = useCallback(async () => {
+    setDevices([]);
+    setScanTimedOut(false);
+    try {
+      const stop = await scanForDevices((device) => {
+        setDevices((prev) => {
+          if (prev.find((d) => d.id === device.id)) return prev;
+          return [...prev, device];
+        });
+      });
+      setStopScan(() => stop);
+      setTimeout(() => setScanTimedOut(true), 15000);
+    } catch (error) {
+      console.error('Rescan error:', error);
+    }
+  }, []);
+
   const selectDevice = useCallback(async (device: Device) => {
+    if (connecting) return;
+    setConnecting(true);
     stopScan?.();
     setPhase('recording');
     await actions.startRecording(device.id);
-  }, [stopScan, actions]);
+  }, [stopScan, actions, connecting]);
 
   // Auto-transition to complete when recording stops with data
   useEffect(() => {
@@ -109,6 +134,9 @@ export function ReadingScreen() {
         perceivedReadiness: null,
         trainingType: null,
         notes: null,
+        sleepHours: null,
+        sleepQuality: null,
+        stressLevel: null,
       };
 
       await saveSession(session);
@@ -137,8 +165,21 @@ export function ReadingScreen() {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Connect to Sensor</Text>
-        <Text style={styles.subtitle}>Scanning for heart rate monitors...</Text>
-        <ActivityIndicator size="large" color={COLORS.accent} style={{ marginVertical: 20 }} />
+        {!scanTimedOut || devices.length > 0 ? (
+          <>
+            <Text style={styles.subtitle}>Scanning for heart rate monitors...</Text>
+            <ActivityIndicator size="large" color={COLORS.accent} style={{ marginVertical: 20 }} />
+          </>
+        ) : (
+          <View style={styles.timeoutContainer}>
+            <Text style={styles.timeoutEmoji}>📡</Text>
+            <Text style={styles.timeoutText}>No devices found</Text>
+            <Text style={styles.timeoutHint}>Make sure your heart rate monitor is on and nearby</Text>
+            <TouchableOpacity style={styles.rescanButton} onPress={restartScan}>
+              <Text style={styles.rescanButtonText}>Scan Again</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {polarDevices.length > 0 && (
           <View>
@@ -195,6 +236,7 @@ export function ReadingScreen() {
         <Text style={styles.connectionStatus}>
           {recording.connectionState === 'connected' ? '🟢 Connected' :
            recording.connectionState === 'connecting' ? '🟡 Connecting...' :
+           recording.connectionState === 'reconnecting' ? '🟠 Reconnecting...' :
            recording.connectionState === 'error' ? '🔴 Error' : '⚪ Disconnected'}
         </Text>
 
@@ -334,6 +376,38 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   finishButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  timeoutContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  timeoutEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  timeoutText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  timeoutHint: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 16,
+  },
+  rescanButton: {
+    backgroundColor: COLORS.accent,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+  },
+  rescanButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
