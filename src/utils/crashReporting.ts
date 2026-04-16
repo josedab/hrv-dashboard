@@ -1,12 +1,10 @@
 /**
- * Crash reporting utility.
- * 
- * Currently logs to console. Replace with Sentry or similar
- * when setting up production monitoring:
- * 
- * npm install @sentry/react-native
- * Sentry.init({ dsn: 'YOUR_DSN' });
+ * Crash reporting utility backed by Sentry.
+ *
+ * Configure via SENTRY_DSN environment variable or Expo config.
+ * When no DSN is set, falls back to console logging.
  */
+import * as Sentry from '@sentry/react-native';
 
 let initialized = false;
 
@@ -14,22 +12,17 @@ export function initCrashReporting(): void {
   if (initialized) return;
   initialized = true;
 
-  // Set up global error handlers
-  const defaultHandler = ErrorUtils.getGlobalHandler();
-  ErrorUtils.setGlobalHandler((error, isFatal) => {
-    reportError(error, { isFatal });
-    defaultHandler(error, isFatal);
-  });
+  const dsn = process.env.SENTRY_DSN ?? process.env.EXPO_PUBLIC_SENTRY_DSN;
 
-  // Unhandled promise rejections
-  const originalRejectionTracking = (globalThis as any).__promiseRejectionTrackingOptions;
-  if (!originalRejectionTracking) {
-    // React Native tracks these by default, but we add our hook
-    const { polyfillGlobal } = require('react-native/Libraries/Utilities/PolyfillFunctions');
-    // Promise rejections are already tracked by RN's LogBox
+  if (dsn) {
+    Sentry.init({
+      dsn,
+      tracesSampleRate: 0.2,
+      enableAutoSessionTracking: true,
+    });
+  } else {
+    console.log('[CrashReporting] No SENTRY_DSN configured — using console fallback');
   }
-
-  console.log('[CrashReporting] Initialized (console mode)');
 }
 
 export function reportError(
@@ -38,16 +31,21 @@ export function reportError(
 ): void {
   const errorObj = typeof error === 'string' ? new Error(error) : error;
 
-  // TODO: Replace with Sentry.captureException(errorObj, { extra: context })
-  console.error('[CrashReporting]', errorObj.message, context ?? '');
+  if (Sentry.isInitialized()) {
+    Sentry.captureException(errorObj, { extra: context });
+  } else {
+    console.error('[CrashReporting]', errorObj.message, context ?? '');
+  }
 }
 
 export function setUserContext(userId: string): void {
-  // TODO: Replace with Sentry.setUser({ id: userId })
-  console.log('[CrashReporting] User context set:', userId);
+  if (Sentry.isInitialized()) {
+    Sentry.setUser({ id: userId });
+  }
 }
 
 export function addBreadcrumb(message: string, data?: Record<string, unknown>): void {
-  // TODO: Replace with Sentry.addBreadcrumb({ message, data })
-  console.log('[CrashReporting] Breadcrumb:', message, data ?? '');
+  if (Sentry.isInitialized()) {
+    Sentry.addBreadcrumb({ message, data });
+  }
 }
