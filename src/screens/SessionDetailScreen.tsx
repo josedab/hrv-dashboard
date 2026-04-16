@@ -61,7 +61,7 @@ export function SessionDetailScreen() {
         <StatCard label="RR Intervals" value={`${session.rrIntervals.length}`} />
       </View>
 
-      {(session.perceivedReadiness || session.trainingType || session.notes) && (
+      {(session.perceivedReadiness || session.trainingType || session.notes || session.sleepHours || session.stressLevel) && (
         <>
           <Text style={styles.sectionTitle}>Subjective Log</Text>
           {session.perceivedReadiness && (
@@ -74,6 +74,20 @@ export function SessionDetailScreen() {
             <View style={styles.logItem}>
               <Text style={styles.logLabel}>Training Type</Text>
               <Text style={styles.logValue}>{session.trainingType}</Text>
+            </View>
+          )}
+          {session.sleepHours !== null && (
+            <View style={styles.logItem}>
+              <Text style={styles.logLabel}>Sleep</Text>
+              <Text style={styles.logValue}>
+                {session.sleepHours}h{session.sleepQuality ? ` · Quality: ${session.sleepQuality}/5` : ''}
+              </Text>
+            </View>
+          )}
+          {session.stressLevel !== null && (
+            <View style={styles.logItem}>
+              <Text style={styles.logLabel}>Stress Level</Text>
+              <Text style={styles.logValue}>{session.stressLevel}/5</Text>
             </View>
           )}
           {session.notes && (
