@@ -42,11 +42,21 @@ import {
   HealthSyncSettings,
 } from '../utils/healthSync';
 import * as DocumentPicker from 'expo-document-picker';
+import Constants from 'expo-constants';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { STRINGS } from '../constants/strings';
+import { PassphraseModal } from '../components/PassphraseModal';
 
 const BASELINE_WINDOW_OPTIONS = [5, 7, 10, 14];
+const APP_VERSION =
+  (Constants.expoConfig?.version as string | undefined) ??
+  // @ts-expect-error legacy manifest path on classic builds
+  (Constants.manifest?.version as string | undefined) ??
+  '1.0.0';
 
 export function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>(
     DEFAULT_NOTIFICATION_SETTINGS
@@ -63,6 +73,11 @@ export function SettingsScreen() {
     message: '',
     type: 'success' as 'success' | 'error',
   });
+  const [passphraseModal, setPassphraseModal] = useState<{
+    visible: boolean;
+    mode: 'create' | 'restore';
+    fileUri?: string;
+  }>({ visible: false, mode: 'create' });
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ visible: true, message, type });
@@ -89,6 +104,7 @@ export function SettingsScreen() {
   const updateBaselineWindow = async (days: number) => {
     await saveSetting('baselineWindowDays', String(days));
     setSettings((prev) => ({ ...prev, baselineWindowDays: days }));
+    showToast(STRINGS.settingsUpdated);
   };
 
   const updateThreshold = async (key: 'goHardThreshold' | 'moderateThreshold', value: number) => {
@@ -101,6 +117,7 @@ export function SettingsScreen() {
     }
     await saveSetting(key, String(value));
     setSettings((prev) => ({ ...prev, [key]: value }));
+    showToast(STRINGS.settingsUpdated);
   };
 
   const resetThresholds = async () => {
@@ -111,6 +128,7 @@ export function SettingsScreen() {
       goHardThreshold: DEFAULT_SETTINGS.goHardThreshold,
       moderateThreshold: DEFAULT_SETTINGS.moderateThreshold,
     }));
+    showToast(STRINGS.settingsUpdated);
   };
 
   const forgetDevice = async () => {
@@ -153,7 +171,7 @@ export function SettingsScreen() {
         type={toast.type}
         onHide={() => setToast((prev) => ({ ...prev, visible: false }))}
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Settings</Text>
 
         {/* Baseline Window */}
@@ -278,6 +296,25 @@ export function SettingsScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Recording */}
+        <Text style={styles.sectionTitle}>{STRINGS.recording}</Text>
+        <View style={styles.settingRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.settingLabel}>{STRINGS.breathingExercise}</Text>
+            <Text style={styles.sectionDesc}>{STRINGS.breathingExerciseDesc}</Text>
+          </View>
+          <Switch
+            value={settings.breathingExerciseEnabled}
+            onValueChange={async (enabled) => {
+              setSettings((prev) => ({ ...prev, breathingExerciseEnabled: enabled }));
+              await saveSetting('breathingExerciseEnabled', enabled ? 'true' : 'false');
+            }}
+            trackColor={{ false: COLORS.surfaceLight, true: COLORS.accent }}
+            thumbColor={COLORS.text}
+            accessibilityLabel={STRINGS.breathingExercise}
+          />
+        </View>
 
         {/* Notifications */}
         <Text style={styles.sectionTitle}>Notifications</Text>
@@ -458,24 +495,7 @@ export function SettingsScreen() {
 
         <TouchableOpacity
           style={[styles.exportButton, { marginTop: 8 }]}
-          onPress={() => {
-            Alert.prompt(
-              'Create Backup',
-              'Enter a passphrase to encrypt your backup:',
-              async (passphrase) => {
-                if (!passphrase || passphrase.length < 4) {
-                  Alert.alert('Error', 'Passphrase must be at least 4 characters.');
-                  return;
-                }
-                try {
-                  await createBackup(passphrase);
-                } catch {
-                  Alert.alert('Error', 'Failed to create backup.');
-                }
-              },
-              'secure-text'
-            );
-          }}
+          onPress={() => setPassphraseModal({ visible: true, mode: 'create' })}
           accessibilityRole="button"
           accessibilityLabel="Create encrypted backup"
           activeOpacity={0.7}
@@ -489,20 +509,11 @@ export function SettingsScreen() {
             try {
               const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
               if (result.canceled || !result.assets?.[0]) return;
-              Alert.prompt(
-                'Restore Backup',
-                'Enter the passphrase used when creating this backup:',
-                async (passphrase) => {
-                  if (!passphrase) return;
-                  try {
-                    const count = await restoreBackup(result.assets[0].uri, passphrase);
-                    Alert.alert('Success', `Restored ${count} new sessions.`);
-                  } catch (err) {
-                    Alert.alert('Error', err instanceof Error ? err.message : 'Restore failed.');
-                  }
-                },
-                'secure-text'
-              );
+              setPassphraseModal({
+                visible: true,
+                mode: 'restore',
+                fileUri: result.assets[0].uri,
+              });
             } catch {
               Alert.alert('Error', 'Failed to select file.');
             }
@@ -516,7 +527,7 @@ export function SettingsScreen() {
 
         {/* About */}
         <View style={styles.about}>
-          <Text style={styles.aboutText}>HRV Readiness Dashboard v1.0.0</Text>
+          <Text style={styles.aboutText}>HRV Readiness Dashboard v{APP_VERSION}</Text>
           <Text style={styles.aboutText}>Uses Polar H10 via Heart Rate Service</Text>
         </View>
 
@@ -528,6 +539,41 @@ export function SettingsScreen() {
           <Text style={styles.exportButtonText}>Privacy Policy</Text>
         </TouchableOpacity>
       </ScrollView>
+      <PassphraseModal
+        visible={passphraseModal.visible}
+        title={
+          passphraseModal.mode === 'create'
+            ? STRINGS.passphraseCreate
+            : STRINGS.passphraseRestore
+        }
+        message={
+          passphraseModal.mode === 'create'
+            ? STRINGS.passphraseCreateMessage
+            : STRINGS.passphraseRestoreMessage
+        }
+        confirmLabel={passphraseModal.mode === 'create' ? 'Create' : 'Restore'}
+        minLength={passphraseModal.mode === 'create' ? 4 : 1}
+        onCancel={() => setPassphraseModal({ visible: false, mode: 'create' })}
+        onConfirm={async (passphrase) => {
+          const mode = passphraseModal.mode;
+          const fileUri = passphraseModal.fileUri;
+          setPassphraseModal({ visible: false, mode: 'create' });
+          try {
+            if (mode === 'create') {
+              await createBackup(passphrase);
+              showToast(STRINGS.backupCreated);
+            } else if (fileUri) {
+              const count = await restoreBackup(fileUri, passphrase);
+              showToast(STRINGS.backupRestored.replace('{count}', String(count)));
+            }
+          } catch (err) {
+            showToast(
+              err instanceof Error ? err.message : 'Operation failed.',
+              'error'
+            );
+          }
+        }}
+      />
     </View>
   );
 }
@@ -539,7 +585,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingTop: 60,
     paddingBottom: 40,
   },
   title: {
