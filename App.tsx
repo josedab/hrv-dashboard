@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
@@ -51,33 +52,41 @@ export default function App() {
 
   if (error) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>⚠️ {error}</Text>
-        <StatusBar style="light" />
-      </View>
+      <SafeAreaProvider>
+        <View style={styles.center}>
+          <Text style={styles.errorText}>⚠️ {error}</Text>
+          <StatusBar style="light" />
+        </View>
+      </SafeAreaProvider>
     );
   }
 
   if (!ready) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
-        <StatusBar style="light" />
-      </View>
+      <SafeAreaProvider>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+          <StatusBar style="light" />
+        </View>
+      </SafeAreaProvider>
     );
   }
 
   if (showOnboarding) {
     return (
-      <OnboardingScreen onComplete={handleOnboardingComplete} />
+      <SafeAreaProvider>
+        <OnboardingScreen onComplete={handleOnboardingComplete} />
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <ErrorBoundary>
-      <AppNavigator />
-      <StatusBar style="light" />
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <AppNavigator />
+        <StatusBar style="light" />
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
 

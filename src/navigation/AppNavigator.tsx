@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { HomeScreen } from '../screens/HomeScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
@@ -14,6 +14,7 @@ import { PrivacyPolicyScreen } from '../screens/PrivacyPolicyScreen';
 import { OrthostaticScreen } from '../screens/OrthostaticScreen';
 import { CameraReadingScreen } from '../screens/CameraReadingScreen';
 import { COLORS } from '../constants/colors';
+import { STRINGS } from '../constants/strings';
 
 export type RootStackParamList = {
   Tabs: undefined;
@@ -35,16 +36,20 @@ export type TabParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
-function TabIcon({ label, focused }: { label: string; focused: boolean }) {
-  const icons: Record<string, string> = { Home: '❤️', Trends: '📈', History: '📊', Settings: '⚙️' };
+const TAB_ICONS: Record<keyof TabParamList, keyof typeof Ionicons.glyphMap> = {
+  Home: 'heart',
+  Trends: 'trending-up',
+  History: 'list',
+  Settings: 'settings-sharp',
+};
+
+function TabIcon({ name, focused }: { name: keyof TabParamList; focused: boolean }) {
   return (
-    <Text
-      style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}
-      accessibilityElementsHidden={true}
-      importantForAccessibility="no"
-    >
-      {icons[label] || '•'}
-    </Text>
+    <Ionicons
+      name={TAB_ICONS[name]}
+      size={22}
+      color={focused ? COLORS.accent : COLORS.textMuted}
+    />
   );
 }
 
@@ -62,13 +67,27 @@ function TabNavigator() {
         },
         tabBarActiveTintColor: COLORS.accent,
         tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
+        tabBarIcon: ({ focused }) => (
+          <TabIcon name={route.name as keyof TabParamList} focused={focused} />
+        ),
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Trends" component={TrendsScreen} />
-      <Tab.Screen name="History" component={HistoryScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: STRINGS.tabHome }} />
+      <Tab.Screen
+        name="Trends"
+        component={TrendsScreen}
+        options={{ tabBarLabel: STRINGS.tabTrends }}
+      />
+      <Tab.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{ tabBarLabel: STRINGS.tabHistory }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ tabBarLabel: STRINGS.tabSettings }}
+      />
     </Tab.Navigator>
   );
 }
@@ -92,7 +111,7 @@ export function AppNavigator() {
         <Stack.Screen
           name="CameraReading"
           component={CameraReadingScreen}
-          options={{ title: 'Camera Recording', presentation: 'modal' }}
+          options={{ title: STRINGS.cameraReading, presentation: 'modal' }}
         />
         <Stack.Screen
           name="Log"
@@ -107,12 +126,12 @@ export function AppNavigator() {
         <Stack.Screen
           name="PrivacyPolicy"
           component={PrivacyPolicyScreen}
-          options={{ title: 'Privacy Policy' }}
+          options={{ title: STRINGS.privacyTitle }}
         />
         <Stack.Screen
           name="Orthostatic"
           component={OrthostaticScreen}
-          options={{ title: 'Orthostatic Test', presentation: 'modal' }}
+          options={{ title: STRINGS.orthostaticTest, presentation: 'modal' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
