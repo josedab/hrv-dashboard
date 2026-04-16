@@ -118,7 +118,9 @@ describe('scheduleMorningReminder', () => {
 
     await scheduleMorningReminder(6, 30);
 
-    expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('morning-reminder');
+    expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith(
+      'morning-reminder'
+    );
     expect(mockNotifications.scheduleNotificationAsync).toHaveBeenCalled();
   });
 
@@ -219,7 +221,9 @@ describe('scheduleStreakReminder', () => {
 
     await scheduleStreakReminder(5);
 
-    expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('streak-reminder');
+    expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith(
+      'streak-reminder'
+    );
   });
 });
 
@@ -235,13 +239,19 @@ describe('cancelAllReminders', () => {
     await cancelAllReminders();
 
     expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(2);
-    expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('morning-reminder');
-    expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('streak-reminder');
+    expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith(
+      'morning-reminder'
+    );
+    expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith(
+      'streak-reminder'
+    );
   });
 
   it('does not throw when cancellation fails', async () => {
     const mockNotifications = Notifications as unknown as MockNotifications;
-    mockNotifications.cancelScheduledNotificationAsync.mockRejectedValue(new Error('Cancel failed'));
+    mockNotifications.cancelScheduledNotificationAsync.mockRejectedValue(
+      new Error('Cancel failed')
+    );
 
     await expect(cancelAllReminders()).resolves.not.toThrow();
   });
@@ -286,9 +296,9 @@ describe('loadNotificationSettings', () => {
 
   it('uses defaults for missing values', async () => {
     const mockDb = {
-      getAllAsync: jest.fn().mockResolvedValue([
-        { key: 'notification_morning_enabled', value: 'false' },
-      ]),
+      getAllAsync: jest
+        .fn()
+        .mockResolvedValue([{ key: 'notification_morning_enabled', value: 'false' }]),
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
 
@@ -296,15 +306,17 @@ describe('loadNotificationSettings', () => {
 
     expect(settings.morningReminderEnabled).toBe(false);
     expect(settings.morningReminderHour).toBe(DEFAULT_NOTIFICATION_SETTINGS.morningReminderHour);
-    expect(settings.morningReminderMinute).toBe(DEFAULT_NOTIFICATION_SETTINGS.morningReminderMinute);
+    expect(settings.morningReminderMinute).toBe(
+      DEFAULT_NOTIFICATION_SETTINGS.morningReminderMinute
+    );
     expect(settings.streakReminderEnabled).toBe(true);
   });
 
   it('treats missing streak_enabled as true (enabled by default)', async () => {
     const mockDb = {
-      getAllAsync: jest.fn().mockResolvedValue([
-        { key: 'notification_morning_enabled', value: 'true' },
-      ]),
+      getAllAsync: jest
+        .fn()
+        .mockResolvedValue([{ key: 'notification_morning_enabled', value: 'true' }]),
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
 
@@ -315,9 +327,9 @@ describe('loadNotificationSettings', () => {
 
   it('treats streak_enabled=false correctly', async () => {
     const mockDb = {
-      getAllAsync: jest.fn().mockResolvedValue([
-        { key: 'notification_streak_enabled', value: 'false' },
-      ]),
+      getAllAsync: jest
+        .fn()
+        .mockResolvedValue([{ key: 'notification_streak_enabled', value: 'false' }]),
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
 

@@ -42,10 +42,7 @@ export function sessionsToCSV(sessions: Session[]): string {
     s.stressLevel ?? '',
   ]);
 
-  const csvLines = [
-    headers.join(','),
-    ...rows.map((row) => row.join(',')),
-  ];
+  const csvLines = [headers.join(','), ...rows.map((row) => row.join(','))];
 
   return csvLines.join('\n');
 }

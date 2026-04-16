@@ -43,7 +43,7 @@ describe('computeRmssd', () => {
 
   it('handles large intervals', () => {
     const rr = [1500, 1600, 1400];
-    const diffs = [100, -200];
+    // diffs: 100, -200 → squared: 10000, 40000
     const sumSq = 100 * 100 + 200 * 200;
     expect(computeRmssd(rr)).toBeCloseTo(Math.sqrt(sumSq / 2), 10);
   });

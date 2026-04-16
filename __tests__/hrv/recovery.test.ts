@@ -1,4 +1,8 @@
-import { computeRecoveryScore, estimateTrainingLoad, computeWeeklyLoad } from '../../src/hrv/recovery';
+import {
+  computeRecoveryScore,
+  estimateTrainingLoad,
+  computeWeeklyLoad,
+} from '../../src/hrv/recovery';
 import { Session, BaselineResult } from '../../src/types';
 
 function makeSession(overrides: Partial<Session> = {}): Session {
@@ -23,7 +27,11 @@ function makeSession(overrides: Partial<Session> = {}): Session {
   };
 }
 
-const goodBaseline: BaselineResult = { median: 40, dayCount: 7, values: [38, 40, 42, 39, 41, 43, 40] };
+const goodBaseline: BaselineResult = {
+  median: 40,
+  dayCount: 7,
+  values: [38, 40, 42, 39, 41, 43, 40],
+};
 const insufficientBaseline: BaselineResult = { median: 40, dayCount: 3, values: [38, 40, 42] };
 
 describe('computeRecoveryScore', () => {
@@ -89,8 +97,12 @@ describe('estimateTrainingLoad', () => {
   });
 
   it('scales by perceived readiness', () => {
-    const low = estimateTrainingLoad(makeSession({ trainingType: 'Strength', perceivedReadiness: 1 }));
-    const high = estimateTrainingLoad(makeSession({ trainingType: 'Strength', perceivedReadiness: 5 }));
+    const low = estimateTrainingLoad(
+      makeSession({ trainingType: 'Strength', perceivedReadiness: 1 })
+    );
+    const high = estimateTrainingLoad(
+      makeSession({ trainingType: 'Strength', perceivedReadiness: 5 })
+    );
     expect(high).toBeGreaterThan(low);
   });
 });

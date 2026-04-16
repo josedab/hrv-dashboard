@@ -92,8 +92,8 @@ describe('computeVerdict', () => {
     it('uses custom goHardThreshold', () => {
       const settings: Settings = {
         ...DEFAULT_SETTINGS,
-        goHardThreshold: 0.90,
-        moderateThreshold: 0.70,
+        goHardThreshold: 0.9,
+        moderateThreshold: 0.7,
       };
 
       // 90/100 = 0.90 → exactly at custom go_hard threshold
@@ -106,7 +106,7 @@ describe('computeVerdict', () => {
       const settings: Settings = {
         ...DEFAULT_SETTINGS,
         goHardThreshold: 0.95,
-        moderateThreshold: 0.60,
+        moderateThreshold: 0.6,
       };
 
       // 60/100 = 0.60 → at moderate threshold
@@ -118,8 +118,8 @@ describe('computeVerdict', () => {
     it('works with very lenient thresholds', () => {
       const settings: Settings = {
         ...DEFAULT_SETTINGS,
-        goHardThreshold: 0.50,
-        moderateThreshold: 0.30,
+        goHardThreshold: 0.5,
+        moderateThreshold: 0.3,
       };
 
       expect(computeVerdict(50, baseline, settings)).toBe('go_hard');

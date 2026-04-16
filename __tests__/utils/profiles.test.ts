@@ -12,7 +12,6 @@ jest.mock('../../src/utils/uuid', () => ({
 
 import { Share } from 'react-native';
 import {
-  AthleteProfile,
   ensureProfilesTable,
   getProfiles,
   createProfile,
@@ -54,9 +53,7 @@ describe('createProfile', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
 
-    await expect(createProfile('')).rejects.toThrow(
-      'Profile name must be 1-100 characters'
-    );
+    await expect(createProfile('')).rejects.toThrow('Profile name must be 1-100 characters');
   });
 
   it('throws on whitespace-only name', async () => {
@@ -66,9 +63,7 @@ describe('createProfile', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
 
-    await expect(createProfile('   ')).rejects.toThrow(
-      'Profile name must be 1-100 characters'
-    );
+    await expect(createProfile('   ')).rejects.toThrow('Profile name must be 1-100 characters');
   });
 
   it('throws on name exceeding 100 characters', async () => {
@@ -79,9 +74,7 @@ describe('createProfile', () => {
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
 
     const longName = 'a'.repeat(101);
-    await expect(createProfile(longName)).rejects.toThrow(
-      'Profile name must be 1-100 characters'
-    );
+    await expect(createProfile(longName)).rejects.toThrow('Profile name must be 1-100 characters');
   });
 
   it('trims whitespace from name', async () => {
@@ -213,9 +206,7 @@ describe('getProfiles', () => {
 
     await getProfiles();
 
-    expect(mockDb.getAllAsync).toHaveBeenCalledWith(
-      expect.stringContaining('ORDER BY name ASC')
-    );
+    expect(mockDb.getAllAsync).toHaveBeenCalledWith(expect.stringContaining('ORDER BY name ASC'));
   });
 });
 
@@ -235,9 +226,7 @@ describe('setActiveProfile', () => {
     await setActiveProfile('profile-1');
 
     expect(mockDb.withTransactionAsync).toHaveBeenCalled();
-    expect(mockDb.runAsync).toHaveBeenCalledWith(
-      'UPDATE profiles SET is_active = 0'
-    );
+    expect(mockDb.runAsync).toHaveBeenCalledWith('UPDATE profiles SET is_active = 0');
     expect(mockDb.runAsync).toHaveBeenCalledWith(
       'UPDATE profiles SET is_active = 1 WHERE id = ?',
       'profile-1'
@@ -258,10 +247,7 @@ describe('deleteProfile', () => {
 
     await deleteProfile('profile-1');
 
-    expect(mockDb.runAsync).toHaveBeenCalledWith(
-      'DELETE FROM profiles WHERE id = ?',
-      'profile-1'
-    );
+    expect(mockDb.runAsync).toHaveBeenCalledWith('DELETE FROM profiles WHERE id = ?', 'profile-1');
   });
 });
 

@@ -71,9 +71,7 @@ export async function getTodaySession(todayDateStr: string): Promise<Session | n
  */
 export async function getAllSessions(): Promise<Session[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<SessionRow>(
-    `SELECT * FROM sessions ORDER BY timestamp DESC`
-  );
+  const rows = await db.getAllAsync<SessionRow>(`SELECT * FROM sessions ORDER BY timestamp DESC`);
   return rows.map(mapRowToSession);
 }
 
@@ -96,9 +94,7 @@ export async function getSessionsPaginated(limit: number, offset: number): Promi
  */
 export async function getSessionCount(): Promise<number> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count FROM sessions`
-  );
+  const row = await db.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM sessions`);
   return row?.count ?? 0;
 }
 
@@ -106,10 +102,7 @@ export async function getSessionCount(): Promise<number> {
  * Gets sessions within a date range for history display.
  * Uses localtime to match the user's local calendar days.
  */
-export async function getSessionsInRange(
-  startDate: string,
-  endDate: string
-): Promise<Session[]> {
+export async function getSessionsInRange(startDate: string, endDate: string): Promise<Session[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<SessionRow>(
     `SELECT * FROM sessions WHERE date(timestamp, 'localtime') >= ? AND date(timestamp, 'localtime') <= ? ORDER BY timestamp DESC`,
@@ -127,7 +120,12 @@ export async function getSessionsInRange(
 export async function getDailyReadings(windowDays: number): Promise<DailyReading[]> {
   const db = await getDatabase();
   const cutoff = new Date();
-  const cutoffDate = new Date(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate() - windowDays, 12);
+  const cutoffDate = new Date(
+    cutoff.getFullYear(),
+    cutoff.getMonth(),
+    cutoff.getDate() - windowDays,
+    12
+  );
   const cutoffStr = `${cutoffDate.getFullYear()}-${String(cutoffDate.getMonth() + 1).padStart(2, '0')}-${String(cutoffDate.getDate()).padStart(2, '0')}`;
 
   const rows = await db.getAllAsync<{ date_str: string; rmssd: number; verdict: string | null }>(
@@ -166,10 +164,7 @@ export async function getSessionDates(): Promise<string[]> {
  */
 export async function getSessionById(id: string): Promise<Session | null> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<SessionRow>(
-    `SELECT * FROM sessions WHERE id = ?`,
-    id
-  );
+  const row = await db.getFirstAsync<SessionRow>(`SELECT * FROM sessions WHERE id = ?`, id);
   return row ? mapRowToSession(row) : null;
 }
 

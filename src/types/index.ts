@@ -86,7 +86,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   baselineWindowDays: 7,
   goHardThreshold: 0.95,
-  moderateThreshold: 0.80,
+  moderateThreshold: 0.8,
   pairedDeviceId: null,
   pairedDeviceName: null,
 };

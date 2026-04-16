@@ -28,6 +28,16 @@ Complete reference for all public exports in the HRV Morning Readiness Dashboard
   - [CSV Export](#csv-export)
   - [Crash Reporting](#crash-reporting)
 - [UI Components](#ui-components)
+- [HRV Analytics](#hrv-analytics)
+- [Orthostatic Test](#orthostatic-test)
+- [Recovery Score](#recovery-score)
+- [Camera PPG Processor](#camera-ppg-processor)
+- [Encrypted Backup](#encrypted-backup)
+- [Health Platform Sync](#health-platform-sync)
+- [Notifications](#notifications)
+- [Athlete Profiles](#athlete-profiles)
+- [Widget Data](#widget-data)
+- [Centralized Strings](#centralized-strings)
 
 ---
 
@@ -147,7 +157,7 @@ const COLORS: {
   surfaceLight: '#334155';
   text: '#F8FAFC';
   textSecondary: '#94A3B8';
-  textMuted: '#64748B';
+  textMuted: '#7E8CA8';
   accent: '#3B82F6';      // blue
   border: '#334155';
   danger: '#EF4444';
@@ -157,6 +167,19 @@ const COLORS: {
 
 const VERDICT_COLORS: Record<string, string>;
 // Maps 'go_hard' | 'moderate' | 'rest' → hex color
+```
+
+### Strings (`src/constants/strings.ts`)
+
+All user-facing text is centralized in the `STRINGS` constant for internationalization readiness. Includes static strings and template functions for dynamic content. Covers all screens and UI states.
+
+```ts
+const STRINGS: {
+  appName: 'HRV Readiness';
+  startReading: 'Start Reading';
+  dayStreak: (n: number) => string;  // `🔥 ${n} day streak`
+  // ... 100+ keys covering all screens
+};
 ```
 
 ### Defaults (`src/constants/defaults.ts`)
@@ -893,7 +916,7 @@ Crash reporting utility backed by [Sentry](https://sentry.io). Initializes with 
 
 #### `initCrashReporting()`
 
-Sets up Sentry error tracking (or console fallback). Idempotent — safe to call multiple times. Configures `tracesSampleRate: 0.2` and `enableAutoSessionTracking: true` when Sentry DSN is available.
+Sets up Sentry error tracking (or console fallback). Idempotent — safe to call multiple times. Configures `tracesSampleRate: 0.2` and `enableAutoSessionTracking: true` when Sentry DSN is available. Called once during app initialization in `App.tsx`.
 
 ```ts
 function initCrashReporting(): void
@@ -937,4 +960,425 @@ function addBreadcrumb(message: string, data?: Record<string, unknown>): void
 | `RRPlot` | `rrIntervals: number[]`, `width?`, `height?`, `maxPoints?` | Line chart of RR intervals (last 60 by default). Placeholder for < 2 data points. |
 | `CountdownTimer` | `remainingSeconds: number`, `size?: number` | Circular SVG progress timer showing MM:SS. Includes accessibility labels. |
 | `ReadinessSlider` | `value: number`, `onChange: (n: number) => void` | Five circular buttons for perceived readiness (1–5) with labels from "Very Low" to "Excellent". |
+| `BreathingExercise` | `onComplete: () => void`, `onSkip: () => void` | Guided 4-7-8 breathing exercise with animated circle. Used pre-recording to calm the nervous system. |
+| `Toast` | `message: string`, `visible: boolean` | Animated toast notification for transient feedback. |
 | `ErrorBoundary` | `children: ReactNode` | Class component error boundary with recovery UI and crash reporting integration. |
+
+---
+
+## HRV Analytics
+
+**Module:** `src/hrv/analytics.ts`
+
+### `WeeklySummary`
+
+```ts
+interface WeeklySummary {
+  avgRmssd: number;
+  medianRmssd: number;
+  avgHr: number;
+  sessionCount: number;
+  trendDirection: 'improving' | 'stable' | 'declining';
+  trendPercent: number;
+  bestDay: { date: string; rmssd: number } | null;
+  worstDay: { date: string; rmssd: number } | null;
+  verdictCounts: Record<VerdictType, number>;
+  streakInPeriod: number;
+}
+```
+
+### `computeWeeklySummary(currentSessions, previousSessions)`
+
+Computes a weekly summary with trend direction relative to the previous period. Trend thresholds: >5% improvement, <-5% declining, otherwise stable.
+
+```ts
+function computeWeeklySummary(
+  currentSessions: Session[],
+  previousSessions: Session[]
+): WeeklySummary
+```
+
+### `CorrelationResult`
+
+```ts
+interface CorrelationResult {
+  factor: string;            // e.g. "Sleep Quality"
+  correlation: number;       // Pearson r (-1 to 1)
+  sampleSize: number;
+  interpretation: string;    // Human-readable interpretation
+}
+```
+
+### `computeSleepHrvCorrelation(sessions)`
+
+Pearson correlation between sleep quality (1–5) and rMSSD. Returns `null` if fewer than 5 paired observations.
+
+```ts
+function computeSleepHrvCorrelation(sessions: Session[]): CorrelationResult | null
+```
+
+### `computeStressHrvCorrelation(sessions)`
+
+Pearson correlation between stress level (1–5) and rMSSD. Returns `null` if fewer than 5 paired observations.
+
+```ts
+function computeStressHrvCorrelation(sessions: Session[]): CorrelationResult | null
+```
+
+---
+
+## Orthostatic Test
+
+**Module:** `src/hrv/orthostatic.ts`
+
+### `OrthostaticResult`
+
+```ts
+interface OrthostaticResult {
+  supine: HrvMetrics;
+  standing: HrvMetrics;
+  deltaRmssd: number;        // Change in rMSSD (typically negative)
+  deltaHr: number;            // Change in HR (typically positive)
+  reactivityScore: number;    // 0–100
+  interpretation: string;
+}
+```
+
+### `computeOrthostaticResult(supineRrIntervals, standingRrIntervals)`
+
+Computes orthostatic test results from supine and standing RR intervals. A healthy response shows rMSSD drop of 15–40% and HR increase of 10–30 bpm.
+
+```ts
+function computeOrthostaticResult(
+  supineRrIntervals: number[],
+  standingRrIntervals: number[]
+): OrthostaticResult
+```
+
+**Reactivity scoring:** Optimal is ~25% rMSSD drop + ~15 bpm HR rise. Weighted 60% HRV reactivity, 40% HR reactivity.
+
+**Interpretations:**
+| Condition | Interpretation |
+|-----------|----------------|
+| rMSSD drop <10%, HR rise <5 bpm | Blunted — possible overtraining |
+| rMSSD drop >50% or HR rise >35 bpm | Exaggerated — possible dehydration/fatigue |
+| rMSSD drop 15–40%, HR rise 10–30 bpm | Normal autonomic reactivity |
+| Other | Atypical — monitor trend |
+
+---
+
+## Recovery Score
+
+**Module:** `src/hrv/recovery.ts`
+
+### `RecoveryScore`
+
+```ts
+interface RecoveryScore {
+  score: number;              // 0–100
+  label: 'Excellent' | 'Good' | 'Fair' | 'Poor';
+  components: {
+    hrv: number;              // 0–100
+    sleep: number;            // 0–100
+    stress: number;           // 0–100
+    readiness: number;        // 0–100
+  };
+}
+```
+
+### `computeRecoveryScore(session, baseline)`
+
+Composite recovery score combining objective HRV with subjective inputs. Returns `null` if baseline has fewer than 5 days or median is 0.
+
+```ts
+function computeRecoveryScore(
+  session: Session,
+  baseline: BaselineResult
+): RecoveryScore | null
+```
+
+**Component weights:**
+| Component | Weight | Source | Notes |
+|-----------|--------|--------|-------|
+| HRV ratio | 40% | `rMSSD / baseline.median` | Capped at 120% |
+| Sleep quality | 25% | `session.sleepQuality` (1–5) | 50 if not logged |
+| Stress (inverse) | 20% | `session.stressLevel` (1–5) | Inverted; 50 if not logged |
+| Perceived readiness | 15% | `session.perceivedReadiness` (1–5) | 50 if not logged |
+
+### `estimateTrainingLoad(session)`
+
+Estimates daily training load from training type intensity × perceived effort. Returns 0 if no training type is set.
+
+```ts
+function estimateTrainingLoad(session: Session): number
+```
+
+**Intensity map:** Strength (7), BJJ (8), Cycling (6), Rest (1), Other (5).
+
+### `computeWeeklyLoad(sessions)`
+
+Sums estimated training load across a week of sessions.
+
+```ts
+function computeWeeklyLoad(sessions: Session[]): number
+```
+
+---
+
+## Camera PPG Processor
+
+**Module:** `src/ble/ppgProcessor.ts`
+
+### `PpgConfig`
+
+```ts
+interface PpgConfig {
+  fps: number;                   // Camera frame rate (default: 30)
+  minDurationSeconds: number;    // Minimum recording length (default: 60)
+  qualityThreshold: number;      // Quality threshold 0–1 (default: 0.6)
+}
+```
+
+### `PpgResult`
+
+```ts
+interface PpgResult {
+  rrIntervals: number[];        // Extracted RR intervals in ms
+  signalQuality: number;        // 0–1
+  isUsable: boolean;            // quality ≥ threshold && ≥ 30 RR intervals
+  estimatedHr: number;          // bpm
+  beatCount: number;
+}
+```
+
+### `processPpgSignal(brightnessValues, timestamps, config?)`
+
+Processes raw camera frame brightness values into RR intervals via peak detection.
+
+```ts
+function processPpgSignal(
+  brightnessValues: number[],
+  timestamps: number[],
+  config?: PpgConfig
+): PpgResult
+```
+
+**Pipeline:** Normalize → moving average smoothing → local maxima peak detection → inter-beat interval computation → physiological range validation → quality assessment.
+
+**Returns** empty result if: fps ≤ 0, array lengths mismatch, or fewer than 10 seconds of data.
+
+---
+
+## Encrypted Backup
+
+**Module:** `src/utils/backup.ts`
+
+### `createBackup(passphrase)`
+
+Creates an encrypted backup of all sessions and user settings, then opens the system share sheet.
+
+```ts
+async function createBackup(passphrase: string): Promise<void>
+```
+
+**Throws:** If passphrase is shorter than 4 characters.
+
+**Encryption:** SHA-256 CTR stream cipher. Key derived via 1000 iterations of SHA-256 with random 16-byte salt. 12-byte random IV. Integrity verified via SHA-256 hash of plaintext.
+
+**File format:** `.hrvbak` — JSON envelope containing `{ v, salt, iv, integrity, data }`.
+
+### `restoreBackup(fileUri, passphrase)`
+
+Restores sessions from an encrypted backup file. Validates integrity after decryption. Imports only sessions not already in the database (by UUID). Restores user settings but preserves internal state keys.
+
+```ts
+async function restoreBackup(fileUri: string, passphrase: string): Promise<number>
+```
+
+**Returns:** Number of new sessions imported.
+
+**Throws:** On invalid format, version mismatch, wrong passphrase (detected via integrity check), or corrupt data.
+
+---
+
+## Health Platform Sync
+
+**Module:** `src/utils/healthSync.ts`
+
+Platform-aware integration with Apple HealthKit (iOS) and Android Health Connect. The SDK modules are loaded at runtime — the app works without them installed.
+
+### `isHealthSyncAvailable()`
+
+Checks if the health SDK is installed and the platform supports it.
+
+```ts
+function isHealthSyncAvailable(): boolean
+```
+
+### `requestHealthPermissions()`
+
+Requests write permissions for HRV and heart rate data from the platform health store.
+
+```ts
+async function requestHealthPermissions(): Promise<boolean>
+```
+
+### `syncSessionToHealth(session)`
+
+Writes a single session's HRV and heart rate data to the platform health store. iOS writes SDNN (HealthKit standard); Android writes rMSSD (Health Connect standard).
+
+```ts
+async function syncSessionToHealth(session: Session): Promise<boolean>
+```
+
+### `syncAllPendingSessions(sessions)`
+
+Syncs all un-synced sessions. Tracks synced IDs in the settings table to avoid duplicate writes.
+
+```ts
+async function syncAllPendingSessions(sessions: Session[]): Promise<number>
+```
+
+### `loadHealthSyncSettings()` / `setHealthSyncEnabled(enabled)`
+
+```ts
+async function loadHealthSyncSettings(): Promise<HealthSyncSettings>
+async function setHealthSyncEnabled(enabled: boolean): Promise<void>
+```
+
+---
+
+## Notifications
+
+**Module:** `src/utils/notifications.ts`
+
+Push notification support for morning reminders and streak protection via `expo-notifications`.
+
+### `NotificationSettings`
+
+```ts
+interface NotificationSettings {
+  morningReminderEnabled: boolean;
+  morningReminderHour: number;     // 0–23
+  morningReminderMinute: number;   // 0–59
+  streakReminderEnabled: boolean;
+}
+```
+
+### `scheduleMorningReminder(hour, minute)`
+
+Schedules a daily notification at the specified time. Cancels any existing morning reminder first.
+
+```ts
+async function scheduleMorningReminder(hour: number, minute: number): Promise<void>
+```
+
+### `scheduleStreakReminder(currentStreak)`
+
+Schedules a daily 10 AM reminder if the user has a streak ≥ 2 days.
+
+```ts
+async function scheduleStreakReminder(currentStreak: number): Promise<void>
+```
+
+### `cancelAllReminders()` / `requestNotificationPermissions()`
+
+```ts
+async function cancelAllReminders(): Promise<void>
+async function requestNotificationPermissions(): Promise<boolean>
+```
+
+### `loadNotificationSettings()` / `saveNotificationSettings(settings)`
+
+Load and persist notification settings via the `settings` table (keys prefixed with `notification_`).
+
+```ts
+async function loadNotificationSettings(): Promise<NotificationSettings>
+async function saveNotificationSettings(settings: NotificationSettings): Promise<void>
+```
+
+---
+
+## Athlete Profiles
+
+**Module:** `src/utils/profiles.ts`
+
+Multi-athlete profile support with a dedicated `profiles` table (created lazily).
+
+### `AthleteProfile`
+
+```ts
+interface AthleteProfile {
+  id: string;          // UUID v4
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+}
+```
+
+### Profile CRUD
+
+```ts
+async function getProfiles(): Promise<AthleteProfile[]>
+async function createProfile(name: string): Promise<AthleteProfile>
+async function setActiveProfile(profileId: string): Promise<void>
+async function deleteProfile(profileId: string): Promise<void>
+```
+
+**Constraints:** Profile name must be 1–100 characters. Only one profile can be active at a time (switching deactivates all others).
+
+### `shareVerdict(session)`
+
+Formats and shares today's verdict as a text message via the system share sheet.
+
+```ts
+async function shareVerdict(session: Session): Promise<void>
+```
+
+---
+
+## Widget Data
+
+**Module:** `src/utils/widgetData.ts`
+
+Provides data for iOS WidgetKit / Android Glance home screen widgets.
+
+### `WidgetData`
+
+```ts
+interface WidgetData {
+  hasReading: boolean;
+  verdict: string | null;
+  rmssd: number | null;
+  baselineMedian: number | null;
+  percentOfBaseline: number | null;
+  streak: number;
+  sparklineValues: number[];        // Last 7 rMSSD values
+  dateLabel: string;
+  updatedAt: string;                // ISO 8601
+}
+```
+
+### `getWidgetData()`
+
+Gathers all data needed for the widget display. Called after each recording and on app launch.
+
+```ts
+async function getWidgetData(): Promise<WidgetData>
+```
+
+### `refreshWidget()`
+
+Convenience function: gathers widget data and persists it for native widget access.
+
+```ts
+async function refreshWidget(): Promise<void>
+```
+
+---
+
+## Centralized Strings
+
+**Module:** `src/constants/strings.ts`
+
+All user-facing UI text is centralized in the `STRINGS` constant for i18n readiness. String values include static strings and template functions (e.g., `dayStreak: (n) => \`🔥 ${n} day streak\``). Covers all screens: Home, Reading, Breathing, History, Trends, Log, Settings, Backup, Onboarding, Orthostatic, Camera, and error states.

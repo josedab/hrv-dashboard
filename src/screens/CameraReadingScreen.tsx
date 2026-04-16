@@ -89,9 +89,12 @@ export function CameraReadingScreen() {
     startTimeRef.current = Date.now();
     setBeatCount(0);
 
-    captureRef.current = setInterval(() => {
-      if (isMountedRef.current) collectBrightnessSample();
-    }, Math.round(1000 / CAPTURE_FPS));
+    captureRef.current = setInterval(
+      () => {
+        if (isMountedRef.current) collectBrightnessSample();
+      },
+      Math.round(1000 / CAPTURE_FPS)
+    );
 
     timerRef.current = setInterval(() => {
       if (!isMountedRef.current) return;
@@ -100,7 +103,11 @@ export function CameraReadingScreen() {
 
       // Live beat detection every 5 seconds
       if (e % 5 === 0 && brightnessRef.current.length > 300) {
-        const partial = processPpgSignal(brightnessRef.current, timestampsRef.current, DEFAULT_PPG_CONFIG);
+        const partial = processPpgSignal(
+          brightnessRef.current,
+          timestampsRef.current,
+          DEFAULT_PPG_CONFIG
+        );
         setBeatCount(partial.beatCount);
       }
 
@@ -116,21 +123,32 @@ export function CameraReadingScreen() {
     if (!isMountedRef.current) return;
     setPhase('processing');
 
-    const result = processPpgSignal(brightnessRef.current, timestampsRef.current, DEFAULT_PPG_CONFIG);
+    const result = processPpgSignal(
+      brightnessRef.current,
+      timestampsRef.current,
+      DEFAULT_PPG_CONFIG
+    );
     setPpgResult(result);
 
     if (!result.isUsable) {
       Alert.alert(
         'Low Signal Quality',
         `Signal quality: ${(result.signalQuality * 100).toFixed(0)}%\n\n` +
-        'Tips for better results:\n' +
-        '• Press your fingertip firmly over the camera lens\n' +
-        '• Make sure the flash is illuminating your finger\n' +
-        '• Stay completely still during recording\n' +
-        '• Try in a dimmer environment\n\n' +
-        'For the most accurate readings, use a Bluetooth chest strap.',
+          'Tips for better results:\n' +
+          '• Press your fingertip firmly over the camera lens\n' +
+          '• Make sure the flash is illuminating your finger\n' +
+          '• Stay completely still during recording\n' +
+          '• Try in a dimmer environment\n\n' +
+          'For the most accurate readings, use a Bluetooth chest strap.',
         [
-          { text: 'Try Again', onPress: () => { setPhase('intro'); setElapsed(0); setPpgResult(null); } },
+          {
+            text: 'Try Again',
+            onPress: () => {
+              setPhase('intro');
+              setElapsed(0);
+              setPpgResult(null);
+            },
+          },
           { text: 'Use Chest Strap', onPress: () => navigation.goBack() },
         ]
       );
@@ -179,25 +197,45 @@ export function CameraReadingScreen() {
         <Text style={styles.emoji}>📸</Text>
         <Text style={styles.title}>Camera HRV Reading</Text>
         <Text style={styles.subtitle}>
-          Measure your heart rate variability using your phone's camera.
-          Place your fingertip over the rear camera lens.
+          Measure your heart rate variability using your phone's camera. Place your fingertip over
+          the rear camera lens.
         </Text>
         <View style={styles.instructions}>
-          <Text style={styles.instructionItem}>1. The camera flash will turn on as a light source</Text>
-          <Text style={styles.instructionItem}>2. Cover the camera + flash with your fingertip</Text>
-          <Text style={styles.instructionItem}>3. Hold steady for 60 seconds — don't press too hard</Text>
-          <Text style={styles.instructionItem}>4. Your screen should appear reddish if positioned correctly</Text>
+          <Text style={styles.instructionItem}>
+            1. The camera flash will turn on as a light source
+          </Text>
+          <Text style={styles.instructionItem}>
+            2. Cover the camera + flash with your fingertip
+          </Text>
+          <Text style={styles.instructionItem}>
+            3. Hold steady for 60 seconds — don't press too hard
+          </Text>
+          <Text style={styles.instructionItem}>
+            4. Your screen should appear reddish if positioned correctly
+          </Text>
         </View>
         <View style={styles.accuracyBanner}>
           <Text style={styles.accuracyText}>
-            ⚠️ Camera PPG is less accurate than a chest strap.
-            Best for days when your HR monitor isn't available.
+            ⚠️ Camera PPG is less accurate than a chest strap. Best for days when your HR monitor
+            isn't available.
           </Text>
         </View>
-        <TouchableOpacity style={styles.startButton} onPress={startRecording} accessibilityRole="button" accessibilityLabel="Start camera-based heart rate recording" activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={startRecording}
+          accessibilityRole="button"
+          accessibilityLabel="Start camera-based heart rate recording"
+          activeOpacity={0.8}
+        >
           <Text style={styles.startButtonText}>Start Camera Recording</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back to use chest strap instead" activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back to use chest strap instead"
+          activeOpacity={0.7}
+        >
           <Text style={styles.backButtonText}>← Use Chest Strap Instead</Text>
         </TouchableOpacity>
       </View>
@@ -250,23 +288,51 @@ export function CameraReadingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
   emoji: { fontSize: 48, marginBottom: 16 },
   title: { fontSize: 24, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
   subtitle: { fontSize: 15, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 24 },
   instructions: { alignSelf: 'stretch', marginBottom: 20, gap: 6 },
   instructionItem: { fontSize: 14, color: COLORS.text },
   accuracyBanner: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)', borderRadius: 8, padding: 12, marginBottom: 24, alignSelf: 'stretch',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 24,
+    alignSelf: 'stretch',
   },
   accuracyText: { fontSize: 13, color: COLORS.warning, textAlign: 'center' },
-  startButton: { backgroundColor: COLORS.accent, borderRadius: 16, paddingVertical: 18, paddingHorizontal: 48, marginBottom: 16 },
+  startButton: {
+    backgroundColor: COLORS.accent,
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 48,
+    marginBottom: 16,
+  },
   startButtonText: { fontSize: 18, fontWeight: '700', color: COLORS.text },
   backButton: { padding: 12 },
   backButtonText: { fontSize: 16, color: COLORS.textSecondary },
-  cameraPreview: { width: 200, height: 200, borderRadius: 100, overflow: 'hidden', marginBottom: 12 },
+  cameraPreview: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
   cameraOverlay: { fontSize: 14, color: COLORS.textMuted, marginBottom: 16 },
-  timer: { fontSize: 48, fontWeight: '700', color: COLORS.accent, marginBottom: 12, fontVariant: ['tabular-nums'] },
+  timer: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: COLORS.accent,
+    marginBottom: 12,
+    fontVariant: ['tabular-nums'],
+  },
   liveStats: { flexDirection: 'row', gap: 12, marginTop: 12 },
   resultStats: { flexDirection: 'row', gap: 12, marginTop: 20 },
 });

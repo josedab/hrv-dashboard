@@ -25,13 +25,10 @@ export function initCrashReporting(): void {
   }
 }
 
-export function reportError(
-  error: Error | string,
-  context?: Record<string, unknown>
-): void {
+export function reportError(error: Error | string, context?: Record<string, unknown>): void {
   const errorObj = typeof error === 'string' ? new Error(error) : error;
 
-  if (Sentry.isInitialized()) {
+  if (initialized) {
     Sentry.captureException(errorObj, { extra: context });
   } else {
     console.error('[CrashReporting]', errorObj.message, context ?? '');
@@ -39,13 +36,13 @@ export function reportError(
 }
 
 export function setUserContext(userId: string): void {
-  if (Sentry.isInitialized()) {
+  if (initialized) {
     Sentry.setUser({ id: userId });
   }
 }
 
 export function addBreadcrumb(message: string, data?: Record<string, unknown>): void {
-  if (Sentry.isInitialized()) {
+  if (initialized) {
     Sentry.addBreadcrumb({ message, data });
   }
 }

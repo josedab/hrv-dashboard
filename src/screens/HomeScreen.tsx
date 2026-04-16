@@ -1,5 +1,13 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -9,7 +17,12 @@ import { Sparkline } from '../components/Sparkline';
 import { COLORS } from '../constants/colors';
 import { STRINGS } from '../constants/strings';
 import { Session } from '../types';
-import { getTodaySession, getDailyReadings, getSessionDates, getRecentSessions } from '../database/sessionRepository';
+import {
+  getTodaySession,
+  getDailyReadings,
+  getSessionDates,
+  getRecentSessions,
+} from '../database/sessionRepository';
 import { loadSettings } from '../database/settingsRepository';
 import { computeBaseline } from '../hrv/baseline';
 import { computeRecoveryScore, RecoveryScore, computeWeeklyLoad } from '../hrv/recovery';
@@ -25,10 +38,16 @@ function RecoveryBar({ label, value }: { label: string; value: number }) {
     <View style={styles.recoveryBarContainer}>
       <Text style={styles.recoveryBarLabel}>{label}</Text>
       <View style={styles.recoveryBarTrack}>
-        <View style={[styles.recoveryBarFill, {
-          width: `${Math.min(value, 100)}%`,
-          backgroundColor: value >= 70 ? COLORS.success : value >= 40 ? COLORS.warning : COLORS.danger,
-        }]} />
+        <View
+          style={[
+            styles.recoveryBarFill,
+            {
+              width: `${Math.min(value, 100)}%`,
+              backgroundColor:
+                value >= 70 ? COLORS.success : value >= 40 ? COLORS.warning : COLORS.danger,
+            },
+          ]}
+        />
       </View>
       <Text style={styles.recoveryBarValue}>{value}</Text>
     </View>
@@ -57,7 +76,7 @@ export function HomeScreen() {
 
       setTodaySession(session);
       setStreak(calculateStreak(dates));
-      
+
       const dailyRmssd = recentSessions.map((s) => s.rmssd);
       setSparklineData(dailyRmssd);
 
@@ -90,15 +109,26 @@ export function HomeScreen() {
     setRefreshing(false);
   }, [loadData]);
 
-  const today = useMemo(() => new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  }), []);
+  const today = useMemo(
+    () =>
+      new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+      }),
+    []
+  );
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: COLORS.background,
+        }}
+      >
         <ActivityIndicator size="large" color={COLORS.accent} />
       </View>
     );
@@ -111,14 +141,14 @@ export function HomeScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
+      }
     >
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.date}>{today}</Text>
-        {streak > 0 && (
-          <Text style={styles.streak}>{STRINGS.dayStreak(streak)}</Text>
-        )}
+        {streak > 0 && <Text style={styles.streak}>{STRINGS.dayStreak(streak)}</Text>}
       </View>
 
       {/* Verdict */}
@@ -157,9 +187,7 @@ export function HomeScreen() {
             </View>
           </View>
           {weeklyLoad > 0 && (
-            <Text style={styles.weeklyLoadText}>
-              📊 Weekly training load: {weeklyLoad}
-            </Text>
+            <Text style={styles.weeklyLoadText}>📊 Weekly training load: {weeklyLoad}</Text>
           )}
         </View>
       )}
@@ -181,7 +209,11 @@ export function HomeScreen() {
       {/* Stats */}
       {hasReading && (
         <View style={styles.statsRow}>
-          <StatCard label={STRINGS.meanHr} value={todaySession.meanHr.toFixed(0)} unit={STRINGS.bpm} />
+          <StatCard
+            label={STRINGS.meanHr}
+            value={todaySession.meanHr.toFixed(0)}
+            unit={STRINGS.bpm}
+          />
           <StatCard label={STRINGS.sdnn} value={todaySession.sdnn.toFixed(1)} unit={STRINGS.ms} />
           <StatCard
             label={STRINGS.artifacts}
@@ -193,8 +225,15 @@ export function HomeScreen() {
 
       {hasReading && (
         <View style={styles.statsRow}>
-          <StatCard label={STRINGS.pnn50} value={todaySession.pnn50.toFixed(1)} unit={STRINGS.percent} />
-          <StatCard label={STRINGS.duration} value={`${Math.floor(todaySession.durationSeconds / 60)}m ${todaySession.durationSeconds % 60}s`} />
+          <StatCard
+            label={STRINGS.pnn50}
+            value={todaySession.pnn50.toFixed(1)}
+            unit={STRINGS.percent}
+          />
+          <StatCard
+            label={STRINGS.duration}
+            value={`${Math.floor(todaySession.durationSeconds / 60)}m ${todaySession.durationSeconds % 60}s`}
+          />
         </View>
       )}
 
@@ -206,27 +245,37 @@ export function HomeScreen() {
             onPress={() => navigation.navigate('Reading')}
             accessibilityRole="button"
             accessibilityLabel="Start morning reading"
-             activeOpacity={0.7}
+            activeOpacity={0.7}
           >
             <Text style={styles.startButtonText}>Start Reading</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.startButton, { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }]}
+            style={[
+              styles.startButton,
+              { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
+            ]}
             onPress={() => navigation.navigate('Orthostatic')}
             accessibilityRole="button"
             accessibilityLabel="Start orthostatic test"
             activeOpacity={0.7}
           >
-            <Text style={[styles.startButtonText, { color: COLORS.accent }]}>🧍 Orthostatic Test</Text>
+            <Text style={[styles.startButtonText, { color: COLORS.accent }]}>
+              🧍 Orthostatic Test
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.startButton, { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border }]}
+            style={[
+              styles.startButton,
+              { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
+            ]}
             onPress={() => navigation.navigate('CameraReading')}
             accessibilityRole="button"
             accessibilityLabel="Camera-based reading without chest strap"
-             activeOpacity={0.7}
+            activeOpacity={0.7}
           >
-            <Text style={[styles.startButtonText, { color: COLORS.accent }]}>📸 Camera Reading (No Strap)</Text>
+            <Text style={[styles.startButtonText, { color: COLORS.accent }]}>
+              📸 Camera Reading (No Strap)
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -234,13 +283,23 @@ export function HomeScreen() {
       {/* Share Verdict */}
       {hasReading && (
         <TouchableOpacity
-          style={[styles.startButton, { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, marginTop: 20 }]}
+          style={[
+            styles.startButton,
+            {
+              backgroundColor: COLORS.surface,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              marginTop: 20,
+            },
+          ]}
           onPress={() => shareVerdict(todaySession)}
           accessibilityRole="button"
           accessibilityLabel="Share today's verdict"
-           activeOpacity={0.7}
+          activeOpacity={0.7}
         >
-          <Text style={[styles.startButtonText, { color: COLORS.accent, fontSize: 16 }]}>📤 Share Verdict</Text>
+          <Text style={[styles.startButtonText, { color: COLORS.accent, fontSize: 16 }]}>
+            📤 Share Verdict
+          </Text>
         </TouchableOpacity>
       )}
     </ScrollView>

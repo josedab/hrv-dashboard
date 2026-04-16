@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Alert,
+} from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -35,7 +43,15 @@ export function LogScreen() {
 
   const handleSave = async () => {
     try {
-      await updateSessionLog(sessionId, readiness, trainingType, notes || null, sleepHours, sleepQuality, stressLevel);
+      await updateSessionLog(
+        sessionId,
+        readiness,
+        trainingType,
+        notes || null,
+        sleepHours,
+        sleepQuality,
+        stressLevel
+      );
       navigation.popToTop();
     } catch (error) {
       Alert.alert('Error', 'Failed to save log.');
@@ -84,7 +100,9 @@ export function LogScreen() {
         maxLength={NOTES_MAX_LENGTH}
         accessibilityLabel="Session notes"
       />
-      <Text style={styles.charCount}>{notes.length}/{NOTES_MAX_LENGTH}</Text>
+      <Text style={styles.charCount}>
+        {notes.length}/{NOTES_MAX_LENGTH}
+      </Text>
 
       <Text style={styles.label}>{STRINGS.sleepOptional}</Text>
       <View style={styles.sleepRow}>
@@ -98,7 +116,9 @@ export function LogScreen() {
             accessibilityState={{ selected: sleepHours === hrs }}
             activeOpacity={0.7}
           >
-            <Text style={[styles.chipText, sleepHours === hrs && styles.chipTextSelected]}>{hrs}h</Text>
+            <Text style={[styles.chipText, sleepHours === hrs && styles.chipTextSelected]}>
+              {hrs}h
+            </Text>
           </TouchableOpacity>
         ))}
       </View>

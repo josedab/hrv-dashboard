@@ -23,7 +23,14 @@ export function SessionDetailScreen() {
 
   if (!session) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: COLORS.background,
+        }}
+      >
         <ActivityIndicator size="large" color={COLORS.accent} />
       </View>
     );
@@ -62,7 +69,11 @@ export function SessionDetailScreen() {
         <StatCard label="RR Intervals" value={`${session.rrIntervals.length}`} />
       </View>
 
-      {(session.perceivedReadiness || session.trainingType || session.notes || session.sleepHours || session.stressLevel) && (
+      {(session.perceivedReadiness ||
+        session.trainingType ||
+        session.notes ||
+        session.sleepHours ||
+        session.stressLevel) && (
         <>
           <Text style={styles.sectionTitle}>{STRINGS.subjectiveLog}</Text>
           {session.perceivedReadiness && (
@@ -81,7 +92,8 @@ export function SessionDetailScreen() {
             <View style={styles.logItem}>
               <Text style={styles.logLabel}>Sleep</Text>
               <Text style={styles.logValue}>
-                {session.sleepHours}h{session.sleepQuality ? ` · Quality: ${session.sleepQuality}/5` : ''}
+                {session.sleepHours}h
+                {session.sleepQuality ? ` · Quality: ${session.sleepQuality}/5` : ''}
               </Text>
             </View>
           )}

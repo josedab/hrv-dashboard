@@ -1,5 +1,9 @@
 import { BleManager, Device, Subscription } from 'react-native-ble-plx';
-import { parseHeartRateMeasurement, base64ToUint8Array, HeartRateMeasurement } from './heartRateParser';
+import {
+  parseHeartRateMeasurement,
+  base64ToUint8Array,
+  HeartRateMeasurement,
+} from './heartRateParser';
 
 const HEART_RATE_SERVICE_UUID = '0000180d-0000-1000-8000-00805f9b34fb';
 const HEART_RATE_MEASUREMENT_UUID = '00002a37-0000-1000-8000-00805f9b34fb';
@@ -9,7 +13,13 @@ const CONNECTION_TIMEOUT_MS = 10000;
 const MAX_RECONNECT_ATTEMPTS = 3;
 const RECONNECT_BASE_DELAY_MS = 1000;
 
-export type BleConnectionState = 'disconnected' | 'scanning' | 'connecting' | 'connected' | 'reconnecting' | 'error';
+export type BleConnectionState =
+  | 'disconnected'
+  | 'scanning'
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'error';
 
 export interface BleCallbacks {
   onStateChange: (state: BleConnectionState) => void;
@@ -158,7 +168,9 @@ export async function connectWithRetry(
       if (attempt < maxAttempts - 1) {
         const delay = RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt);
         callbacks.onStateChange('reconnecting');
-        callbacks.onError(`Connection failed, retrying in ${delay / 1000}s... (attempt ${attempt + 1}/${maxAttempts})`);
+        callbacks.onError(
+          `Connection failed, retrying in ${delay / 1000}s... (attempt ${attempt + 1}/${maxAttempts})`
+        );
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }

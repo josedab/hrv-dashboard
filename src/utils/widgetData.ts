@@ -1,4 +1,3 @@
-import { Session, DailyReading } from '../types';
 import { getDatabase } from '../database/database';
 import { getTodaySession, getDailyReadings } from '../database/sessionRepository';
 import { loadSettings } from '../database/settingsRepository';
@@ -59,7 +58,9 @@ export async function getWidgetData(): Promise<WidgetData> {
     const sparklineValues = recentRows.map((r) => r.rmssd).reverse();
 
     const dateLabel = new Date().toLocaleDateString('en-US', {
-      weekday: 'short', month: 'short', day: 'numeric',
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
     });
 
     return {
@@ -67,9 +68,10 @@ export async function getWidgetData(): Promise<WidgetData> {
       verdict: session?.verdict ?? null,
       rmssd: session?.rmssd ?? null,
       baselineMedian: baseline.dayCount >= 5 ? baseline.median : null,
-      percentOfBaseline: session && baseline.median > 0 && baseline.dayCount >= 5
-        ? Math.round((session.rmssd / baseline.median) * 100)
-        : null,
+      percentOfBaseline:
+        session && baseline.median > 0 && baseline.dayCount >= 5
+          ? Math.round((session.rmssd / baseline.median) * 100)
+          : null,
       streak,
       sparklineValues,
       dateLabel,

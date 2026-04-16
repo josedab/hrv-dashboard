@@ -1,4 +1,4 @@
-import { Session, DailyReading, VerdictType } from '../types';
+import { Session, VerdictType } from '../types';
 import { computeMedian } from './baseline';
 
 /**
@@ -39,19 +39,20 @@ export function computeWeeklySummary(
   const currentRmssd = currentSessions.map((s) => s.rmssd);
   const previousRmssd = previousSessions.map((s) => s.rmssd);
 
-  const avgRmssd = currentRmssd.length > 0
-    ? currentRmssd.reduce((sum, v) => sum + v, 0) / currentRmssd.length
-    : 0;
+  const avgRmssd =
+    currentRmssd.length > 0 ? currentRmssd.reduce((sum, v) => sum + v, 0) / currentRmssd.length : 0;
 
   const medianRmssd = computeMedian(currentRmssd);
 
-  const avgHr = currentSessions.length > 0
-    ? currentSessions.reduce((sum, s) => sum + s.meanHr, 0) / currentSessions.length
-    : 0;
+  const avgHr =
+    currentSessions.length > 0
+      ? currentSessions.reduce((sum, s) => sum + s.meanHr, 0) / currentSessions.length
+      : 0;
 
-  const prevAvg = previousRmssd.length > 0
-    ? previousRmssd.reduce((sum, v) => sum + v, 0) / previousRmssd.length
-    : 0;
+  const prevAvg =
+    previousRmssd.length > 0
+      ? previousRmssd.reduce((sum, v) => sum + v, 0) / previousRmssd.length
+      : 0;
 
   let trendDirection: WeeklySummary['trendDirection'] = 'stable';
   let trendPercent = 0;
@@ -130,15 +131,21 @@ export function computeSleepHrvCorrelation(sessions: Session[]): CorrelationResu
 
   if (pairs.length < 5) return null;
 
-  const r = pearsonCorrelation(pairs.map((p) => p.x), pairs.map((p) => p.y));
+  const r = pearsonCorrelation(
+    pairs.map((p) => p.x),
+    pairs.map((p) => p.y)
+  );
 
   return {
     factor: 'Sleep Quality',
     correlation: r,
     sampleSize: pairs.length,
-    interpretation: r > 0.3 ? 'Better sleep → higher HRV' :
-                    r < -0.3 ? 'Unexpected inverse relationship' :
-                    'Weak or no clear relationship',
+    interpretation:
+      r > 0.3
+        ? 'Better sleep → higher HRV'
+        : r < -0.3
+          ? 'Unexpected inverse relationship'
+          : 'Weak or no clear relationship',
   };
 }
 
@@ -149,15 +156,21 @@ export function computeStressHrvCorrelation(sessions: Session[]): CorrelationRes
 
   if (pairs.length < 5) return null;
 
-  const r = pearsonCorrelation(pairs.map((p) => p.x), pairs.map((p) => p.y));
+  const r = pearsonCorrelation(
+    pairs.map((p) => p.x),
+    pairs.map((p) => p.y)
+  );
 
   return {
     factor: 'Stress Level',
     correlation: r,
     sampleSize: pairs.length,
-    interpretation: r < -0.3 ? 'Higher stress → lower HRV' :
-                    r > 0.3 ? 'Unexpected positive relationship' :
-                    'Weak or no clear relationship',
+    interpretation:
+      r < -0.3
+        ? 'Higher stress → lower HRV'
+        : r > 0.3
+          ? 'Unexpected positive relationship'
+          : 'Weak or no clear relationship',
   };
 }
 

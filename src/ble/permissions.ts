@@ -29,7 +29,8 @@ export async function requestBlePermissions(): Promise<PermissionStatus> {
       ]);
 
       const scanGranted = results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === 'granted';
-      const connectGranted = results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === 'granted';
+      const connectGranted =
+        results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === 'granted';
 
       if (scanGranted && connectGranted) return 'granted';
 

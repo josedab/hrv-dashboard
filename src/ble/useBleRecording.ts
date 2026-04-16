@@ -145,78 +145,81 @@ export function useBleRecording(): [RecordingState, RecordingActions] {
     }
   }, []);
 
-  const startRecording = useCallback(async (deviceId: string) => {
-    resetRecording();
-    isStoppingRef.current = false;
-    deviceIdRef.current = deviceId;
-    startTimeRef.current = Date.now();
-    rrIntervalsRef.current = [];
-    heartRatesRef.current = [];
-
-    setState((prev) => ({
-      ...prev,
-      isRecording: true,
-      error: null,
-    }));
-
-    // Start elapsed time counter
-    timerRef.current = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-      const remaining = Math.max(0, RECORDING_DURATION_SECONDS - elapsed);
-      const canFinish = elapsed >= MIN_RECORDING_SECONDS;
+  const startRecording = useCallback(
+    async (deviceId: string) => {
+      resetRecording();
+      isStoppingRef.current = false;
+      deviceIdRef.current = deviceId;
+      startTimeRef.current = Date.now();
+      rrIntervalsRef.current = [];
+      heartRatesRef.current = [];
 
       setState((prev) => ({
         ...prev,
-        elapsedSeconds: elapsed,
-        remainingSeconds: remaining,
-        canFinishEarly: canFinish,
+        isRecording: true,
+        error: null,
       }));
 
-      // Auto-stop at duration limit
-      if (remaining <= 0) {
-        stopRecording();
+      // Start elapsed time counter
+      timerRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        const remaining = Math.max(0, RECORDING_DURATION_SECONDS - elapsed);
+        const canFinish = elapsed >= MIN_RECORDING_SECONDS;
+
+        setState((prev) => ({
+          ...prev,
+          elapsedSeconds: elapsed,
+          remainingSeconds: remaining,
+          canFinishEarly: canFinish,
+        }));
+
+        // Auto-stop at duration limit
+        if (remaining <= 0) {
+          stopRecording();
+        }
+      }, 1000);
+
+      try {
+        const cleanup = await connectWithRetry(deviceId, {
+          onStateChange: (connectionState) => {
+            if (isStoppingRef.current) return;
+            setState((prev) => ({ ...prev, connectionState }));
+            // Auto-reconnect on mid-recording disconnect
+            if (connectionState === 'disconnected' && !isStoppingRef.current) {
+              attemptReconnect();
+            }
+          },
+          onHeartRateMeasurement: (measurement: HeartRateMeasurement) => {
+            if (measurement.rrIntervals.length > 0) {
+              rrIntervalsRef.current.push(...measurement.rrIntervals);
+            }
+            heartRatesRef.current.push(measurement.heartRate);
+
+            setState((prev) => ({
+              ...prev,
+              rrIntervals: [...rrIntervalsRef.current],
+              heartRates: [...heartRatesRef.current],
+              currentHr: measurement.heartRate,
+            }));
+          },
+          onError: (error) => {
+            setState((prev) => ({ ...prev, error }));
+          },
+        });
+        cleanupRef.current = cleanup;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to connect';
+        setState((prev) => ({
+          ...prev,
+          isRecording: false,
+          connectionState: 'error',
+          error: message,
+        }));
+        clearTimer();
       }
-    }, 1000);
-
-    try {
-      const cleanup = await connectWithRetry(deviceId, {
-        onStateChange: (connectionState) => {
-          if (isStoppingRef.current) return;
-          setState((prev) => ({ ...prev, connectionState }));
-          // Auto-reconnect on mid-recording disconnect
-          if (connectionState === 'disconnected' && !isStoppingRef.current) {
-            attemptReconnect();
-          }
-        },
-        onHeartRateMeasurement: (measurement: HeartRateMeasurement) => {
-          if (measurement.rrIntervals.length > 0) {
-            rrIntervalsRef.current.push(...measurement.rrIntervals);
-          }
-          heartRatesRef.current.push(measurement.heartRate);
-
-          setState((prev) => ({
-            ...prev,
-            rrIntervals: [...rrIntervalsRef.current],
-            heartRates: [...heartRatesRef.current],
-            currentHr: measurement.heartRate,
-          }));
-        },
-        onError: (error) => {
-          setState((prev) => ({ ...prev, error }));
-        },
-      });
-      cleanupRef.current = cleanup;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to connect';
-      setState((prev) => ({
-        ...prev,
-        isRecording: false,
-        connectionState: 'error',
-        error: message,
-      }));
-      clearTimer();
-    }
-  }, [resetRecording, stopRecording, clearTimer]);
+    },
+    [resetRecording, stopRecording, clearTimer]
+  );
 
   // Cleanup on unmount
   useEffect(() => {

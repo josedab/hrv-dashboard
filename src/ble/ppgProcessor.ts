@@ -57,7 +57,13 @@ export function processPpgSignal(
   timestamps: number[],
   config: PpgConfig = DEFAULT_PPG_CONFIG
 ): PpgResult {
-  const emptyResult: PpgResult = { rrIntervals: [], signalQuality: 0, isUsable: false, estimatedHr: 0, beatCount: 0 };
+  const emptyResult: PpgResult = {
+    rrIntervals: [],
+    signalQuality: 0,
+    isUsable: false,
+    estimatedHr: 0,
+    beatCount: 0,
+  };
 
   if (config.fps <= 0) return emptyResult;
   if (brightnessValues.length !== timestamps.length) return emptyResult;
@@ -88,9 +94,8 @@ export function processPpgSignal(
   const signalQuality = assessSignalQuality(rrIntervals, peaks.length, brightnessValues);
 
   // Step 6: Compute estimated HR
-  const avgRR = rrIntervals.length > 0
-    ? rrIntervals.reduce((s, v) => s + v, 0) / rrIntervals.length
-    : 0;
+  const avgRR =
+    rrIntervals.length > 0 ? rrIntervals.reduce((s, v) => s + v, 0) / rrIntervals.length : 0;
   const estimatedHr = avgRR > 0 ? 60000 / avgRR : 0;
 
   return {
@@ -134,7 +139,11 @@ function detectPeaks(signal: number[], fps: number): number[] {
   return peaks;
 }
 
-function assessSignalQuality(rrIntervals: number[], peakCount: number, brightness: number[]): number {
+function assessSignalQuality(
+  rrIntervals: number[],
+  peakCount: number,
+  brightness: number[]
+): number {
   if (rrIntervals.length < 5) return 0;
 
   // Factor 1: RR interval consistency (low std dev relative to mean = good)
@@ -145,7 +154,8 @@ function assessSignalQuality(rrIntervals: number[], peakCount: number, brightnes
 
   // Factor 2: Signal amplitude (finger on camera should have high brightness variance)
   const brightnessMean = brightness.reduce((s, v) => s + v, 0) / brightness.length;
-  const brightnessVar = brightness.reduce((s, v) => s + (v - brightnessMean) ** 2, 0) / brightness.length;
+  const brightnessVar =
+    brightness.reduce((s, v) => s + (v - brightnessMean) ** 2, 0) / brightness.length;
   const amplitudeScore = Math.min(1, Math.sqrt(brightnessVar) / 20);
 
   // Factor 3: Beat regularity (ratio of valid to total peaks)

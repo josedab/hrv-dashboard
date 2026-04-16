@@ -40,6 +40,9 @@ graph TB
         Artifacts[Artifact Detection]
         Baseline[Baseline Computation]
         VerdictLogic[Verdict Logic]
+        Analytics[Analytics & Trends]
+        Recovery[Recovery Score]
+        Orthostatic[Orthostatic Test]
     end
 
     subgraph BLE["BLE Layer"]
@@ -47,6 +50,7 @@ graph TB
         Parser[HR Parser]
         Permissions[Permissions]
         Hook[useBleRecording]
+        PPG[PPG Processor]
     end
 
     subgraph Data["Data Layer"]
@@ -55,8 +59,19 @@ graph TB
         SettingsRepo[Settings Repository]
     end
 
+    subgraph Utils["Utilities"]
+        Backup[Encrypted Backup]
+        HealthSync[Health Sync]
+        Notifs[Notifications]
+        Profiles[Profiles]
+        Widget[Widget Data]
+        CSV[CSV Export]
+    end
+
     subgraph External["External"]
         PolarH10[Polar H10 / HR Monitor]
+        Camera[Device Camera]
+        HealthKit[HealthKit / Health Connect]
     end
 
     Home --> Verdict & Sparkline & StatCard
@@ -67,6 +82,7 @@ graph TB
     Hook --> BleManager --> Parser
     BleManager --> PolarH10
     Hook --> Permissions
+    PPG --> Camera
 
     Reading -->|Save session| SessionRepo
     Home -->|Load today| SessionRepo
@@ -78,7 +94,16 @@ graph TB
     SettingsRepo --> DB
 
     Home -->|Compute| Baseline --> VerdictLogic
+    Home -->|Recovery| Recovery
     Reading -->|Compute| Metrics --> Artifacts
+    Home -->|Trends| Analytics
+
+    Settings -->|Backup| Backup --> DB
+    Settings -->|Health| HealthSync --> HealthKit
+    Settings -->|Reminders| Notifs
+    Home -->|Widget| Widget --> DB
+    Settings -->|Export| CSV
+    Home -->|Profiles| Profiles
 ```
 
 ## Data Flow: Morning Reading
@@ -214,6 +239,13 @@ erDiagram
         TEXT key PK "Setting name"
         TEXT value "Setting value (string)"
     }
+
+    profiles {
+        TEXT id PK "UUID v4"
+        TEXT name "Athlete name (1-100 chars)"
+        INTEGER is_active "0 or 1 (only one active)"
+        TEXT created_at "datetime('now')"
+    }
 ```
 
 **Key settings keys:**
@@ -226,7 +258,7 @@ erDiagram
 | `pairedDeviceId` | string | `null` | Remembered BLE device ID |
 | `pairedDeviceName` | string | `null` | Remembered BLE device name |
 | `onboarding_complete` | string | — | `"true"` after onboarding |
-| `schema_version` | string | — | Current DB schema version (currently `"2"`) |
+| `schema_version` | string | — | Current DB schema version (currently `"3"`) |
 
 ## Database Migrations
 
@@ -236,6 +268,7 @@ The database uses a version-tracked migration system. The current version is sto
 |---------|---------|
 | 0 → 1 | Initial schema: `sessions` and `settings` tables, `idx_sessions_timestamp` index |
 | 1 → 2 | Added `sleep_hours` (REAL), `sleep_quality` (INTEGER), `stress_level` (INTEGER) columns to `sessions` |
+| 2 → 3 | Created `profiles` table for multi-athlete support (previously created lazily) |
 
 **How it works:**
 1. On first call to `getDatabase()`, the singleton opens `hrv_readiness.db` and runs `runMigrations()`
@@ -244,6 +277,8 @@ The database uses a version-tracked migration system. The current version is sto
 4. Any versioned `ALTER TABLE` migrations for versions above the stored version are applied
 5. Column existence is checked before adding (`PRAGMA table_info`) to avoid errors on re-run
 6. The `schema_version` is updated to `CURRENT_SCHEMA_VERSION`
+
+**Current schema version:** `3`
 
 ## Navigation Structure
 
@@ -256,17 +291,22 @@ graph TD
     Init -->|Ready| Navigator[AppNavigator]
 
     Navigator --> Tabs[Bottom Tab Navigator]
-    Tabs --> HomeTab[🏠 Home]
+    Tabs --> HomeTab[❤️ Home]
+    Tabs --> TrendsTab[📈 Trends]
     Tabs --> HistoryTab[📊 History]
     Tabs --> SettingsTab[⚙️ Settings]
 
     Navigator --> Stack[Modal Stack]
     Stack --> ReadingModal[📱 Reading]
+    Stack --> CameraModal[📸 Camera Reading]
     Stack --> LogModal[📝 Log]
     Stack --> DetailModal[🔍 Session Detail]
     Stack --> PrivacyModal[🔒 Privacy Policy]
+    Stack --> OrthoModal[🧍 Orthostatic Test]
 
     HomeTab -->|Start Reading| ReadingModal
+    HomeTab -->|Camera Reading| CameraModal
+    HomeTab -->|Orthostatic Test| OrthoModal
     ReadingModal -->|Recording complete| LogModal
     HistoryTab -->|Tap session| DetailModal
     SettingsTab -->|Privacy link| PrivacyModal
@@ -291,6 +331,9 @@ graph LR
         Artifacts[artifacts.ts]
         Baseline[baseline.ts]
         Verdict[verdict.ts]
+        Analytics[analytics.ts]
+        OrthoMod[orthostatic.ts]
+        RecoveryMod[recovery.ts]
     end
 
     subgraph BLE_["ble/"]
@@ -298,6 +341,7 @@ graph LR
         Parser[heartRateParser.ts]
         Perms[permissions.ts]
         Hook[useBleRecording.ts]
+        PPGMod[ppgProcessor.ts]
     end
 
     subgraph Database_["database/"]
@@ -311,6 +355,18 @@ graph LR
         UUID[uuid.ts]
         CSV[csv.ts]
         Crash[crashReporting.ts]
+        BackupMod[backup.ts]
+        HealthMod[healthSync.ts]
+        NotifMod[notifications.ts]
+        ProfileMod[profiles.ts]
+        WidgetMod[widgetData.ts]
+    end
+
+    subgraph Constants_["constants/"]
+        Colors[colors.ts]
+        Defaults[defaults.ts]
+        Verdicts[verdicts.ts]
+        Strings[strings.ts]
     end
 
     Metrics --> Artifacts
@@ -319,6 +375,9 @@ graph LR
     Baseline --> T
     Verdict --> T & Defaults
     Verdicts --> T
+    Analytics --> Baseline & T
+    OrthoMod --> Metrics & T
+    RecoveryMod --> T
 
     BleM --> Parser
     Hook --> BleM & Defaults
@@ -327,6 +386,11 @@ graph LR
     StRepo --> DB & T
 
     CSV --> T
+    BackupMod --> DB & SRepo & T
+    HealthMod --> DB & T
+    NotifMod --> DB
+    ProfileMod --> DB & T & UUID
+    WidgetMod --> DB & SRepo & StRepo & Baseline & Date
 ```
 
 ## Key Design Decisions
@@ -360,3 +424,101 @@ All data stays on-device in SQLite. This eliminates:
 - Network dependency for a morning-routine app
 
 Export is available via CSV for users who want to analyze data externally.
+
+## Orthostatic Test Flow
+
+The orthostatic test compares supine (lying) HRV with standing HRV to assess autonomic reactivity. A blunted response may indicate overtraining; an exaggerated response may indicate dehydration or acute fatigue.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Screen as OrthostaticScreen
+    participant BLE as useBleRecording
+    participant HRV as Orthostatic Engine
+    participant DB as SQLite
+
+    User->>Screen: Start Orthostatic Test
+    Screen->>BLE: Connect to HR monitor
+
+    Note over Screen: Phase 1: Supine (2.5 min)
+    Screen->>User: "Lie still"
+    BLE-->>Screen: Accumulate supine RR intervals
+
+    Note over Screen: Transition (10 sec)
+    Screen->>User: "Stand up now!"
+
+    Note over Screen: Phase 2: Standing (2.5 min)
+    Screen->>User: "Stand still"
+    BLE-->>Screen: Accumulate standing RR intervals
+
+    Note over Screen: Compute Results
+    Screen->>HRV: computeOrthostaticResult(supineRR, standingRR)
+    HRV-->>Screen: OrthostaticResult (reactivity score + interpretation)
+    Screen->>DB: Save session with orthostatic data
+```
+
+**Reactivity scoring:** Optimal response is ~25% rMSSD drop + ~15 bpm HR rise. Score is weighted 60% HRV reactivity, 40% HR reactivity (0–100 scale).
+
+## Camera PPG Pipeline
+
+For users without a chest strap, the camera PPG mode extracts RR intervals from the phone's rear camera by analyzing fingertip brightness fluctuations.
+
+```mermaid
+flowchart LR
+    Cam[Camera Frames<br/>~30fps] --> Norm[Normalize to<br/>zero mean]
+    Norm --> Smooth[Moving average<br/>filter]
+    Smooth --> Peaks[Detect local<br/>maxima]
+    Peaks --> IBI[Compute inter-<br/>beat intervals]
+    IBI --> Validate{300–2500ms?}
+    Validate -->|Yes| RR[Clean RR<br/>intervals]
+    Validate -->|No| Discard[Discard]
+    RR --> Quality[Assess signal<br/>quality]
+    Quality --> Use{Quality ≥ 0.6?}
+    Use -->|Yes| HRV[Feed to HRV<br/>metrics engine]
+    Use -->|No| Warning[Low quality<br/>warning]
+```
+
+**Signal quality** is a composite of three factors: RR interval consistency (40%), brightness amplitude variance (30%), and valid-to-total peak ratio (30%).
+
+## Recovery Score Architecture
+
+The composite recovery score combines objective HRV data with subjective inputs:
+
+```mermaid
+flowchart TD
+    Session[Current Session] --> HRV_R[HRV Component<br/>40% weight]
+    Session --> Sleep[Sleep Component<br/>25% weight]
+    Session --> Stress[Stress Component<br/>20% weight]
+    Session --> Readiness[Readiness Component<br/>15% weight]
+
+    Baseline[Baseline Median] --> HRV_R
+    HRV_R -->|rMSSD ratio<br/>capped at 120%| Score
+    Sleep -->|Quality 1–5<br/>mapped to 0–100| Score
+    Stress -->|Inverted 1–5<br/>mapped to 0–100| Score
+    Readiness -->|Perceived 1–5<br/>mapped to 0–100| Score
+
+    Score[Weighted Sum<br/>0–100] --> Label{Score}
+    Label -->|≥80| Excellent
+    Label -->|≥60| Good
+    Label -->|≥40| Fair
+    Label -->|<40| Poor
+```
+
+Missing subjective inputs default to 50 (neutral) so the score remains functional even when only HRV data is available.
+
+## Backup & Restore
+
+Backups are encrypted `.hrvbak` files containing all sessions and user settings.
+
+**Encryption:** SHA-256 CTR mode stream cipher with PBKDF2-like key derivation (1000 iterations of SHA-256 with salt). The backup file includes a salt, IV, integrity hash, and ciphertext — wrong passphrases are detected via integrity check before import.
+
+**Restore:** Imports only sessions not already present in the database (by UUID). User settings are restored but internal state keys (`schema_version`, `onboarding_complete`, etc.) are preserved from the current installation.
+
+## Health Platform Sync
+
+Optional integration with Apple HealthKit (iOS) and Android Health Connect:
+
+- The health SDK modules (`react-native-health`, `react-native-health-connect`) are loaded at runtime via `require()` — the app works fine without them installed
+- Writes HRV (SDNN on iOS, rMSSD on Android) and heart rate samples to the platform health store
+- Tracks synced session IDs in the settings table to avoid duplicate writes
+- All sync is **write-only** — the app never reads health data from the platform

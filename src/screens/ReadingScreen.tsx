@@ -70,7 +70,9 @@ export function ReadingScreen() {
       }
     };
     startScan();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const restartScan = useCallback(async () => {
@@ -90,13 +92,16 @@ export function ReadingScreen() {
     }
   }, []);
 
-  const selectDevice = useCallback(async (device: Device) => {
-    if (connecting) return;
-    setConnecting(true);
-    stopScan?.();
-    setSelectedDeviceId(device.id);
-    setPhase('breathing');
-  }, [stopScan, connecting]);
+  const selectDevice = useCallback(
+    async (device: Device) => {
+      if (connecting) return;
+      setConnecting(true);
+      stopScan?.();
+      setSelectedDeviceId(device.id);
+      setPhase('breathing');
+    },
+    [stopScan, connecting]
+  );
 
   const startAfterBreathing = useCallback(async () => {
     if (!selectedDeviceId) return;
@@ -163,10 +168,9 @@ export function ReadingScreen() {
     actions.stopRecording();
   }, [actions]);
 
-  const artifactRate = useMemo(() =>
-    recording.rrIntervals.length > 0
-      ? computeHrvMetrics(recording.rrIntervals).artifactRate
-      : 0,
+  const artifactRate = useMemo(
+    () =>
+      recording.rrIntervals.length > 0 ? computeHrvMetrics(recording.rrIntervals).artifactRate : 0,
     [recording.rrIntervals]
   );
   const showArtifactWarning = artifactRate > ARTIFACT_WARNING_THRESHOLD;
@@ -188,8 +192,16 @@ export function ReadingScreen() {
           <View style={styles.timeoutContainer}>
             <Text style={styles.timeoutEmoji}>📡</Text>
             <Text style={styles.timeoutText}>{STRINGS.noDevicesFound}</Text>
-            <Text style={styles.timeoutHint}>Make sure your heart rate monitor is on and nearby</Text>
-            <TouchableOpacity style={styles.rescanButton} activeOpacity={0.7} onPress={restartScan} accessibilityRole="button" accessibilityLabel="Scan again for heart rate monitors">
+            <Text style={styles.timeoutHint}>
+              Make sure your heart rate monitor is on and nearby
+            </Text>
+            <TouchableOpacity
+              style={styles.rescanButton}
+              activeOpacity={0.7}
+              onPress={restartScan}
+              accessibilityRole="button"
+              accessibilityLabel="Scan again for heart rate monitors"
+            >
               <Text style={styles.rescanButtonText}>Scan Again</Text>
             </TouchableOpacity>
           </View>
@@ -205,8 +217,8 @@ export function ReadingScreen() {
                 onPress={() => selectDevice(device)}
                 accessibilityRole="button"
                 accessibilityLabel={`Connect to ${device.name || 'Polar H10'}`}
-              activeOpacity={0.7}
-               >
+                activeOpacity={0.7}
+              >
                 <Text style={styles.deviceName}>{device.name || 'Polar H10'}</Text>
                 <Text style={styles.deviceId}>{device.id.slice(-8)}</Text>
               </TouchableOpacity>
@@ -224,8 +236,8 @@ export function ReadingScreen() {
                 onPress={() => selectDevice(device)}
                 accessibilityRole="button"
                 accessibilityLabel={`Connect to ${device.name || 'Unknown Device'}`}
-              activeOpacity={0.7}
-               >
+                activeOpacity={0.7}
+              >
                 <Text style={styles.deviceName}>{device.name || 'Unknown Device'}</Text>
                 <Text style={styles.deviceId}>{device.id.slice(-8)}</Text>
               </TouchableOpacity>
@@ -238,7 +250,7 @@ export function ReadingScreen() {
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
           accessibilityLabel="Cancel scanning"
-           activeOpacity={0.7}
+          activeOpacity={0.7}
         >
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
@@ -263,20 +275,27 @@ export function ReadingScreen() {
     return (
       <View style={styles.container}>
         <Text style={styles.connectionStatus}>
-          {recording.connectionState === 'connected' ? '🟢 Connected' :
-           recording.connectionState === 'connecting' ? '🟡 Connecting...' :
-           recording.connectionState === 'reconnecting' ? '🟠 Reconnecting...' :
-           recording.connectionState === 'error' ? '🔴 Error' : '⚪ Disconnected'}
+          {recording.connectionState === 'connected'
+            ? '🟢 Connected'
+            : recording.connectionState === 'connecting'
+              ? '🟡 Connecting...'
+              : recording.connectionState === 'reconnecting'
+                ? '🟠 Reconnecting...'
+                : recording.connectionState === 'error'
+                  ? '🔴 Error'
+                  : '⚪ Disconnected'}
         </Text>
 
-        {recording.error && (
-          <Text style={styles.errorText}>{recording.error}</Text>
-        )}
+        {recording.error && <Text style={styles.errorText}>{recording.error}</Text>}
 
         <CountdownTimer remainingSeconds={recording.remainingSeconds} />
 
         <View style={styles.liveStats}>
-          <StatCard label={STRINGS.heartRate} value={recording.currentHr > 0 ? `${recording.currentHr}` : '--'} unit={STRINGS.bpm} />
+          <StatCard
+            label={STRINGS.heartRate}
+            value={recording.currentHr > 0 ? `${recording.currentHr}` : '--'}
+            unit={STRINGS.bpm}
+          />
           <StatCard label={STRINGS.rrCount} value={`${recording.rrIntervals.length}`} />
         </View>
 
@@ -284,7 +303,9 @@ export function ReadingScreen() {
 
         {showArtifactWarning && (
           <View style={styles.warningBanner}>
-            <Text style={styles.warningText}>⚠️ High artifact rate ({(artifactRate * 100).toFixed(1)}%). Check sensor contact.</Text>
+            <Text style={styles.warningText}>
+              ⚠️ High artifact rate ({(artifactRate * 100).toFixed(1)}%). Check sensor contact.
+            </Text>
           </View>
         )}
 
@@ -294,7 +315,7 @@ export function ReadingScreen() {
             onPress={handleFinishEarly}
             accessibilityRole="button"
             accessibilityLabel="Finish recording early"
-             activeOpacity={0.7}
+            activeOpacity={0.7}
           >
             <Text style={styles.finishButtonText}>Finish Early</Text>
           </TouchableOpacity>

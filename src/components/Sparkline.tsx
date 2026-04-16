@@ -41,9 +41,10 @@ function SparklineInner({
   const pointsStr = points.map((p) => `${p.x},${p.y}`).join(' ');
   const lastPoint = points[points.length - 1];
 
-  const baselineY = baselineValue !== undefined
-    ? padding + chartHeight - ((baselineValue - min) / range) * chartHeight
-    : undefined;
+  const baselineY =
+    baselineValue !== undefined
+      ? padding + chartHeight - ((baselineValue - min) / range) * chartHeight
+      : undefined;
 
   return (
     <View
@@ -72,12 +73,7 @@ function SparklineInner({
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <Circle
-          cx={lastPoint.x}
-          cy={lastPoint.y}
-          r={4}
-          fill={color}
-        />
+        <Circle cx={lastPoint.x} cy={lastPoint.y} r={4} fill={color} />
       </Svg>
     </View>
   );

@@ -1,5 +1,4 @@
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
 import { getDatabase } from '../database/database';
 
 const MORNING_REMINDER_ID = 'morning-reminder';
@@ -47,10 +46,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
  * @param hour 0-23
  * @param minute 0-59
  */
-export async function scheduleMorningReminder(
-  hour: number,
-  minute: number
-): Promise<void> {
+export async function scheduleMorningReminder(hour: number, minute: number): Promise<void> {
   const h = Math.max(0, Math.min(23, Math.floor(hour)));
   const m = Math.max(0, Math.min(59, Math.floor(minute)));
 
@@ -83,7 +79,7 @@ export async function scheduleStreakReminder(currentStreak: number): Promise<voi
     identifier: STREAK_REMINDER_ID,
     content: {
       title: `🔥 Don't break your ${currentStreak}-day streak!`,
-      body: 'You haven\'t taken a reading yet today.',
+      body: "You haven't taken a reading yet today.",
       sound: false,
     },
     trigger: {
@@ -131,9 +127,7 @@ export async function loadNotificationSettings(): Promise<NotificationSettings> 
 /**
  * Saves notification settings and reschedules notifications.
  */
-export async function saveNotificationSettings(
-  settings: NotificationSettings
-): Promise<void> {
+export async function saveNotificationSettings(settings: NotificationSettings): Promise<void> {
   const db = await getDatabase();
   const entries = [
     ['notification_morning_enabled', String(settings.morningReminderEnabled)],
@@ -144,11 +138,7 @@ export async function saveNotificationSettings(
 
   await db.withTransactionAsync(async () => {
     for (const [key, value] of entries) {
-      await db.runAsync(
-        `INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`,
-        key,
-        value
-      );
+      await db.runAsync(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`, key, value);
     }
   });
 

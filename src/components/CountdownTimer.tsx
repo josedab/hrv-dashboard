@@ -19,12 +19,17 @@ export function CountdownTimer({ remainingSeconds, size = 180 }: CountdownTimerP
 
   const minutes = Math.floor(remainingSeconds / 60);
   const seconds = remainingSeconds % 60;
-  const timerLabel = minutes > 0
-    ? `${minutes} minute${minutes !== 1 ? 's' : ''} ${seconds} second${seconds !== 1 ? 's' : ''} remaining`
-    : `${seconds} second${seconds !== 1 ? 's' : ''} remaining`;
+  const timerLabel =
+    minutes > 0
+      ? `${minutes} minute${minutes !== 1 ? 's' : ''} ${seconds} second${seconds !== 1 ? 's' : ''} remaining`
+      : `${seconds} second${seconds !== 1 ? 's' : ''} remaining`;
 
   return (
-    <View style={[styles.container, { width: size, height: size }]} accessibilityRole="timer" accessibilityLabel={timerLabel}>
+    <View
+      style={[styles.container, { width: size, height: size }]}
+      accessibilityRole="timer"
+      accessibilityLabel={timerLabel}
+    >
       <Svg width={size} height={size}>
         {/* Background circle */}
         <Circle

@@ -10,12 +10,7 @@ interface RRPlotProps {
   maxPoints?: number;
 }
 
-export function RRPlot({
-  rrIntervals,
-  width = 320,
-  height = 120,
-  maxPoints = 60,
-}: RRPlotProps) {
+export function RRPlot({ rrIntervals, width = 320, height = 120, maxPoints = 60 }: RRPlotProps) {
   const padding = 12;
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;

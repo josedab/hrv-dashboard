@@ -12,7 +12,11 @@ interface StatCardProps {
 export function StatCard({ label, value, unit, warning = false }: StatCardProps) {
   const accessLabel = unit ? `${label}: ${value} ${unit}` : `${label}: ${value}`;
   return (
-    <View style={[styles.card, warning && styles.cardWarning]} accessibilityRole="text" accessibilityLabel={accessLabel}>
+    <View
+      style={[styles.card, warning && styles.cardWarning]}
+      accessibilityRole="text"
+      accessibilityLabel={accessLabel}
+    >
       <Text style={styles.label}>{label}</Text>
       <View style={styles.valueRow}>
         <Text style={[styles.value, warning && styles.valueWarning]}>{value}</Text>

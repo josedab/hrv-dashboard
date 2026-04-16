@@ -35,11 +35,7 @@ export async function loadSettings(): Promise<Settings> {
  */
 export async function saveSetting(key: keyof Settings, value: string): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync(
-    `INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`,
-    key,
-    value
-  );
+  await db.runAsync(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`, key, value);
 }
 
 /**

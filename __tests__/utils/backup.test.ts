@@ -37,19 +37,15 @@ describe('createBackup', () => {
   });
 
   it('throws on empty passphrase', async () => {
-    await expect(createBackup('')).rejects.toThrow(
-      'Passphrase must be at least 4 characters'
-    );
+    await expect(createBackup('')).rejects.toThrow('Passphrase must be at least 4 characters');
   });
 
   it('throws on passphrase shorter than 4 characters', async () => {
-    await expect(createBackup('abc')).rejects.toThrow(
-      'Passphrase must be at least 4 characters'
-    );
+    await expect(createBackup('abc')).rejects.toThrow('Passphrase must be at least 4 characters');
   });
 
   it('throws on null passphrase', async () => {
-    await expect(createBackup(null as any)).rejects.toThrow(
+    await expect(createBackup(null as unknown as string)).rejects.toThrow(
       'Passphrase must be at least 4 characters'
     );
   });
@@ -209,13 +205,11 @@ describe('restoreBackup', () => {
   });
 
   it('throws on empty passphrase', async () => {
-    await expect(restoreBackup('file-uri', '')).rejects.toThrow(
-      'Passphrase is required'
-    );
+    await expect(restoreBackup('file-uri', '')).rejects.toThrow('Passphrase is required');
   });
 
   it('throws on null passphrase', async () => {
-    await expect(restoreBackup('file-uri', null as any)).rejects.toThrow(
+    await expect(restoreBackup('file-uri', null as unknown as string)).rejects.toThrow(
       'Passphrase is required'
     );
   });
@@ -251,9 +245,7 @@ describe('restoreBackup', () => {
     });
     (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(backup);
 
-    await expect(restoreBackup('file-uri', 'password123')).rejects.toThrow(
-      /newer version/
-    );
+    await expect(restoreBackup('file-uri', 'password123')).rejects.toThrow(/newer version/);
   });
 
   it('throws on decryption failure', async () => {
@@ -346,29 +338,8 @@ describe('restoreBackup', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
 
-    const payload = {
-      version: 1,
-      exportedAt: '2024-01-01T00:00:00Z',
-      sessions: [
-        {
-          id: null,
-          timestamp: '2024-01-01T00:00:00Z',
-          rmssd: 45.2,
-        },
-        {
-          id: 'valid-id',
-          timestamp: null,
-          rmssd: 45.2,
-        },
-        {
-          id: 'valid-id-2',
-          timestamp: '2024-01-02T00:00:00Z',
-          rmssd: 45.2,
-        },
-      ],
-      settings: {},
-    };
-
+    // The payload structure below represents what would be inside the encrypted data.
+    // Since we can't mock the full decryption chain, we verify error handling.
     const backup = JSON.stringify({
       v: 1,
       salt: 'abc123',

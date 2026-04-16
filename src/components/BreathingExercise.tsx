@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, AccessibilityInfo } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  AccessibilityInfo,
+} from 'react-native';
 import { COLORS } from '../constants/colors';
 
 export interface BreathingPreset {
@@ -56,10 +63,22 @@ export function BreathingExercise({
   const cycleDuration = preset.inhale + preset.hold + preset.exhale;
 
   const clearAllTimers = useCallback(() => {
-    if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
-    if (cycleRef.current) { clearInterval(cycleRef.current); cycleRef.current = null; }
-    if (phaseTimerRef.current) { clearTimeout(phaseTimerRef.current); phaseTimerRef.current = null; }
-    if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null; }
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+    if (cycleRef.current) {
+      clearInterval(cycleRef.current);
+      cycleRef.current = null;
+    }
+    if (phaseTimerRef.current) {
+      clearTimeout(phaseTimerRef.current);
+      phaseTimerRef.current = null;
+    }
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
     scaleAnim.stopAnimation();
   }, [scaleAnim]);
 
@@ -159,13 +178,26 @@ export function BreathingExercise({
         </Text>
         <Text style={styles.presetName}>{preset.name} Breathing</Text>
         <Text style={styles.presetDetail}>
-          {preset.inhale}s in{preset.hold > 0 ? ` · ${preset.hold}s hold` : ''} · {preset.exhale}s out
+          {preset.inhale}s in{preset.hold > 0 ? ` · ${preset.hold}s hold` : ''} · {preset.exhale}s
+          out
         </Text>
 
-        <TouchableOpacity style={styles.startButton} onPress={handleStart} accessibilityRole="button" accessibilityLabel={`Begin ${preset.name} breathing exercise, ${Math.floor(durationSeconds / 60)} minutes`} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={handleStart}
+          accessibilityRole="button"
+          accessibilityLabel={`Begin ${preset.name} breathing exercise, ${Math.floor(durationSeconds / 60)} minutes`}
+          activeOpacity={0.8}
+        >
           <Text style={styles.startButtonText}>Begin ({Math.floor(durationSeconds / 60)} min)</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.skipButton} onPress={onSkip} accessibilityRole="button" accessibilityLabel="Skip breathing and start recording" activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.skipButton}
+          onPress={onSkip}
+          accessibilityRole="button"
+          accessibilityLabel="Skip breathing and start recording"
+          activeOpacity={0.7}
+        >
           <Text style={styles.skipButtonText}>Skip → Start Recording</Text>
         </TouchableOpacity>
       </View>
@@ -195,10 +227,13 @@ export function BreathingExercise({
             {
               transform: [{ scale: scaleAnim }],
               backgroundColor:
-                phase === 'inhale' ? COLORS.accent :
-                phase === 'hold' ? COLORS.warning :
-                phase === 'exhale' ? COLORS.success :
-                COLORS.surfaceLight,
+                phase === 'inhale'
+                  ? COLORS.accent
+                  : phase === 'hold'
+                    ? COLORS.warning
+                    : phase === 'exhale'
+                      ? COLORS.success
+                      : COLORS.surfaceLight,
             },
           ]}
         />
@@ -206,7 +241,13 @@ export function BreathingExercise({
 
       <Text style={styles.phaseLabel}>{phaseLabel}</Text>
 
-      <TouchableOpacity style={styles.skipButton} onPress={handleDone} accessibilityRole="button" accessibilityLabel="Finish breathing and start recording" activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.skipButton}
+        onPress={handleDone}
+        accessibilityRole="button"
+        accessibilityLabel="Finish breathing and start recording"
+        activeOpacity={0.7}
+      >
         <Text style={styles.skipButtonText}>Done → Start Recording</Text>
       </TouchableOpacity>
     </View>

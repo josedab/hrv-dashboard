@@ -134,11 +134,7 @@ describe('computeBaseline', () => {
   });
 
   it('returns all readings within window as values', () => {
-    const readings: DailyReading[] = [
-      makeReading(0, 50),
-      makeReading(1, 60),
-      makeReading(2, 70),
-    ];
+    const readings: DailyReading[] = [makeReading(0, 50), makeReading(1, 60), makeReading(2, 70)];
     const result = computeBaseline(readings);
     expect(result.values).toEqual(expect.arrayContaining([50, 60, 70]));
     expect(result.values).toHaveLength(3);

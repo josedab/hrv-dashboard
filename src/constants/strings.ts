@@ -141,32 +141,38 @@ export const STRINGS = {
     {
       emoji: '❤️',
       title: 'Morning Readiness in 5 Minutes',
-      description: 'Put on your heart rate monitor, lie still, and get an objective readiness verdict for the day.',
+      description:
+        'Put on your heart rate monitor, lie still, and get an objective readiness verdict for the day.',
     },
     {
       emoji: '📊',
       title: 'Science-Backed Metrics',
-      description: 'rMSSD, SDNN, and heart rate computed from your RR intervals. Artifact detection filters out noise.',
+      description:
+        'rMSSD, SDNN, and heart rate computed from your RR intervals. Artifact detection filters out noise.',
     },
     {
       emoji: '🎯',
       title: 'Three Clear Verdicts',
-      description: 'Go Hard, Moderate, or Rest. Based on your personal 7-day baseline — no guesswork.',
+      description:
+        'Go Hard, Moderate, or Rest. Based on your personal 7-day baseline — no guesswork.',
     },
     {
       emoji: '🔒',
       title: 'Your Data, Your Device',
-      description: 'Everything stays on your phone. No cloud, no accounts, no tracking. Export anytime via CSV.',
+      description:
+        'Everything stays on your phone. No cloud, no accounts, no tracking. Export anytime via CSV.',
     },
   ],
 
   // Orthostatic
   orthostaticTest: 'Orthostatic Test',
-  orthostaticSubtitle: 'A 5-minute test measuring your HRV response to standing up. More sensitive to overtraining than supine-only measurement.',
+  orthostaticSubtitle:
+    'A 5-minute test measuring your HRV response to standing up. More sensitive to overtraining than supine-only measurement.',
   orthostaticPhase1: '1️⃣ Lie down — 2.5 min supine recording',
   orthostaticPhase2: '2️⃣ Stand up — 10 second transition',
   orthostaticPhase3: '3️⃣ Stand still — 2.5 min standing recording',
-  orthostaticHint: 'This test requires a connected HR monitor. Start a normal reading first to connect your device, then come back here.',
+  orthostaticHint:
+    'This test requires a connected HR monitor. Start a normal reading first to connect your device, then come back here.',
   orthostaticResults: 'Orthostatic Results',
   reactivity: 'Reactivity',
   supine: 'Supine',
@@ -177,12 +183,14 @@ export const STRINGS = {
 
   // Camera
   cameraReading: 'Camera HRV Reading',
-  cameraSubtitle: 'Measure your heart rate variability using your phone\'s camera. Place your fingertip over the rear camera lens.',
+  cameraSubtitle:
+    "Measure your heart rate variability using your phone's camera. Place your fingertip over the rear camera lens.",
   cameraInstruction1: '1. The camera flash will turn on as a light source',
   cameraInstruction2: '2. Cover the camera + flash with your fingertip',
-  cameraInstruction3: '3. Hold steady for 60 seconds — don\'t press too hard',
+  cameraInstruction3: "3. Hold steady for 60 seconds — don't press too hard",
   cameraInstruction4: '4. Your screen should appear reddish if positioned correctly',
-  cameraAccuracy: '⚠️ Camera PPG is less accurate than a chest strap. Best for days when your HR monitor isn\'t available.',
+  cameraAccuracy:
+    "⚠️ Camera PPG is less accurate than a chest strap. Best for days when your HR monitor isn't available.",
   startCameraRecording: 'Start Camera Recording',
   useChestStrap: '← Use Chest Strap Instead',
   keepFingertipOnCamera: 'Keep fingertip on camera',

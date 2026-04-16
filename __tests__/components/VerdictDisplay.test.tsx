@@ -18,7 +18,8 @@ import React from 'react';
 // Use a lightweight render helper
 function getComponentOutput(element: React.ReactElement): string {
   const json = JSON.stringify(element, (key, value) => {
-    if (key === '_owner' || key === '_store' || key === 'ref' || key === '$$typeof') return undefined;
+    if (key === '_owner' || key === '_store' || key === 'ref' || key === '$$typeof')
+      return undefined;
     return value;
   });
   return json;

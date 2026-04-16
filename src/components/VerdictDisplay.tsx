@@ -13,7 +13,13 @@ interface VerdictDisplayProps {
   percentOfBaseline?: number;
 }
 
-export function VerdictDisplay({ verdict, rmssd, size = 'large', baselineValue, percentOfBaseline }: VerdictDisplayProps) {
+export function VerdictDisplay({
+  verdict,
+  rmssd,
+  size = 'large',
+  baselineValue,
+  percentOfBaseline,
+}: VerdictDisplayProps) {
   const isLarge = size === 'large';
 
   const renderBaselineContext = () => {
@@ -27,9 +33,10 @@ export function VerdictDisplay({ verdict, rmssd, size = 'large', baselineValue, 
   };
 
   if (!verdict) {
-    const baselineLabel = rmssd !== null
-      ? `Readiness verdict: ${STRINGS.buildingBaseline}. rMSSD ${rmssd.toFixed(1)} milliseconds`
-      : `Readiness verdict: ${STRINGS.buildingBaseline}`;
+    const baselineLabel =
+      rmssd !== null
+        ? `Readiness verdict: ${STRINGS.buildingBaseline}. rMSSD ${rmssd.toFixed(1)} milliseconds`
+        : `Readiness verdict: ${STRINGS.buildingBaseline}`;
 
     return (
       <View
@@ -46,9 +53,7 @@ export function VerdictDisplay({ verdict, rmssd, size = 'large', baselineValue, 
             rMSSD: {rmssd.toFixed(1)} ms
           </Text>
         )}
-        <Text style={styles.sublabel}>
-          {STRINGS.buildingBaselineDesc}
-        </Text>
+        <Text style={styles.sublabel}>{STRINGS.buildingBaselineDesc}</Text>
       </View>
     );
   }
@@ -56,9 +61,10 @@ export function VerdictDisplay({ verdict, rmssd, size = 'large', baselineValue, 
   const info = VERDICT_INFO[verdict];
   const color = VERDICT_COLORS[verdict];
 
-  const verdictLabel = rmssd !== null
-    ? `Readiness verdict: ${info.label}. rMSSD ${rmssd.toFixed(1)} milliseconds`
-    : `Readiness verdict: ${info.label}`;
+  const verdictLabel =
+    rmssd !== null
+      ? `Readiness verdict: ${info.label}. rMSSD ${rmssd.toFixed(1)} milliseconds`
+      : `Readiness verdict: ${info.label}`;
 
   return (
     <View
@@ -67,9 +73,7 @@ export function VerdictDisplay({ verdict, rmssd, size = 'large', baselineValue, 
       accessibilityLabel={verdictLabel}
     >
       <Text style={[styles.emoji, isLarge && styles.emojiLarge]}>{info.emoji}</Text>
-      <Text style={[styles.label, isLarge && styles.labelLarge, { color }]}>
-        {info.label}
-      </Text>
+      <Text style={[styles.label, isLarge && styles.labelLarge, { color }]}>{info.label}</Text>
       {rmssd !== null && (
         <Text style={[styles.rmssd, isLarge && styles.rmssdLarge]}>
           rMSSD: {rmssd.toFixed(1)} ms

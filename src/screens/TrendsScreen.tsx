@@ -68,10 +68,18 @@ export function TrendsScreen() {
     );
   }
 
-  const trendIcon = summary.trendDirection === 'improving' ? '📈' :
-                    summary.trendDirection === 'declining' ? '📉' : '➡️';
-  const trendColor = summary.trendDirection === 'improving' ? COLORS.success :
-                     summary.trendDirection === 'declining' ? COLORS.danger : COLORS.textSecondary;
+  const trendIcon =
+    summary.trendDirection === 'improving'
+      ? '📈'
+      : summary.trendDirection === 'declining'
+        ? '📉'
+        : '➡️';
+  const trendColor =
+    summary.trendDirection === 'improving'
+      ? COLORS.success
+      : summary.trendDirection === 'declining'
+        ? COLORS.danger
+        : COLORS.textSecondary;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -86,7 +94,8 @@ export function TrendsScreen() {
           </Text>
           {summary.trendPercent !== 0 && (
             <Text style={styles.trendPercent}>
-              {summary.trendPercent > 0 ? '+' : ''}{summary.trendPercent.toFixed(1)}% vs. previous week
+              {summary.trendPercent > 0 ? '+' : ''}
+              {summary.trendPercent.toFixed(1)}% vs. previous week
             </Text>
           )}
         </View>
@@ -155,11 +164,10 @@ export function TrendsScreen() {
           <Text style={styles.sectionLabel}>{STRINGS.correlations}</Text>
           {sleepCorrelation && (
             <View style={styles.correlationCard}>
-              <Text style={styles.correlationTitle}>
-                😴 {sleepCorrelation.factor} ↔ HRV
-              </Text>
+              <Text style={styles.correlationTitle}>😴 {sleepCorrelation.factor} ↔ HRV</Text>
               <Text style={styles.correlationValue}>
-                r = {sleepCorrelation.correlation.toFixed(2)} ({sleepCorrelation.sampleSize} sessions)
+                r = {sleepCorrelation.correlation.toFixed(2)} ({sleepCorrelation.sampleSize}{' '}
+                sessions)
               </Text>
               <Text style={styles.correlationInterpretation}>
                 {sleepCorrelation.interpretation}
@@ -168,11 +176,10 @@ export function TrendsScreen() {
           )}
           {stressCorrelation && (
             <View style={styles.correlationCard}>
-              <Text style={styles.correlationTitle}>
-                😰 {stressCorrelation.factor} ↔ HRV
-              </Text>
+              <Text style={styles.correlationTitle}>😰 {stressCorrelation.factor} ↔ HRV</Text>
               <Text style={styles.correlationValue}>
-                r = {stressCorrelation.correlation.toFixed(2)} ({stressCorrelation.sampleSize} sessions)
+                r = {stressCorrelation.correlation.toFixed(2)} ({stressCorrelation.sampleSize}{' '}
+                sessions)
               </Text>
               <Text style={styles.correlationInterpretation}>
                 {stressCorrelation.interpretation}
@@ -188,7 +195,12 @@ export function TrendsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
   title: { fontSize: 28, fontWeight: '700', color: COLORS.text, marginBottom: 20 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyText: { fontSize: 18, color: COLORS.textSecondary, fontWeight: '600' },
@@ -245,5 +257,10 @@ const styles = StyleSheet.create({
   },
   correlationTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text },
   correlationValue: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },
-  correlationInterpretation: { fontSize: 14, color: COLORS.textMuted, marginTop: 2, fontStyle: 'italic' },
+  correlationInterpretation: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    marginTop: 2,
+    fontStyle: 'italic',
+  },
 });

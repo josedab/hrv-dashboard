@@ -43,23 +43,26 @@ export function OrthostaticScreen() {
     };
   }, [clearTimer]);
 
-  const startTimer = useCallback((duration: number, onComplete: () => void) => {
-    clearTimer();
-    phaseStartRef.current = Date.now();
-    setElapsed(0);
+  const startTimer = useCallback(
+    (duration: number, onComplete: () => void) => {
+      clearTimer();
+      phaseStartRef.current = Date.now();
+      setElapsed(0);
 
-    timerRef.current = setInterval(() => {
-      if (!isMountedRef.current) return;
-      const e = Math.floor((Date.now() - phaseStartRef.current) / 1000);
-      setElapsed(e);
-      if (e >= duration) {
-        clearTimer();
-        onComplete();
-      }
-    }, 1000);
-  }, [clearTimer]);
+      timerRef.current = setInterval(() => {
+        if (!isMountedRef.current) return;
+        const e = Math.floor((Date.now() - phaseStartRef.current) / 1000);
+        setElapsed(e);
+        if (e >= duration) {
+          clearTimer();
+          onComplete();
+        }
+      }, 1000);
+    },
+    [clearTimer]
+  );
 
-  const handleSupineComplete = useCallback(() => {
+  const _handleSupineComplete = useCallback(() => {
     if (!isMountedRef.current) return;
     // Record how many RR intervals belong to the supine phase
     supineEndIndexRef.current = recording.rrIntervals.length;
@@ -103,7 +106,9 @@ export function OrthostaticScreen() {
   }, [recording.rrIntervals, startTimer, pulseAnim, actions, navigation]);
 
   useEffect(() => {
-    return () => { clearTimer(); };
+    return () => {
+      clearTimer();
+    };
   }, [clearTimer]);
 
   // Intro screen
@@ -112,8 +117,8 @@ export function OrthostaticScreen() {
       <View style={styles.container}>
         <Text style={styles.title}>Orthostatic Test</Text>
         <Text style={styles.subtitle}>
-          A 5-minute test measuring your HRV response to standing up.
-          More sensitive to overtraining than supine-only measurement.
+          A 5-minute test measuring your HRV response to standing up. More sensitive to overtraining
+          than supine-only measurement.
         </Text>
         <View style={styles.phaseList}>
           <Text style={styles.phaseItem}>1️⃣ Lie down — 2.5 min supine recording</Text>
@@ -121,10 +126,16 @@ export function OrthostaticScreen() {
           <Text style={styles.phaseItem}>3️⃣ Stand still — 2.5 min standing recording</Text>
         </View>
         <Text style={styles.hint}>
-          This test requires a connected HR monitor. Start a normal reading first
-          to connect your device, then come back here.
+          This test requires a connected HR monitor. Start a normal reading first to connect your
+          device, then come back here.
         </Text>
-        <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back" activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          activeOpacity={0.7}
+        >
           <Text style={styles.cancelText}>← Back</Text>
         </TouchableOpacity>
       </View>
@@ -133,8 +144,12 @@ export function OrthostaticScreen() {
 
   // Result screen
   if (phase === 'result' && result) {
-    const scoreColor = result.reactivityScore >= 70 ? COLORS.success :
-                       result.reactivityScore >= 40 ? COLORS.warning : COLORS.danger;
+    const scoreColor =
+      result.reactivityScore >= 70
+        ? COLORS.success
+        : result.reactivityScore >= 40
+          ? COLORS.warning
+          : COLORS.danger;
 
     return (
       <View style={styles.container}>
@@ -162,14 +177,22 @@ export function OrthostaticScreen() {
 
         <View style={styles.deltaRow}>
           <Text style={styles.deltaText}>
-            Δ rMSSD: {result.deltaRmssd > 0 ? '+' : ''}{result.deltaRmssd.toFixed(1)} ms
+            Δ rMSSD: {result.deltaRmssd > 0 ? '+' : ''}
+            {result.deltaRmssd.toFixed(1)} ms
           </Text>
           <Text style={styles.deltaText}>
-            Δ HR: {result.deltaHr > 0 ? '+' : ''}{result.deltaHr.toFixed(0)} bpm
+            Δ HR: {result.deltaHr > 0 ? '+' : ''}
+            {result.deltaHr.toFixed(0)} bpm
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.doneButton} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Done, return to home" activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.doneButton}
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Done, return to home"
+          activeOpacity={0.8}
+        >
           <Text style={styles.doneButtonText}>Done</Text>
         </TouchableOpacity>
       </View>
@@ -177,33 +200,50 @@ export function OrthostaticScreen() {
   }
 
   // Active phases
-  const phaseName = phase === 'supine' ? '🛌 Lie Still' :
-                    phase === 'transition' ? '🏃 Stand Up Now!' :
-                    phase === 'standing' ? '🧍 Stand Still' : '';
-  const phaseDuration = phase === 'supine' ? SUPINE_DURATION :
-                        phase === 'transition' ? TRANSITION_DURATION :
-                        STANDING_DURATION;
+  const phaseName =
+    phase === 'supine'
+      ? '🛌 Lie Still'
+      : phase === 'transition'
+        ? '🏃 Stand Up Now!'
+        : phase === 'standing'
+          ? '🧍 Stand Still'
+          : '';
+  const phaseDuration =
+    phase === 'supine'
+      ? SUPINE_DURATION
+      : phase === 'transition'
+        ? TRANSITION_DURATION
+        : STANDING_DURATION;
   const remaining = Math.max(0, phaseDuration - elapsed);
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
 
   return (
     <View style={styles.container}>
-      <Animated.Text style={[styles.phaseEmoji, { transform: [{ scale: phase === 'transition' ? pulseAnim : 1 }] }]}>
+      <Animated.Text
+        style={[
+          styles.phaseEmoji,
+          { transform: [{ scale: phase === 'transition' ? pulseAnim : 1 }] },
+        ]}
+      >
         {phase === 'supine' ? '🛌' : phase === 'transition' ? '⬆️' : '🧍'}
       </Animated.Text>
       <Text style={styles.activePhaseLabel}>{phaseName}</Text>
-      <Text style={styles.timerText}>{mins}:{String(secs).padStart(2, '0')}</Text>
+      <Text style={styles.timerText}>
+        {mins}:{String(secs).padStart(2, '0')}
+      </Text>
 
-      {recording.currentHr > 0 && (
-        <Text style={styles.liveHr}>❤️ {recording.currentHr} bpm</Text>
-      )}
+      {recording.currentHr > 0 && <Text style={styles.liveHr}>❤️ {recording.currentHr} bpm</Text>}
 
       <Text style={styles.rrCount}>{recording.rrIntervals.length} RR intervals</Text>
 
       <TouchableOpacity
         style={styles.cancelButton}
-        onPress={() => { clearTimer(); actions.stopRecording(); navigation.goBack(); }}
+        onPress={() => {
+          clearTimer();
+          actions.stopRecording();
+          navigation.goBack();
+        }}
         accessibilityRole="button"
         accessibilityLabel="Cancel orthostatic test"
         activeOpacity={0.7}
@@ -216,32 +256,70 @@ export function OrthostaticScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1, backgroundColor: COLORS.background, alignItems: 'center',
-    justifyContent: 'center', padding: 20,
+    flex: 1,
+    backgroundColor: COLORS.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
   },
   title: { fontSize: 24, fontWeight: '700', color: COLORS.text, marginBottom: 12 },
-  subtitle: { fontSize: 15, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 24, paddingHorizontal: 20 },
+  subtitle: {
+    fontSize: 15,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
   phaseList: { alignSelf: 'stretch', marginBottom: 24, gap: 8 },
   phaseItem: { fontSize: 16, color: COLORS.text, paddingVertical: 4 },
   hint: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', marginBottom: 32 },
   phaseEmoji: { fontSize: 64, marginBottom: 16 },
   activePhaseLabel: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
-  timerText: { fontSize: 48, fontWeight: '700', color: COLORS.accent, marginBottom: 24, fontVariant: ['tabular-nums'] },
+  timerText: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: COLORS.accent,
+    marginBottom: 24,
+    fontVariant: ['tabular-nums'],
+  },
   liveHr: { fontSize: 20, color: COLORS.text, marginBottom: 8 },
   rrCount: { fontSize: 14, color: COLORS.textMuted },
   scoreCircle: {
-    width: 120, height: 120, borderRadius: 60, borderWidth: 4,
-    borderColor: COLORS.accent, justifyContent: 'center', alignItems: 'center', marginVertical: 20,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 4,
+    borderColor: COLORS.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 20,
   },
   scoreValue: { fontSize: 40, fontWeight: '700' },
   scoreLabel: { fontSize: 13, color: COLORS.textMuted },
-  interpretation: { fontSize: 15, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 24, paddingHorizontal: 20 },
+  interpretation: {
+    fontSize: 15,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
   comparisonRow: { flexDirection: 'row', gap: 16, marginBottom: 16, width: '100%' },
   comparisonColumn: { flex: 1, gap: 8 },
-  comparisonHeader: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted, textAlign: 'center', marginBottom: 4 },
+  comparisonHeader: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
   deltaRow: { flexDirection: 'row', gap: 24, marginBottom: 24 },
   deltaText: { fontSize: 15, color: COLORS.textSecondary, fontWeight: '600' },
-  doneButton: { backgroundColor: COLORS.accent, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 48 },
+  doneButton: {
+    backgroundColor: COLORS.accent,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 48,
+  },
   doneButtonText: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   cancelButton: { padding: 12, minHeight: 44 },
   cancelText: { fontSize: 16, color: COLORS.textSecondary },

@@ -38,9 +38,7 @@ export function computeOrthostaticResult(
   const deltaRmssd = standing.rmssd - supine.rmssd;
   const deltaHr = standing.meanHr - supine.meanHr;
 
-  const rmssdDropPct = supine.rmssd > 0
-    ? Math.abs(deltaRmssd / supine.rmssd) * 100
-    : 0;
+  const rmssdDropPct = supine.rmssd > 0 ? Math.abs(deltaRmssd / supine.rmssd) * 100 : 0;
 
   // Reactivity score: optimal is ~25% rMSSD drop + ~15bpm HR rise
   // Weights: 60% HRV reactivity, 40% HR reactivity

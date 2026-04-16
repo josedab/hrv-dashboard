@@ -12,16 +12,10 @@ export const MIN_BASELINE_DAYS = 5;
 /** Artifact rate above this value triggers a warning in the UI. */
 export const ARTIFACT_WARNING_THRESHOLD = 0.05;
 /** RR intervals deviating more than this fraction from local median are flagged as artifacts. */
-export const ARTIFACT_DEVIATION_FACTOR = 0.20;
+export const ARTIFACT_DEVIATION_FACTOR = 0.2;
 
 /** Available training types for post-recording subjective log. */
-export const TRAINING_TYPES = [
-  'Strength',
-  'BJJ',
-  'Cycling',
-  'Rest',
-  'Other',
-] as const;
+export const TRAINING_TYPES = ['Strength', 'BJJ', 'Cycling', 'Rest', 'Other'] as const;
 
 /** Union type of available training types. */
-export type TrainingType = typeof TRAINING_TYPES[number];
+export type TrainingType = (typeof TRAINING_TYPES)[number];

@@ -32,7 +32,7 @@ const SLIDES: OnboardingSlide[] = [
     emoji: '📊',
     title: 'How It Works',
     description:
-      'The app records your heart\'s RR intervals for 5 minutes, computes HRV metrics (rMSSD), and compares against your personal baseline to determine readiness.',
+      "The app records your heart's RR intervals for 5 minutes, computes HRV metrics (rMSSD), and compares against your personal baseline to determine readiness.",
   },
   {
     id: '3',
@@ -51,13 +51,11 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList<OnboardingSlide>>(null);
 
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index !== null) {
-        setCurrentIndex(viewableItems[0].index);
-      }
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    if (viewableItems.length > 0 && viewableItems[0].index !== null) {
+      setCurrentIndex(viewableItems[0].index);
     }
-  ).current;
+  }).current;
 
   const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
 
@@ -99,10 +97,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         {SLIDES.map((_, index) => (
           <View
             key={index}
-            style={[
-              styles.dot,
-              index === currentIndex && styles.dotActive,
-            ]}
+            style={[styles.dot, index === currentIndex && styles.dotActive]}
             accessible={true}
             accessibilityRole="tab"
             accessibilityLabel={`Slide ${index + 1} of ${SLIDES.length}`}
@@ -128,12 +123,12 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
           style={[styles.nextButton, isLastSlide && styles.getStartedButton]}
           onPress={handleNext}
           accessibilityRole="button"
-          accessibilityLabel={isLastSlide ? 'Get started with the app' : `Go to slide ${currentIndex + 2}`}
+          accessibilityLabel={
+            isLastSlide ? 'Get started with the app' : `Go to slide ${currentIndex + 2}`
+          }
           activeOpacity={0.7}
         >
-          <Text style={styles.nextButtonText}>
-            {isLastSlide ? 'Get Started' : 'Next'}
-          </Text>
+          <Text style={styles.nextButtonText}>{isLastSlide ? 'Get Started' : 'Next'}</Text>
         </TouchableOpacity>
       </View>
     </View>

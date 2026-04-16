@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Text, StyleSheet, Animated } from 'react-native';
 import { COLORS } from '../constants/colors';
 
@@ -21,7 +21,12 @@ export function Toast({ message, visible, duration = 2500, type = 'success', onH
   useEffect(() => {
     if (visible) {
       Animated.parallel([
-        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, tension: 80, friction: 10 }),
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 80,
+          friction: 10,
+        }),
         Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
       ]).start();
 
@@ -38,21 +43,18 @@ export function Toast({ message, visible, duration = 2500, type = 'success', onH
 
   if (!visible) return null;
 
-  const bgColor = type === 'success' ? COLORS.success :
-                  type === 'error' ? COLORS.danger :
-                  COLORS.accent;
+  const bgColor =
+    type === 'success' ? COLORS.success : type === 'error' ? COLORS.danger : COLORS.accent;
 
   return (
     <Animated.View
-      style={[
-        styles.container,
-        { backgroundColor: bgColor, transform: [{ translateY }], opacity },
-      ]}
+      style={[styles.container, { backgroundColor: bgColor, transform: [{ translateY }], opacity }]}
       accessibilityRole="alert"
       accessibilityLiveRegion="assertive"
     >
       <Text style={styles.text}>
-        {type === 'success' ? '✓ ' : type === 'error' ? '✗ ' : 'ℹ '}{message}
+        {type === 'success' ? '✓ ' : type === 'error' ? '✗ ' : 'ℹ '}
+        {message}
       </Text>
     </Animated.View>
   );

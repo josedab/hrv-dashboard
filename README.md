@@ -38,6 +38,9 @@ Baseline is computed as the **median rMSSD** over a rolling 7-day window (config
 # Install dependencies
 npm install
 
+# Copy environment template (optional — only needed for Sentry)
+cp .env.example .env
+
 # Generate native projects (first time only)
 npx expo prebuild
 
@@ -50,12 +53,32 @@ npm run ios
 # Run on Android
 npm run android
 
-# Run tests (140 unit tests)
+# Run tests
 npm test
 
-# Lint
+# Lint, typecheck, format
 npm run lint
+npm run typecheck
+npm run format
 ```
+
+### Physical Device Setup
+
+BLE does not work in simulators — a physical device is required.
+
+**iOS:**
+1. Install CocoaPods: `sudo gem install cocoapods`
+2. Run `npx expo prebuild` to generate the `ios/` directory
+3. Run `cd ios && pod install && cd ..`
+4. Open `ios/*.xcworkspace` in Xcode, configure your signing team
+5. Connect your iPhone and run `npm run ios`
+
+**Android:**
+1. Enable Developer Options → USB Debugging on your device
+2. Run `npx expo prebuild` to generate the `android/` directory
+3. Connect your device via USB and run `npm run android`
+
+> **Note:** This app uses `expo-dev-client` for native module support. The standard Expo Go app will not work.
 
 ### BLE Permissions
 
@@ -73,46 +96,61 @@ src/
 │   ├── bleManager.ts       # Device scanning & connection lifecycle
 │   ├── heartRateParser.ts  # GATT Heart Rate Measurement (0x2A37) parser
 │   ├── permissions.ts      # Cross-platform BLE permission handling
+│   ├── ppgProcessor.ts     # Camera-based PPG signal processing (no-strap fallback)
 │   └── useBleRecording.ts  # React hook for recording state management
 ├── components/       # Reusable UI components
+│   ├── BreathingExercise.tsx # Guided pre-recording breathing exercise
 │   ├── CountdownTimer.tsx   # Circular SVG countdown
 │   ├── ErrorBoundary.tsx    # Error boundary with recovery UI
 │   ├── ReadinessSlider.tsx  # 1–5 perceived readiness selector
 │   ├── RRPlot.tsx           # RR interval line chart
 │   ├── Sparkline.tsx        # Compact trend line with optional baseline
 │   ├── StatCard.tsx         # Metric display card
+│   ├── Toast.tsx            # Toast notification component
 │   └── VerdictDisplay.tsx   # Verdict emoji, label, and description
 ├── constants/        # App-wide constants
 │   ├── colors.ts            # Dark theme palette & verdict colors
 │   ├── defaults.ts          # Recording durations, thresholds, training types
+│   ├── strings.ts           # Centralized UI strings (i18n-ready)
 │   └── verdicts.ts          # Verdict display info (labels, emojis)
 ├── database/         # SQLite persistence
 │   ├── database.ts          # DB initialization, migrations, singleton
 │   ├── sessionRepository.ts # Session CRUD & queries
 │   └── settingsRepository.ts# Key-value settings storage
 ├── hrv/              # Core HRV computation engine
+│   ├── analytics.ts         # Weekly summaries, trends, correlations
 │   ├── artifacts.ts         # Artifact detection (5-beat moving median)
 │   ├── baseline.ts          # Rolling median rMSSD baseline
 │   ├── metrics.ts           # rMSSD, SDNN, mean HR, pNN50
+│   ├── orthostatic.ts       # Orthostatic test (supine vs. standing)
+│   ├── recovery.ts          # Composite recovery score & training load
 │   └── verdict.ts           # Threshold-based readiness verdict
 ├── navigation/       # React Navigation configuration
-│   └── AppNavigator.tsx     # Bottom tabs + modal stack
+│   └── AppNavigator.tsx     # Bottom tabs (4) + modal stack (5 screens)
 ├── screens/          # App screens
-│   ├── HomeScreen.tsx       # Today's verdict, sparkline, stats
-│   ├── ReadingScreen.tsx    # BLE scan → record → complete workflow
+│   ├── CameraReadingScreen.tsx  # Camera PPG reading (no-strap fallback)
 │   ├── HistoryScreen.tsx    # Session list with sparkline header
+│   ├── HomeScreen.tsx       # Today's verdict, sparkline, recovery score
 │   ├── LogScreen.tsx        # Post-recording subjective log
-│   ├── SessionDetailScreen.tsx  # Full session metrics view
-│   ├── SettingsScreen.tsx   # Baseline window, thresholds, export
 │   ├── OnboardingScreen.tsx # First-launch carousel
-│   └── PrivacyPolicyScreen.tsx  # Local-only privacy policy
+│   ├── OrthostaticScreen.tsx    # Orthostatic HRV test workflow
+│   ├── PrivacyPolicyScreen.tsx  # Local-only privacy policy
+│   ├── ReadingScreen.tsx    # BLE scan → record → complete workflow
+│   ├── SessionDetailScreen.tsx  # Full session metrics view
+│   ├── SettingsScreen.tsx   # Baseline, thresholds, export, backup, health sync
+│   └── TrendsScreen.tsx     # Weekly analytics, correlations, trends
 ├── types/            # TypeScript type definitions
 │   └── index.ts             # Session, HrvMetrics, Settings, etc.
 └── utils/            # Utility functions
-    ├── crashReporting.ts    # Console stub (swap in Sentry)
+    ├── backup.ts            # Encrypted backup/restore (.hrvbak files)
+    ├── crashReporting.ts    # Sentry integration with console fallback
     ├── csv.ts               # Session-to-CSV export
     ├── date.ts              # Date formatting & streak calculation
-    └── uuid.ts              # UUID v4 generator
+    ├── healthSync.ts        # Apple HealthKit / Android Health Connect sync
+    ├── notifications.ts     # Morning reminder & streak protection push notifications
+    ├── profiles.ts          # Multi-athlete profiles & verdict sharing
+    ├── uuid.ts              # UUID v4 generator
+    └── widgetData.ts        # iOS WidgetKit / Android Glance widget data
 ```
 
 ## Core Algorithm
@@ -188,17 +226,17 @@ Key-value store for user preferences: baseline window, verdict thresholds, paire
 npm test
 ```
 
-140 unit tests covering all business logic:
+Unit tests covering all business logic:
 
-| Module | Tests | What's Covered |
-|--------|-------|---------------|
-| `hrv/metrics` | 27 | rMSSD, SDNN, mean HR, pNN50, edge cases |
-| `hrv/artifacts` | 14 | Artifact detection & filtering, boundary conditions |
-| `hrv/baseline` | 15 | Median computation, window filtering, outlier robustness |
-| `hrv/verdict` | 15 | Threshold logic, insufficient baseline, custom thresholds |
-| `ble/heartRateParser` | 22 | GATT parsing, 8/16-bit HR, RR units, sensor contact |
-| `utils/date` | 24 | Date formatting, duration, streak calculation |
-| `utils/csv` | 12 | CSV generation, escaping, null handling, numeric precision |
+| Module | What's Covered |
+|--------|---------------|
+| `hrv/metrics` | rMSSD, SDNN, mean HR, pNN50, edge cases |
+| `hrv/artifacts` | Artifact detection & filtering, boundary conditions |
+| `hrv/baseline` | Median computation, window filtering, outlier robustness |
+| `hrv/verdict` | Threshold logic, insufficient baseline, custom thresholds |
+| `ble/heartRateParser` | GATT parsing, 8/16-bit HR, RR units, sensor contact |
+| `utils/date` | Date formatting, duration, streak calculation |
+| `utils/csv` | CSV generation, escaping, null handling, numeric precision |
 
 Tests are pure logic only (no React component rendering). Jest with ts-jest in Node environment.
 
@@ -218,6 +256,10 @@ Tests are pure logic only (no React component rendering). Jest with ts-jest in N
 - **Heart Rate Service only** — works with any BLE HR monitor, not just Polar
 - **5-minute recording** — per ESC guidelines for short-term HRV analysis
 - **Local-only storage** — no privacy concerns, no network dependency
+- **Camera PPG fallback** — extract RR intervals from fingertip camera readings when no chest strap is available
+- **Encrypted backups** — SHA-256 CTR stream cipher with PBKDF2-like key derivation for `.hrvbak` files
+- **Optional health platform sync** — write HRV data to Apple HealthKit / Android Health Connect when SDK is installed
+- **Centralized UI strings** — all user-facing text in `constants/strings.ts` for i18n readiness
 
 ## License
 

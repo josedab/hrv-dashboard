@@ -12,6 +12,9 @@ export interface AthleteProfile {
 
 /**
  * Creates the profiles table if it doesn't exist.
+ * @deprecated Table is now created via database migration (v3).
+ * Retained for backward compatibility; safe to call but no-ops
+ * when the migration has already run.
  */
 export async function ensureProfilesTable(): Promise<void> {
   const db = await getDatabase();
@@ -29,7 +32,6 @@ export async function ensureProfilesTable(): Promise<void> {
  * Gets all athlete profiles.
  */
 export async function getProfiles(): Promise<AthleteProfile[]> {
-  await ensureProfilesTable();
   const db = await getDatabase();
   const rows = await db.getAllAsync<{
     id: string;
@@ -55,15 +57,10 @@ export async function createProfile(name: string): Promise<AthleteProfile> {
     throw new Error('Profile name must be 1-100 characters');
   }
 
-  await ensureProfilesTable();
   const db = await getDatabase();
   const id = generateId();
 
-  await db.runAsync(
-    `INSERT INTO profiles (id, name) VALUES (?, ?)`,
-    id,
-    trimmed
-  );
+  await db.runAsync(`INSERT INTO profiles (id, name) VALUES (?, ?)`, id, trimmed);
 
   return { id, name: trimmed, isActive: false, createdAt: new Date().toISOString() };
 }
@@ -72,7 +69,6 @@ export async function createProfile(name: string): Promise<AthleteProfile> {
  * Sets the active profile. Deactivates all others.
  */
 export async function setActiveProfile(profileId: string): Promise<void> {
-  await ensureProfilesTable();
   const db = await getDatabase();
   await db.withTransactionAsync(async () => {
     await db.runAsync(`UPDATE profiles SET is_active = 0`);
@@ -92,15 +88,27 @@ export async function deleteProfile(profileId: string): Promise<void> {
  * Shares today's verdict as a formatted text message.
  */
 export async function shareVerdict(session: Session): Promise<void> {
-  const verdictEmoji = session.verdict === 'go_hard' ? '🟢' :
-                       session.verdict === 'moderate' ? '🟡' :
-                       session.verdict === 'rest' ? '🔴' : '⚪';
-  const verdictLabel = session.verdict === 'go_hard' ? 'Go Hard' :
-                       session.verdict === 'moderate' ? 'Moderate' :
-                       session.verdict === 'rest' ? 'Rest' : 'Building Baseline';
+  const verdictEmoji =
+    session.verdict === 'go_hard'
+      ? '🟢'
+      : session.verdict === 'moderate'
+        ? '🟡'
+        : session.verdict === 'rest'
+          ? '🔴'
+          : '⚪';
+  const verdictLabel =
+    session.verdict === 'go_hard'
+      ? 'Go Hard'
+      : session.verdict === 'moderate'
+        ? 'Moderate'
+        : session.verdict === 'rest'
+          ? 'Rest'
+          : 'Building Baseline';
 
   const date = new Date(session.timestamp).toLocaleDateString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
   });
 
   const message = [
@@ -114,7 +122,9 @@ export async function shareVerdict(session: Session): Promise<void> {
     session.trainingType ? `Training: ${session.trainingType}` : '',
     ``,
     `— HRV Readiness Dashboard`,
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   await Share.share({ message, title: `HRV Readiness — ${date}` });
 }

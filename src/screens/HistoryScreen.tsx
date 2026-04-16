@@ -1,5 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -7,7 +15,11 @@ import { Sparkline } from '../components/Sparkline';
 import { COLORS, VERDICT_COLORS } from '../constants/colors';
 import { STRINGS } from '../constants/strings';
 import { Session } from '../types';
-import { getSessionsPaginated, getSessionCount, getRecentSessions } from '../database/sessionRepository';
+import {
+  getSessionsPaginated,
+  getSessionCount,
+  getRecentSessions,
+} from '../database/sessionRepository';
 import { VERDICT_INFO } from '../constants/verdicts';
 import { formatDate } from '../utils/date';
 
@@ -71,39 +83,49 @@ export function HistoryScreen() {
     }
   }, [loadingMore, hasMore, sessions.length]);
 
-  const renderSession = useCallback(({ item }: { item: Session }) => {
-    const verdictInfo = item.verdict ? VERDICT_INFO[item.verdict] : null;
-    const verdictColor = item.verdict ? VERDICT_COLORS[item.verdict] : COLORS.noVerdict;
+  const renderSession = useCallback(
+    ({ item }: { item: Session }) => {
+      const verdictInfo = item.verdict ? VERDICT_INFO[item.verdict] : null;
+      const verdictColor = item.verdict ? VERDICT_COLORS[item.verdict] : COLORS.noVerdict;
 
-    return (
-      <TouchableOpacity
-        style={styles.sessionItem}
-        onPress={() => navigation.navigate('SessionDetail', { sessionId: item.id })}
-        accessibilityRole="button"
-        accessibilityLabel={`${formatDate(item.timestamp)}, ${verdictInfo?.label ?? 'No Verdict'}, rMSSD ${item.rmssd.toFixed(1)} milliseconds`}
-        accessibilityHint="Opens session details"
-        activeOpacity={0.7}
-      >
-        <View style={styles.sessionLeft}>
-          <Text style={styles.sessionEmoji}>{verdictInfo?.emoji ?? '📊'}</Text>
-          <View>
-            <Text style={styles.sessionDate}>{formatDate(item.timestamp)}</Text>
-            <Text style={[styles.sessionVerdict, { color: verdictColor }]}>
-              {verdictInfo?.label ?? 'No Verdict'}
-            </Text>
+      return (
+        <TouchableOpacity
+          style={styles.sessionItem}
+          onPress={() => navigation.navigate('SessionDetail', { sessionId: item.id })}
+          accessibilityRole="button"
+          accessibilityLabel={`${formatDate(item.timestamp)}, ${verdictInfo?.label ?? 'No Verdict'}, rMSSD ${item.rmssd.toFixed(1)} milliseconds`}
+          accessibilityHint="Opens session details"
+          activeOpacity={0.7}
+        >
+          <View style={styles.sessionLeft}>
+            <Text style={styles.sessionEmoji}>{verdictInfo?.emoji ?? '📊'}</Text>
+            <View>
+              <Text style={styles.sessionDate}>{formatDate(item.timestamp)}</Text>
+              <Text style={[styles.sessionVerdict, { color: verdictColor }]}>
+                {verdictInfo?.label ?? 'No Verdict'}
+              </Text>
+            </View>
           </View>
-        </View>
-        <View style={styles.sessionRight}>
-          <Text style={styles.sessionRmssd}>{item.rmssd.toFixed(1)}</Text>
-          <Text style={styles.sessionUnit}>rMSSD</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  }, [navigation]);
+          <View style={styles.sessionRight}>
+            <Text style={styles.sessionRmssd}>{item.rmssd.toFixed(1)}</Text>
+            <Text style={styles.sessionUnit}>rMSSD</Text>
+          </View>
+        </TouchableOpacity>
+      );
+    },
+    [navigation]
+  );
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: COLORS.background,
+        }}
+      >
         <ActivityIndicator size="large" color={COLORS.accent} />
       </View>
     );
@@ -115,7 +137,9 @@ export function HistoryScreen() {
         data={sessions}
         keyExtractor={(item) => item.id}
         renderItem={renderSession}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
+        }
         contentContainerStyle={styles.listContent}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}

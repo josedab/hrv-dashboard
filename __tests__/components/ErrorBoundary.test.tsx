@@ -29,7 +29,8 @@ import { reportError } from '../../src/utils/crashReporting';
 function renderToJSON(element: React.ReactElement): string {
   // Use React.createElement to simulate rendering
   return JSON.stringify(element, (key, value) => {
-    if (key === '_owner' || key === '_store' || key === 'ref' || key === '$$typeof') return undefined;
+    if (key === '_owner' || key === '_store' || key === 'ref' || key === '$$typeof')
+      return undefined;
     return value;
   });
 }

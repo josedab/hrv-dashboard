@@ -4,9 +4,9 @@ import { MIN_RR_INTERVAL_MS, MAX_RR_INTERVAL_MS } from '../constants/defaults';
  * Result of parsing a Heart Rate Measurement notification.
  */
 export interface HeartRateMeasurement {
-  heartRate: number;          // bpm
-  rrIntervals: number[];      // ms (can have 0, 1, or more per notification)
-  energyExpended?: number;    // kJ
+  heartRate: number; // bpm
+  rrIntervals: number[]; // ms (can have 0, 1, or more per notification)
+  energyExpended?: number; // kJ
   sensorContact: boolean;
 }
 

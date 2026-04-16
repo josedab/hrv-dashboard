@@ -84,12 +84,36 @@ export function AppNavigator() {
         }}
       >
         <Stack.Screen name="Tabs" component={TabNavigator} options={{ headerShown: false }} />
-        <Stack.Screen name="Reading" component={ReadingScreen} options={{ title: 'Recording', presentation: 'modal' }} />
-        <Stack.Screen name="CameraReading" component={CameraReadingScreen} options={{ title: 'Camera Recording', presentation: 'modal' }} />
-        <Stack.Screen name="Log" component={LogScreen} options={{ title: 'Log Session', presentation: 'modal' }} />
-        <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Session Details' }} />
-        <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy' }} />
-        <Stack.Screen name="Orthostatic" component={OrthostaticScreen} options={{ title: 'Orthostatic Test', presentation: 'modal' }} />
+        <Stack.Screen
+          name="Reading"
+          component={ReadingScreen}
+          options={{ title: 'Recording', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="CameraReading"
+          component={CameraReadingScreen}
+          options={{ title: 'Camera Recording', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="Log"
+          component={LogScreen}
+          options={{ title: 'Log Session', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="SessionDetail"
+          component={SessionDetailScreen}
+          options={{ title: 'Session Details' }}
+        />
+        <Stack.Screen
+          name="PrivacyPolicy"
+          component={PrivacyPolicyScreen}
+          options={{ title: 'Privacy Policy' }}
+        />
+        <Stack.Screen
+          name="Orthostatic"
+          component={OrthostaticScreen}
+          options={{ title: 'Orthostatic Test', presentation: 'modal' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

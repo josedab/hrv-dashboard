@@ -23,30 +23,20 @@ export function ReadinessSlider({ value, onChange }: ReadinessSliderProps) {
         {[1, 2, 3, 4, 5].map((level) => (
           <TouchableOpacity
             key={level}
-            style={[
-              styles.button,
-              value === level && styles.buttonSelected,
-            ]}
+            style={[styles.button, value === level && styles.buttonSelected]}
             onPress={() => onChange(level)}
             accessibilityRole="button"
             accessibilityLabel={`Readiness level ${level}: ${READINESS_LABELS[level]}`}
             accessibilityState={{ selected: value === level }}
             activeOpacity={0.7}
           >
-            <Text
-              style={[
-                styles.buttonText,
-                value === level && styles.buttonTextSelected,
-              ]}
-            >
+            <Text style={[styles.buttonText, value === level && styles.buttonTextSelected]}>
               {level}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
-      {value !== null && (
-        <Text style={styles.label}>{READINESS_LABELS[value]}</Text>
-      )}
+      {value !== null && <Text style={styles.label}>{READINESS_LABELS[value]}</Text>}
     </View>
   );
 }

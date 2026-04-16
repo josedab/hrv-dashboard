@@ -9,7 +9,6 @@ import { Session } from '../types';
 const BACKUP_VERSION = 1;
 const SALT_LENGTH = 16;
 const IV_LENGTH = 12;
-const KEY_ITERATIONS = 100000;
 
 interface BackupPayload {
   version: number;
@@ -29,7 +28,8 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<Uint8Arr
   // Key stretching: iterate SHA-256
   for (let i = 0; i < 1000; i++) {
     const hashResult = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, keyMaterial);
-    const hashHex = typeof hashResult === 'string' ? hashResult : arrayToHex(new Uint8Array(hashResult));
+    const hashHex =
+      typeof hashResult === 'string' ? hashResult : arrayToHex(new Uint8Array(hashResult));
     keyMaterial = new Uint8Array(
       hashHex.match(/.{1,2}/g)!.map((byte: string) => parseInt(byte, 16))
     );
@@ -46,7 +46,9 @@ function getRandomBytes(length: number): Uint8Array {
 }
 
 function arrayToHex(arr: Uint8Array): string {
-  return Array.from(arr).map((b) => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(arr)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 function hexToArray(hex: string): Uint8Array {
@@ -77,7 +79,8 @@ async function encryptData(data: string, key: Uint8Array, iv: Uint8Array): Promi
 
     const input = new Uint8Array([...key, ...iv, ...counter]);
     const hashResult = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, input);
-    const keystream = typeof hashResult === 'string' ? hexToArray(hashResult) : new Uint8Array(hashResult);
+    const keystream =
+      typeof hashResult === 'string' ? hexToArray(hashResult) : new Uint8Array(hashResult);
 
     const end = Math.min(offset + blockSize, plaintext.length);
     for (let i = offset; i < end; i++) {
@@ -92,7 +95,11 @@ async function encryptData(data: string, key: Uint8Array, iv: Uint8Array): Promi
  * Decrypts data encrypted with encryptData.
  * Stream cipher is symmetric — same operation for encrypt and decrypt.
  */
-async function decryptData(ciphertextHex: string, key: Uint8Array, iv: Uint8Array): Promise<string> {
+async function decryptData(
+  ciphertextHex: string,
+  key: Uint8Array,
+  iv: Uint8Array
+): Promise<string> {
   const ciphertext = hexToArray(ciphertextHex);
   const plaintext = new Uint8Array(ciphertext.length);
 
@@ -107,7 +114,8 @@ async function decryptData(ciphertextHex: string, key: Uint8Array, iv: Uint8Arra
 
     const input = new Uint8Array([...key, ...iv, ...counter]);
     const hashResult = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, input);
-    const keystream = typeof hashResult === 'string' ? hexToArray(hashResult) : new Uint8Array(hashResult);
+    const keystream =
+      typeof hashResult === 'string' ? hexToArray(hashResult) : new Uint8Array(hashResult);
 
     const end = Math.min(offset + blockSize, ciphertext.length);
     for (let i = offset; i < end; i++) {
@@ -154,11 +162,9 @@ export async function createBackup(passphrase: string): Promise<void> {
 
   // Compute integrity hash: SHA-256 of the plaintext JSON
   const encoder = new TextEncoder();
-  const hashResult = await Crypto.digest(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    encoder.encode(json)
-  );
-  const integrityHash = typeof hashResult === 'string' ? hashResult : arrayToHex(new Uint8Array(hashResult));
+  const hashResult = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, encoder.encode(json));
+  const integrityHash =
+    typeof hashResult === 'string' ? hashResult : arrayToHex(new Uint8Array(hashResult));
 
   // Package: version + salt + iv + integrity hash + ciphertext
   const backupFile = JSON.stringify({
@@ -184,10 +190,7 @@ export async function createBackup(passphrase: string): Promise<void> {
  * Validates integrity after decryption to detect wrong passphrases.
  * Returns the number of new sessions imported.
  */
-export async function restoreBackup(
-  fileUri: string,
-  passphrase: string
-): Promise<number> {
+export async function restoreBackup(fileUri: string, passphrase: string): Promise<number> {
   if (!passphrase) {
     throw new Error('Passphrase is required');
   }
@@ -208,7 +211,7 @@ export async function restoreBackup(
   if (backupFile.v > BACKUP_VERSION) {
     throw new Error(
       `Backup was created with a newer version (v${backupFile.v}). ` +
-      `Please update the app to restore this backup.`
+        `Please update the app to restore this backup.`
     );
   }
 
@@ -225,11 +228,9 @@ export async function restoreBackup(
 
   // Verify integrity
   const encoder = new TextEncoder();
-  const hashResult = await Crypto.digest(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    encoder.encode(json)
-  );
-  const computedHash = typeof hashResult === 'string' ? hashResult : arrayToHex(new Uint8Array(hashResult));
+  const hashResult = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, encoder.encode(json));
+  const computedHash =
+    typeof hashResult === 'string' ? hashResult : arrayToHex(new Uint8Array(hashResult));
 
   if (backupFile.integrity && computedHash !== backupFile.integrity) {
     throw new Error('Integrity check failed — wrong passphrase');
@@ -284,14 +285,15 @@ export async function restoreBackup(
     }
 
     // Restore user settings, skipping internal state keys
-    const internalKeys = new Set(['schema_version', 'onboarding_complete', 'widget_data', 'health_synced_ids']);
+    const internalKeys = new Set([
+      'schema_version',
+      'onboarding_complete',
+      'widget_data',
+      'health_synced_ids',
+    ]);
     for (const [key, value] of Object.entries(payload.settings ?? {})) {
       if (internalKeys.has(key)) continue;
-      await db.runAsync(
-        `INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`,
-        key,
-        value
-      );
+      await db.runAsync(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`, key, value);
     }
   });
 

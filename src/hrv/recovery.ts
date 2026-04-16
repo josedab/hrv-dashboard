@@ -39,34 +39,35 @@ export function computeRecoveryScore(
   const hrvScore = Math.round(Math.min(ratio / 1.2, 1) * 100);
 
   // Sleep component: sleep quality 1-5 mapped to 0-100
-  const sleepScore = session.sleepQuality !== null
-    ? Math.round(((session.sleepQuality - 1) / 4) * 100)
-    : 50; // neutral if not logged
+  const sleepScore =
+    session.sleepQuality !== null ? Math.round(((session.sleepQuality - 1) / 4) * 100) : 50; // neutral if not logged
 
   // Stress component: inverted (5=high stress → low score)
-  const stressScore = session.stressLevel !== null
-    ? Math.round(((5 - session.stressLevel) / 4) * 100)
-    : 50;
+  const stressScore =
+    session.stressLevel !== null ? Math.round(((5 - session.stressLevel) / 4) * 100) : 50;
 
   // Readiness component: perceived readiness 1-5 mapped to 0-100
-  const readinessScore = session.perceivedReadiness !== null
-    ? Math.round(((session.perceivedReadiness - 1) / 4) * 100)
-    : 50;
+  const readinessScore =
+    session.perceivedReadiness !== null
+      ? Math.round(((session.perceivedReadiness - 1) / 4) * 100)
+      : 50;
 
   const score = Math.round(
-    hrvScore * 0.40 +
-    sleepScore * 0.25 +
-    stressScore * 0.20 +
-    readinessScore * 0.15
+    hrvScore * 0.4 + sleepScore * 0.25 + stressScore * 0.2 + readinessScore * 0.15
   );
 
   const clampedScore = Math.max(0, Math.min(100, score));
 
   return {
     score: clampedScore,
-    label: clampedScore >= 80 ? 'Excellent' :
-           clampedScore >= 60 ? 'Good' :
-           clampedScore >= 40 ? 'Fair' : 'Poor',
+    label:
+      clampedScore >= 80
+        ? 'Excellent'
+        : clampedScore >= 60
+          ? 'Good'
+          : clampedScore >= 40
+            ? 'Fair'
+            : 'Poor',
     components: {
       hrv: hrvScore,
       sleep: sleepScore,
@@ -84,19 +85,18 @@ export function estimateTrainingLoad(session: Session): number {
   if (!session.trainingType) return 0;
 
   const intensityMap: Record<string, number> = {
-    'Strength': 7,
-    'BJJ': 8,
-    'Cycling': 6,
-    'Rest': 1,
-    'Other': 5,
+    Strength: 7,
+    BJJ: 8,
+    Cycling: 6,
+    Rest: 1,
+    Other: 5,
   };
 
   const baseIntensity = intensityMap[session.trainingType] ?? 5;
 
   // Scale by perceived readiness (higher readiness → likely pushed harder)
-  const effortMultiplier = session.perceivedReadiness !== null
-    ? 0.6 + (session.perceivedReadiness / 5) * 0.8
-    : 1.0;
+  const effortMultiplier =
+    session.perceivedReadiness !== null ? 0.6 + (session.perceivedReadiness / 5) * 0.8 : 1.0;
 
   return Math.round(baseIntensity * effortMultiplier * 10);
 }
