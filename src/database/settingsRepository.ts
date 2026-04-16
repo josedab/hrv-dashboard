@@ -43,19 +43,32 @@ export async function saveSetting(key: keyof Settings, value: string): Promise<v
 }
 
 /**
- * Saves multiple settings at once.
+ * Validates that threshold settings are logically consistent.
+ * Returns null if valid, or an error message string if invalid.
+ */
+export function validateThresholds(goHard: number, moderate: number): string | null {
+  if (goHard <= 0 || goHard > 1) return 'Go Hard threshold must be between 0 and 100%';
+  if (moderate <= 0 || moderate > 1) return 'Moderate threshold must be between 0 and 100%';
+  if (moderate >= goHard) return 'Moderate threshold must be lower than Go Hard threshold';
+  return null;
+}
+
+/**
+ * Saves multiple settings at once within a transaction.
  */
 export async function saveSettings(settings: Partial<Settings>): Promise<void> {
   const db = await getDatabase();
   const entries = Object.entries(settings).filter(([, v]) => v !== undefined);
 
-  for (const [key, value] of entries) {
-    await db.runAsync(
-      `INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`,
-      key,
-      String(value ?? '')
-    );
-  }
+  await db.withTransactionAsync(async () => {
+    for (const [key, value] of entries) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`,
+        key,
+        String(value ?? '')
+      );
+    }
+  });
 }
 
 /**
