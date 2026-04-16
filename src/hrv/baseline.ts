@@ -3,21 +3,17 @@ import { BaselineResult, DailyReading } from '../types';
 /**
  * Computes the baseline rMSSD using the MEDIAN of daily readings
  * within the specified window. Median is more robust to outliers
- * than mean.
+ * than mean. Uses noon-based date arithmetic for DST safety.
  */
 export function computeBaseline(
   dailyReadings: DailyReading[],
   windowDays: number = 7
 ): BaselineResult {
   const now = new Date();
-  const cutoff = new Date(now);
-  cutoff.setDate(cutoff.getDate() - windowDays);
+  const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - windowDays, 12);
+  const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
 
-  const windowReadings = dailyReadings.filter((r) => {
-    const readingDate = new Date(r.date);
-    return readingDate >= cutoff && readingDate <= now;
-  });
-
+  const windowReadings = dailyReadings.filter((r) => r.date >= cutoffStr);
   const rmssdValues = windowReadings.map((r) => r.rmssd);
 
   return {
