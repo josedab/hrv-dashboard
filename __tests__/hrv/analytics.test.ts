@@ -23,6 +23,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     sleepHours: null,
     sleepQuality: null,
     stressLevel: null,
+    source: 'chest_strap',
     ...overrides,
   };
 }

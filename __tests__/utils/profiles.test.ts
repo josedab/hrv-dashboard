@@ -277,6 +277,7 @@ describe('shareVerdict', () => {
       sleepHours: null,
       sleepQuality: null,
       stressLevel: null,
+    source: 'chest_strap',
     };
 
     await shareVerdict(session);
@@ -307,6 +308,7 @@ describe('shareVerdict', () => {
       sleepHours: null,
       sleepQuality: null,
       stressLevel: null,
+    source: 'chest_strap',
     };
 
     await shareVerdict(session);
@@ -337,6 +339,7 @@ describe('shareVerdict', () => {
       sleepHours: null,
       sleepQuality: null,
       stressLevel: null,
+    source: 'chest_strap',
     };
 
     await shareVerdict(session);
@@ -367,6 +370,7 @@ describe('shareVerdict', () => {
       sleepHours: null,
       sleepQuality: null,
       stressLevel: null,
+    source: 'chest_strap',
     };
 
     await shareVerdict(session);
@@ -397,6 +401,7 @@ describe('shareVerdict', () => {
       sleepHours: null,
       sleepQuality: null,
       stressLevel: null,
+    source: 'chest_strap',
     };
 
     await shareVerdict(session);
@@ -428,6 +433,7 @@ describe('shareVerdict', () => {
       sleepHours: null,
       sleepQuality: null,
       stressLevel: null,
+    source: 'chest_strap',
     };
 
     await shareVerdict(session);
@@ -457,6 +463,7 @@ describe('shareVerdict', () => {
       sleepHours: null,
       sleepQuality: null,
       stressLevel: null,
+    source: 'chest_strap',
     };
 
     await shareVerdict(session);
@@ -486,6 +493,7 @@ describe('shareVerdict', () => {
       sleepHours: null,
       sleepQuality: null,
       stressLevel: null,
+    source: 'chest_strap',
     };
 
     await shareVerdict(session);
@@ -515,6 +523,7 @@ describe('shareVerdict', () => {
       sleepHours: null,
       sleepQuality: null,
       stressLevel: null,
+    source: 'chest_strap',
     };
 
     await shareVerdict(session);
@@ -544,6 +553,7 @@ describe('shareVerdict', () => {
       sleepHours: null,
       sleepQuality: null,
       stressLevel: null,
+    source: 'chest_strap',
     };
 
     await shareVerdict(session);
@@ -574,6 +584,7 @@ describe('shareVerdict', () => {
       sleepHours: null,
       sleepQuality: null,
       stressLevel: null,
+    source: 'chest_strap',
     };
 
     await shareVerdict(session);
@@ -604,6 +615,7 @@ describe('shareVerdict', () => {
       sleepHours: null,
       sleepQuality: null,
       stressLevel: null,
+    source: 'chest_strap',
     };
 
     await shareVerdict(session);

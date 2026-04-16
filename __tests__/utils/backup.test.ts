@@ -136,6 +136,7 @@ describe('createBackup', () => {
         sleepHours: null,
         sleepQuality: null,
         stressLevel: null,
+    source: 'chest_strap',
       },
       {
         id: '2',
@@ -154,6 +155,7 @@ describe('createBackup', () => {
         sleepHours: null,
         sleepQuality: null,
         stressLevel: null,
+    source: 'chest_strap',
       },
     ];
 
