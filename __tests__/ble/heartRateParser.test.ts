@@ -2,6 +2,7 @@ import {
   parseHeartRateMeasurement,
   base64ToUint8Array,
   HeartRateMeasurement,
+  isValidRrInterval,
 } from '../../src/ble/heartRateParser';
 
 describe('parseHeartRateMeasurement', () => {
@@ -193,5 +194,52 @@ describe('base64ToUint8Array', () => {
   it('handles empty base64 string', () => {
     const result = base64ToUint8Array('');
     expect(result).toEqual(new Uint8Array([]));
+  });
+});
+
+describe('isValidRrInterval', () => {
+  it('accepts normal resting HR intervals (600-1200ms)', () => {
+    expect(isValidRrInterval(800)).toBe(true);
+    expect(isValidRrInterval(1000)).toBe(true);
+    expect(isValidRrInterval(600)).toBe(true);
+  });
+
+  it('accepts boundary values', () => {
+    expect(isValidRrInterval(300)).toBe(true);
+    expect(isValidRrInterval(2500)).toBe(true);
+  });
+
+  it('rejects values below minimum (too fast HR)', () => {
+    expect(isValidRrInterval(299)).toBe(false);
+    expect(isValidRrInterval(100)).toBe(false);
+    expect(isValidRrInterval(0)).toBe(false);
+  });
+
+  it('rejects values above maximum (too slow HR)', () => {
+    expect(isValidRrInterval(2501)).toBe(false);
+    expect(isValidRrInterval(5000)).toBe(false);
+  });
+
+  it('rejects negative values', () => {
+    expect(isValidRrInterval(-100)).toBe(false);
+  });
+});
+
+describe('parseHeartRateMeasurement RR validation', () => {
+  it('filters out physiologically implausible RR intervals', () => {
+    // Encode an RR interval of ~100ms (way too fast, ~600 bpm)
+    const rrTooFast = Math.round((100 / 1000) * 1024); // ~102
+    // Encode a valid RR interval of ~800ms
+    const rrValid = Math.round((800 / 1000) * 1024); // ~820
+    const data = new Uint8Array([
+      0x10, // flags: RR present, 8-bit HR
+      70,   // HR
+      rrTooFast & 0xFF, (rrTooFast >> 8) & 0xFF,
+      rrValid & 0xFF, (rrValid >> 8) & 0xFF,
+    ]);
+    const result = parseHeartRateMeasurement(data);
+    // Only the valid RR should remain
+    expect(result.rrIntervals.length).toBe(1);
+    expect(result.rrIntervals[0]).toBeGreaterThanOrEqual(300);
   });
 });
