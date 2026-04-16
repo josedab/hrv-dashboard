@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { HeartRateMeasurement } from './heartRateParser';
-import { connectAndSubscribe, BleConnectionState } from './bleManager';
+import { connectWithRetry, BleConnectionState } from './bleManager';
 import { RECORDING_DURATION_SECONDS, MIN_RECORDING_SECONDS } from '../constants/defaults';
 
 /**
@@ -66,6 +66,9 @@ export function useBleRecording(): [RecordingState, RecordingActions] {
   const rrIntervalsRef = useRef<number[]>([]);
   const heartRatesRef = useRef<number[]>([]);
 
+  const isStoppingRef = useRef(false);
+  const deviceIdRef = useRef<string | null>(null);
+
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -74,6 +77,7 @@ export function useBleRecording(): [RecordingState, RecordingActions] {
   }, []);
 
   const stopRecording = useCallback(() => {
+    isStoppingRef.current = true;
     clearTimer();
     cleanupRef.current?.();
     cleanupRef.current = null;
@@ -87,13 +91,64 @@ export function useBleRecording(): [RecordingState, RecordingActions] {
 
   const resetRecording = useCallback(() => {
     stopRecording();
+    isStoppingRef.current = false;
+    deviceIdRef.current = null;
     rrIntervalsRef.current = [];
     heartRatesRef.current = [];
     setState(INITIAL_STATE);
   }, [stopRecording]);
 
+  const attemptReconnect = useCallback(async () => {
+    const deviceId = deviceIdRef.current;
+    if (!deviceId || isStoppingRef.current) return;
+
+    try {
+      // Clean up old subscription before reconnecting
+      cleanupRef.current?.();
+      cleanupRef.current = null;
+
+      const cleanup = await connectWithRetry(deviceId, {
+        onStateChange: (connectionState) => {
+          if (!isStoppingRef.current) {
+            setState((prev) => ({ ...prev, connectionState }));
+          }
+        },
+        onHeartRateMeasurement: (measurement: HeartRateMeasurement) => {
+          if (measurement.rrIntervals.length > 0) {
+            rrIntervalsRef.current.push(...measurement.rrIntervals);
+          }
+          heartRatesRef.current.push(measurement.heartRate);
+
+          setState((prev) => ({
+            ...prev,
+            rrIntervals: [...rrIntervalsRef.current],
+            heartRates: [...heartRatesRef.current],
+            currentHr: measurement.heartRate,
+          }));
+        },
+        onError: (error) => {
+          if (!isStoppingRef.current) {
+            setState((prev) => ({ ...prev, error }));
+          }
+        },
+      });
+      cleanupRef.current = cleanup;
+    } catch (error) {
+      if (!isStoppingRef.current) {
+        const message = error instanceof Error ? error.message : 'Reconnection failed';
+        setState((prev) => ({
+          ...prev,
+          connectionState: 'error',
+          error: message,
+        }));
+      }
+    }
+  }, []);
+
   const startRecording = useCallback(async (deviceId: string) => {
     resetRecording();
+    isStoppingRef.current = false;
+    deviceIdRef.current = deviceId;
     startTimeRef.current = Date.now();
     rrIntervalsRef.current = [];
     heartRatesRef.current = [];
@@ -124,9 +179,14 @@ export function useBleRecording(): [RecordingState, RecordingActions] {
     }, 1000);
 
     try {
-      const cleanup = await connectAndSubscribe(deviceId, {
+      const cleanup = await connectWithRetry(deviceId, {
         onStateChange: (connectionState) => {
+          if (isStoppingRef.current) return;
           setState((prev) => ({ ...prev, connectionState }));
+          // Auto-reconnect on mid-recording disconnect
+          if (connectionState === 'disconnected' && !isStoppingRef.current) {
+            attemptReconnect();
+          }
         },
         onHeartRateMeasurement: (measurement: HeartRateMeasurement) => {
           if (measurement.rrIntervals.length > 0) {
