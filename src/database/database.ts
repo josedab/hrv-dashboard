@@ -16,7 +16,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 
 /**
  * Runs schema migrations: creates `sessions` and `settings` tables,
@@ -61,9 +61,7 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
 
   if (currentVersion < 2) {
     // v2: add sleep/stress/context fields for expanded logging
-    const columns = await database.getAllAsync<{ name: string }>(
-      `PRAGMA table_info(sessions)`
-    );
+    const columns = await database.getAllAsync<{ name: string }>(`PRAGMA table_info(sessions)`);
     const columnNames = new Set(columns.map((c) => c.name));
 
     if (!columnNames.has('sleep_hours')) {
@@ -73,6 +71,18 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
         ALTER TABLE sessions ADD COLUMN stress_level INTEGER;
       `);
     }
+  }
+
+  if (currentVersion < 3) {
+    // v3: create profiles table (previously created lazily)
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS profiles (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        is_active INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+    `);
   }
 
   // Update schema version
