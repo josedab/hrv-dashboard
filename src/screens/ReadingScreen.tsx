@@ -15,6 +15,7 @@ import { computeHrvMetrics } from '../hrv/metrics';
 import { computeBaseline } from '../hrv/baseline';
 import { computeVerdict } from '../hrv/verdict';
 import { saveSession } from '../database/sessionRepository';
+import type { Session } from '../types';
 import { getDailyReadings } from '../database/sessionRepository';
 import { loadSettings } from '../database/settingsRepository';
 import { generateId } from '../utils/uuid';
@@ -22,6 +23,7 @@ import { ARTIFACT_WARNING_THRESHOLD } from '../constants/defaults';
 import { STRINGS } from '../constants/strings';
 import { BreathingExercise, BREATHING_PRESETS } from '../components/BreathingExercise';
 import { refreshWidget } from '../utils/widgetData';
+import { ConnectionPill } from '../components/ConnectionPill';
 
 type ReadingNavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -36,11 +38,33 @@ export function ReadingScreen() {
   const [connecting, setConnecting] = useState(false);
   const [scanTimedOut, setScanTimedOut] = useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [breathingEnabled, setBreathingEnabled] = useState<boolean>(true);
+  const [pairedDeviceId, setPairedDeviceId] = useState<string | null>(null);
 
-  // Start scanning on mount
+  const goToBreathingOrRecording = useCallback(
+    (deviceId: string) => {
+      setSelectedDeviceId(deviceId);
+      if (breathingEnabled) {
+        setPhase('breathing');
+      } else {
+        setPhase('recording');
+        actions.startRecording(deviceId).catch((err) => {
+          console.error('startRecording failed:', err);
+        });
+      }
+    },
+    [breathingEnabled, actions]
+  );
+
+  // Start scanning on mount, with auto-connect to paired device when present
   useEffect(() => {
     let cancelled = false;
     const startScan = async () => {
+      const settings = await loadSettings();
+      if (cancelled) return;
+      setBreathingEnabled(settings.breathingExerciseEnabled);
+      setPairedDeviceId(settings.pairedDeviceId);
+
       const permissionStatus = await requestBlePermissions();
       if (permissionStatus === 'blocked') {
         showPermissionBlockedAlert();
@@ -51,16 +75,20 @@ export function ReadingScreen() {
       }
       try {
         const stop = await scanForDevices((device) => {
-          if (!cancelled) {
-            setDevices((prev) => {
-              if (prev.find((d) => d.id === device.id)) return prev;
-              return [...prev, device];
-            });
+          if (cancelled) return;
+          // Auto-select the paired device the moment we see it
+          if (settings.pairedDeviceId && device.id === settings.pairedDeviceId) {
+            stop();
+            goToBreathingOrRecording(device.id);
+            return;
           }
+          setDevices((prev) => {
+            if (prev.find((d) => d.id === device.id)) return prev;
+            return [...prev, device];
+          });
         });
         if (!cancelled) {
           setStopScan(() => stop);
-          // Show timeout message after scan completes
           setTimeout(() => {
             if (!cancelled) setScanTimedOut(true);
           }, 15000);
@@ -73,7 +101,7 @@ export function ReadingScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [goToBreathingOrRecording]);
 
   const restartScan = useCallback(async () => {
     setDevices([]);
@@ -97,10 +125,9 @@ export function ReadingScreen() {
       if (connecting) return;
       setConnecting(true);
       stopScan?.();
-      setSelectedDeviceId(device.id);
-      setPhase('breathing');
+      goToBreathingOrRecording(device.id);
     },
-    [stopScan, connecting]
+    [stopScan, connecting, goToBreathingOrRecording]
   );
 
   const startAfterBreathing = useCallback(async () => {
@@ -135,7 +162,7 @@ export function ReadingScreen() {
       const baseline = computeBaseline(dailyReadings, settings.baselineWindowDays);
       const verdict = computeVerdict(metrics.rmssd, baseline, settings);
 
-      const session = {
+      const session: Session = {
         id: generateId(),
         timestamp: new Date().toISOString(),
         durationSeconds: recording.elapsedSeconds,
@@ -152,6 +179,7 @@ export function ReadingScreen() {
         sleepHours: null,
         sleepQuality: null,
         stressLevel: null,
+        source: 'chest_strap',
       };
 
       await saveSession(session);
@@ -183,6 +211,9 @@ export function ReadingScreen() {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>{STRINGS.connectToSensor}</Text>
+        {pairedDeviceId && (
+          <Text style={styles.subtitle}>{STRINGS.lookingForPaired}</Text>
+        )}
         {!scanTimedOut || devices.length > 0 ? (
           <>
             <Text style={styles.subtitle}>{STRINGS.scanningForDevices}</Text>
@@ -274,17 +305,9 @@ export function ReadingScreen() {
   if (phase === 'recording') {
     return (
       <View style={styles.container}>
-        <Text style={styles.connectionStatus}>
-          {recording.connectionState === 'connected'
-            ? '🟢 Connected'
-            : recording.connectionState === 'connecting'
-              ? '🟡 Connecting...'
-              : recording.connectionState === 'reconnecting'
-                ? '🟠 Reconnecting...'
-                : recording.connectionState === 'error'
-                  ? '🔴 Error'
-                  : '⚪ Disconnected'}
-        </Text>
+        <View style={styles.pillRow}>
+          <ConnectionPill state={recording.connectionState as 'connected' | 'connecting' | 'reconnecting' | 'disconnected' | 'error' | 'idle'} />
+        </View>
 
         {recording.error && <Text style={styles.errorText}>{recording.error}</Text>}
 
@@ -352,16 +375,16 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginBottom: 16,
   },
-  connectionStatus: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    marginBottom: 20,
-  },
   errorText: {
     fontSize: 14,
     color: COLORS.danger,
     marginBottom: 12,
     textAlign: 'center',
+  },
+  pillRow: {
+    width: '100%',
+    alignItems: 'flex-start',
+    marginBottom: 16,
   },
   sectionLabel: {
     fontSize: 13,
