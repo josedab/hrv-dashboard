@@ -8,10 +8,22 @@ interface VerdictDisplayProps {
   verdict: VerdictType | null;
   rmssd: number | null;
   size?: 'large' | 'small';
+  baselineValue?: number;
+  percentOfBaseline?: number;
 }
 
-export function VerdictDisplay({ verdict, rmssd, size = 'large' }: VerdictDisplayProps) {
+export function VerdictDisplay({ verdict, rmssd, size = 'large', baselineValue, percentOfBaseline }: VerdictDisplayProps) {
   const isLarge = size === 'large';
+
+  const renderBaselineContext = () => {
+    if (percentOfBaseline === undefined || baselineValue === undefined) return null;
+    const pct = Math.round(percentOfBaseline * 100);
+    return (
+      <Text style={[styles.baselineText, isLarge && styles.baselineTextLarge]}>
+        {`${pct}% of baseline (${baselineValue.toFixed(1)} ms)`}
+      </Text>
+    );
+  };
 
   if (!verdict) {
     const baselineLabel = rmssd !== null
@@ -63,6 +75,7 @@ export function VerdictDisplay({ verdict, rmssd, size = 'large' }: VerdictDispla
         </Text>
       )}
       <Text style={styles.description}>{info.description}</Text>
+      {renderBaselineContext()}
     </View>
   );
 }
@@ -112,5 +125,16 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     textAlign: 'center',
     marginTop: 4,
+  },
+  baselineText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: 6,
+    fontWeight: '500',
+  },
+  baselineTextLarge: {
+    fontSize: 15,
+    marginTop: 8,
   },
 });

@@ -12,7 +12,7 @@ interface SparklineProps {
   baselineValue?: number;
 }
 
-export function Sparkline({
+function SparklineInner({
   data,
   width = 200,
   height = 60,
@@ -77,3 +77,5 @@ export function Sparkline({
     </View>
   );
 }
+
+export const Sparkline = React.memo(SparklineInner);
