@@ -1,6 +1,9 @@
 /** Readiness verdict determined by comparing current rMSSD to baseline. */
 export type VerdictType = 'go_hard' | 'moderate' | 'rest';
 
+/** How a session's RR intervals were collected. */
+export type SessionSource = 'chest_strap' | 'camera';
+
 /**
  * A complete HRV recording session with objective metrics and optional
  * subjective log data (perceived readiness, training type, notes).
@@ -38,6 +41,8 @@ export interface Session {
   sleepQuality: number | null;
   /** Subjective stress level (1–5), set via LogScreen. */
   stressLevel: number | null;
+  /** How RR intervals were collected. Camera sessions are excluded from baseline. */
+  source: SessionSource;
 }
 
 /**
@@ -80,6 +85,8 @@ export interface Settings {
   pairedDeviceId: string | null;
   /** Display name of the paired heart rate monitor. */
   pairedDeviceName: string | null;
+  /** Whether to show the guided breathing exercise before each recording. */
+  breathingExerciseEnabled: boolean;
 }
 
 /** Default settings used when no user overrides are stored. */
@@ -89,6 +96,7 @@ export const DEFAULT_SETTINGS: Settings = {
   moderateThreshold: 0.8,
   pairedDeviceId: null,
   pairedDeviceName: null,
+  breathingExerciseEnabled: true,
 };
 
 /**
