@@ -5,6 +5,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { VerdictDisplay } from '../components/VerdictDisplay';
 import { StatCard } from '../components/StatCard';
 import { COLORS } from '../constants/colors';
+import { STRINGS } from '../constants/strings';
 import { Session } from '../types';
 import { getSessionById } from '../database/sessionRepository';
 import { formatDateTime } from '../utils/date';
@@ -36,7 +37,7 @@ export function SessionDetailScreen() {
 
       <VerdictDisplay verdict={session.verdict} rmssd={session.rmssd} size="large" />
 
-      <Text style={styles.sectionTitle}>HRV Metrics</Text>
+      <Text style={styles.sectionTitle}>{STRINGS.hrvMetrics}</Text>
       <View style={styles.statsRow}>
         <StatCard label="rMSSD" value={session.rmssd.toFixed(1)} unit="ms" />
         <StatCard label="SDNN" value={session.sdnn.toFixed(1)} unit="ms" />
@@ -63,7 +64,7 @@ export function SessionDetailScreen() {
 
       {(session.perceivedReadiness || session.trainingType || session.notes || session.sleepHours || session.stressLevel) && (
         <>
-          <Text style={styles.sectionTitle}>Subjective Log</Text>
+          <Text style={styles.sectionTitle}>{STRINGS.subjectiveLog}</Text>
           {session.perceivedReadiness && (
             <View style={styles.logItem}>
               <Text style={styles.logLabel}>Perceived Readiness</Text>

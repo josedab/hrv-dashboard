@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { VerdictType } from '../types';
 import { VERDICT_INFO } from '../constants/verdicts';
 import { COLORS, VERDICT_COLORS } from '../constants/colors';
+import { STRINGS } from '../constants/strings';
 
 interface VerdictDisplayProps {
   verdict: VerdictType | null;
@@ -27,8 +28,8 @@ export function VerdictDisplay({ verdict, rmssd, size = 'large', baselineValue, 
 
   if (!verdict) {
     const baselineLabel = rmssd !== null
-      ? `Readiness verdict: Building Baseline. rMSSD ${rmssd.toFixed(1)} milliseconds`
-      : 'Readiness verdict: Building Baseline';
+      ? `Readiness verdict: ${STRINGS.buildingBaseline}. rMSSD ${rmssd.toFixed(1)} milliseconds`
+      : `Readiness verdict: ${STRINGS.buildingBaseline}`;
 
     return (
       <View
@@ -38,7 +39,7 @@ export function VerdictDisplay({ verdict, rmssd, size = 'large', baselineValue, 
       >
         <Text style={[styles.emoji, isLarge && styles.emojiLarge]}>📊</Text>
         <Text style={[styles.label, isLarge && styles.labelLarge, { color: COLORS.noVerdict }]}>
-          Building Baseline
+          {STRINGS.buildingBaseline}
         </Text>
         {rmssd !== null && (
           <Text style={[styles.rmssd, isLarge && styles.rmssdLarge]}>
@@ -46,7 +47,7 @@ export function VerdictDisplay({ verdict, rmssd, size = 'large', baselineValue, 
           </Text>
         )}
         <Text style={styles.sublabel}>
-          Need more days of readings to compute verdict
+          {STRINGS.buildingBaselineDesc}
         </Text>
       </View>
     );

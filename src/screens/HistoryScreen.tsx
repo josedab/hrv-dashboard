@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Sparkline } from '../components/Sparkline';
 import { COLORS, VERDICT_COLORS } from '../constants/colors';
+import { STRINGS } from '../constants/strings';
 import { Session } from '../types';
 import { getSessionsPaginated, getSessionCount, getRecentSessions } from '../database/sessionRepository';
 import { VERDICT_INFO } from '../constants/verdicts';
@@ -78,6 +79,10 @@ export function HistoryScreen() {
       <TouchableOpacity
         style={styles.sessionItem}
         onPress={() => navigation.navigate('SessionDetail', { sessionId: item.id })}
+        accessibilityRole="button"
+        accessibilityLabel={`${formatDate(item.timestamp)}, ${verdictInfo?.label ?? 'No Verdict'}, rMSSD ${item.rmssd.toFixed(1)} milliseconds`}
+        accessibilityHint="Opens session details"
+        activeOpacity={0.7}
       >
         <View style={styles.sessionLeft}>
           <Text style={styles.sessionEmoji}>{verdictInfo?.emoji ?? '📊'}</Text>
@@ -116,10 +121,10 @@ export function HistoryScreen() {
         onEndReachedThreshold={0.5}
         ListHeaderComponent={
           <View>
-            <Text style={styles.title}>History</Text>
+            <Text style={styles.title}>{STRINGS.history}</Text>
             {chartData.length >= 2 && (
               <View style={styles.chartContainer}>
-                <Text style={styles.chartLabel}>rMSSD — Last 30 Days</Text>
+                <Text style={styles.chartLabel}>{STRINGS.rmssdLast30Days}</Text>
                 <Sparkline data={chartData} width={340} height={100} />
               </View>
             )}
@@ -127,8 +132,8 @@ export function HistoryScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No sessions yet</Text>
-            <Text style={styles.emptySubtext}>Complete your first reading to see history</Text>
+            <Text style={styles.emptyText}>{STRINGS.noSessionsYet}</Text>
+            <Text style={styles.emptySubtext}>{STRINGS.noSessionsHint}</Text>
           </View>
         }
         ListFooterComponent={

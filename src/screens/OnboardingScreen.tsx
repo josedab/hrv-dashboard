@@ -95,7 +95,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
       />
 
       {/* Dots */}
-      <View style={styles.dotsContainer}>
+      <View style={styles.dotsContainer} accessibilityRole="tablist">
         {SLIDES.map((_, index) => (
           <View
             key={index}
@@ -103,6 +103,10 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
               styles.dot,
               index === currentIndex && styles.dotActive,
             ]}
+            accessible={true}
+            accessibilityRole="tab"
+            accessibilityLabel={`Slide ${index + 1} of ${SLIDES.length}`}
+            accessibilityState={{ selected: index === currentIndex }}
           />
         ))}
       </View>
@@ -110,13 +114,22 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
       {/* Buttons */}
       <View style={styles.buttonsContainer}>
         {!isLastSlide && (
-          <TouchableOpacity onPress={onComplete}>
+          <TouchableOpacity
+            onPress={onComplete}
+            accessibilityRole="button"
+            accessibilityLabel="Skip onboarding"
+            style={{ minHeight: 44, justifyContent: 'center' }}
+            activeOpacity={0.7}
+          >
             <Text style={styles.skipText}>Skip</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity
           style={[styles.nextButton, isLastSlide && styles.getStartedButton]}
           onPress={handleNext}
+          accessibilityRole="button"
+          accessibilityLabel={isLastSlide ? 'Get started with the app' : `Go to slide ${currentIndex + 2}`}
+          activeOpacity={0.7}
         >
           <Text style={styles.nextButtonText}>
             {isLastSlide ? 'Get Started' : 'Next'}

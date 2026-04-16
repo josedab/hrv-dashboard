@@ -7,6 +7,7 @@ import { ReadinessSlider } from '../components/ReadinessSlider';
 import { VerdictDisplay } from '../components/VerdictDisplay';
 import { COLORS } from '../constants/colors';
 import { TRAINING_TYPES } from '../constants/defaults';
+import { STRINGS } from '../constants/strings';
 import { getSessionById, updateSessionLog } from '../database/sessionRepository';
 import { Session } from '../types';
 
@@ -53,13 +54,17 @@ export function LogScreen() {
 
       <ReadinessSlider value={readiness} onChange={setReadiness} />
 
-      <Text style={styles.label}>Training Type</Text>
+      <Text style={styles.label}>{STRINGS.trainingType}</Text>
       <View style={styles.trainingTypes}>
         {TRAINING_TYPES.map((type) => (
           <TouchableOpacity
             key={type}
             style={[styles.chip, trainingType === type && styles.chipSelected]}
             onPress={() => setTrainingType(trainingType === type ? null : type)}
+            accessibilityRole="button"
+            accessibilityLabel={`Training type: ${type}`}
+            accessibilityState={{ selected: trainingType === type }}
+            activeOpacity={0.7}
           >
             <Text style={[styles.chipText, trainingType === type && styles.chipTextSelected]}>
               {type}
@@ -68,67 +73,98 @@ export function LogScreen() {
         ))}
       </View>
 
-      <Text style={styles.label}>Notes</Text>
+      <Text style={styles.label}>{STRINGS.notes}</Text>
       <TextInput
         style={styles.textInput}
-        placeholder="How are you feeling?"
+        placeholder={STRINGS.howAreYouFeeling}
         placeholderTextColor={COLORS.textMuted}
         multiline
         value={notes}
         onChangeText={setNotes}
         maxLength={NOTES_MAX_LENGTH}
+        accessibilityLabel="Session notes"
       />
       <Text style={styles.charCount}>{notes.length}/{NOTES_MAX_LENGTH}</Text>
 
-      <Text style={styles.label}>Sleep (optional)</Text>
+      <Text style={styles.label}>{STRINGS.sleepOptional}</Text>
       <View style={styles.sleepRow}>
         {[5, 6, 7, 8, 9].map((hrs) => (
           <TouchableOpacity
             key={`sleep-${hrs}`}
             style={[styles.chip, sleepHours === hrs && styles.chipSelected]}
             onPress={() => setSleepHours(sleepHours === hrs ? null : hrs)}
+            accessibilityRole="button"
+            accessibilityLabel={`${hrs} hours of sleep`}
+            accessibilityState={{ selected: sleepHours === hrs }}
+            activeOpacity={0.7}
           >
             <Text style={[styles.chipText, sleepHours === hrs && styles.chipTextSelected]}>{hrs}h</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={styles.label}>Sleep Quality</Text>
+      <Text style={styles.label}>{STRINGS.sleepQuality}</Text>
       <View style={styles.sleepRow}>
-        {[1, 2, 3, 4, 5].map((q) => (
-          <TouchableOpacity
-            key={`sq-${q}`}
-            style={[styles.chip, sleepQuality === q && styles.chipSelected]}
-            onPress={() => setSleepQuality(sleepQuality === q ? null : q)}
-          >
-            <Text style={[styles.chipText, sleepQuality === q && styles.chipTextSelected]}>
-              {['😴', '😕', '😐', '🙂', '😊'][q - 1]}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {[1, 2, 3, 4, 5].map((q) => {
+          const labels = ['Very poor', 'Poor', 'Fair', 'Good', 'Excellent'];
+          return (
+            <TouchableOpacity
+              key={`sq-${q}`}
+              style={[styles.chip, sleepQuality === q && styles.chipSelected]}
+              onPress={() => setSleepQuality(sleepQuality === q ? null : q)}
+              accessibilityRole="button"
+              accessibilityLabel={`Sleep quality: ${labels[q - 1]}`}
+              accessibilityState={{ selected: sleepQuality === q }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.chipText, sleepQuality === q && styles.chipTextSelected]}>
+                {['😴', '😕', '😐', '🙂', '😊'][q - 1]}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      <Text style={styles.label}>Stress Level</Text>
+      <Text style={styles.label}>{STRINGS.stressLevel}</Text>
       <View style={styles.sleepRow}>
-        {[1, 2, 3, 4, 5].map((s) => (
-          <TouchableOpacity
-            key={`stress-${s}`}
-            style={[styles.chip, stressLevel === s && styles.chipSelected]}
-            onPress={() => setStressLevel(stressLevel === s ? null : s)}
-          >
-            <Text style={[styles.chipText, stressLevel === s && styles.chipTextSelected]}>
-              {['😌', '🙂', '😐', '😰', '🤯'][s - 1]}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {[1, 2, 3, 4, 5].map((s) => {
+          const labels = ['Very low', 'Low', 'Moderate', 'High', 'Very high'];
+          return (
+            <TouchableOpacity
+              key={`stress-${s}`}
+              style={[styles.chip, stressLevel === s && styles.chipSelected]}
+              onPress={() => setStressLevel(stressLevel === s ? null : s)}
+              accessibilityRole="button"
+              accessibilityLabel={`Stress level: ${labels[s - 1]}`}
+              accessibilityState={{ selected: stressLevel === s }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.chipText, stressLevel === s && styles.chipTextSelected]}>
+                {['😌', '🙂', '😐', '😰', '🤯'][s - 1]}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>Save</Text>
+      <TouchableOpacity
+        style={styles.saveButton}
+        onPress={handleSave}
+        accessibilityRole="button"
+        accessibilityLabel={STRINGS.saveAndFinish}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.saveButtonText}>{STRINGS.save}</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-        <Text style={styles.skipButtonText}>Skip</Text>
+      <TouchableOpacity
+        style={styles.skipButton}
+        onPress={handleSkip}
+        accessibilityRole="button"
+        accessibilityLabel="Skip logging and return home"
+        activeOpacity={0.7}
+      >
+        <Text style={styles.skipButtonText}>{STRINGS.skip}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

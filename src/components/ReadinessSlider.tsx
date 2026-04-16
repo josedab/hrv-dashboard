@@ -31,6 +31,7 @@ export function ReadinessSlider({ value, onChange }: ReadinessSliderProps) {
             accessibilityRole="button"
             accessibilityLabel={`Readiness level ${level}: ${READINESS_LABELS[level]}`}
             accessibilityState={{ selected: value === level }}
+            activeOpacity={0.7}
           >
             <Text
               style={[

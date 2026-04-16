@@ -15,7 +15,7 @@ export const COLORS = {
   surfaceLight: '#334155',
   text: '#F8FAFC',
   textSecondary: '#94A3B8',
-  textMuted: '#64748B',
+  textMuted: '#7E8CA8',
   accent: '#3B82F6',      // blue
   border: '#334155',
   danger: '#EF4444',

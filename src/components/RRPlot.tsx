@@ -42,7 +42,12 @@ export function RRPlot({
   });
 
   return (
-    <View style={[styles.container, { width, height }]}>
+    <View
+      style={[styles.container, { width, height }]}
+      accessible={true}
+      accessibilityRole="image"
+      accessibilityLabel={`RR interval plot with ${visibleData.length} data points`}
+    >
       <Svg width={width} height={height}>
         <Rect x={0} y={0} width={width} height={height} rx={8} fill={COLORS.surface} />
         <Polyline

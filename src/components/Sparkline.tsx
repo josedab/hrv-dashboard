@@ -46,7 +46,12 @@ function SparklineInner({
     : undefined;
 
   return (
-    <View style={{ width, height }}>
+    <View
+      style={{ width, height }}
+      accessible={true}
+      accessibilityRole="image"
+      accessibilityLabel={`Trend chart with ${data.length} data points. Latest value: ${data[data.length - 1]?.toFixed(1) ?? 'unknown'}${baselineValue ? `, baseline: ${baselineValue.toFixed(1)}` : ''}`}
+    >
       <Svg width={width} height={height}>
         {showBaseline && baselineY !== undefined && (
           <Line
