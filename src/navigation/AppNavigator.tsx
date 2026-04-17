@@ -13,6 +13,10 @@ import { SessionDetailScreen } from '../screens/SessionDetailScreen';
 import { PrivacyPolicyScreen } from '../screens/PrivacyPolicyScreen';
 import { OrthostaticScreen } from '../screens/OrthostaticScreen';
 import { CameraReadingScreen } from '../screens/CameraReadingScreen';
+import { SyncSettingsScreen } from '../screens/SyncSettingsScreen';
+import { ShareCoachScreen } from '../screens/ShareCoachScreen';
+import { PluginsScreen } from '../screens/PluginsScreen';
+import { CoherenceScreen } from '../screens/CoherenceScreen';
 import { COLORS } from '../constants/colors';
 import { STRINGS } from '../constants/strings';
 
@@ -24,6 +28,10 @@ export type RootStackParamList = {
   SessionDetail: { sessionId: string };
   PrivacyPolicy: undefined;
   Orthostatic: undefined;
+  SyncSettings: undefined;
+  ShareCoach: undefined;
+  Plugins: undefined;
+  Coherence: undefined;
 };
 
 export type TabParamList = {
@@ -132,6 +140,26 @@ export function AppNavigator() {
           name="Orthostatic"
           component={OrthostaticScreen}
           options={{ title: STRINGS.orthostaticTest, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="SyncSettings"
+          component={SyncSettingsScreen}
+          options={{ title: 'Cloud Sync' }}
+        />
+        <Stack.Screen
+          name="ShareCoach"
+          component={ShareCoachScreen}
+          options={{ title: 'Share with Coach' }}
+        />
+        <Stack.Screen
+          name="Plugins"
+          component={PluginsScreen}
+          options={{ title: 'Plugins' }}
+        />
+        <Stack.Screen
+          name="Coherence"
+          component={CoherenceScreen}
+          options={{ title: 'Coherence', presentation: 'modal' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
