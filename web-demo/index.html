@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>HRV Dashboard — Web Demo</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0F172A;
+    --surface: #1E293B;
+    --border: #334155;
+    --text: #F8FAFC;
+    --muted: #94A3B8;
+    --accent: #3B82F6;
+    --green: #22C55E;
+    --amber: #F59E0B;
+    --red: #EF4444;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 15px/1.5 -apple-system, system-ui, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px;
+    max-width: 960px;
+    margin-inline: auto;
+  }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .card .label {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .card .value { font-size: 26px; font-weight: 700; }
+  .card .unit { color: var(--muted); font-size: 13px; margin-left: 4px; }
+  .verdict {
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 32px;
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .verdict.go { background: rgba(34, 197, 94, 0.15); color: var(--green); }
+  .verdict.moderate { background: rgba(245, 158, 11, 0.15); color: var(--amber); }
+  .verdict.rest { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+  th { color: var(--muted); font-weight: 600; }
+  svg { width: 100%; height: 120px; }
+  .disclaimer { color: var(--muted); font-size: 12px; margin-top: 32px; }
+</style>
+</head>
+<body>
+  <h1>HRV Readiness — Web Demo</h1>
+  <p class="subtitle">Static demo of the dashboard adapters from <code>src/web/dashboard.ts</code>. In production this page would be a Next.js route that pulls from the synced cloud blobs.</p>
+
+  <div id="verdict" class="verdict">Loading…</div>
+
+  <div class="grid" id="summary"></div>
+
+  <div class="card">
+    <div class="label">rMSSD — last 14 days</div>
+    <svg id="trend" viewBox="0 0 320 120" preserveAspectRatio="none"></svg>
+  </div>
+
+  <div class="card" style="margin-top: 24px;">
+    <div class="label">Recent sessions</div>
+    <table id="sessions">
+      <thead><tr><th>Date</th><th>rMSSD</th><th>HR</th><th>Verdict</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <p class="disclaimer">
+    Demo data only. Not medical advice. Real builds use signed-in users and end-to-end encrypted session blobs.
+  </p>
+
+<script>
+// ---- Demo data (would come from the cloud-sync blobs in production) ----
+const today = new Date();
+function dayBefore(n) {
+  const d = new Date(today);
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+const sessions = Array.from({ length: 14 }, (_, i) => ({
+  date: dayBefore(13 - i),
+  rmssd: 38 + Math.sin(i / 2) * 8 + (Math.random() - 0.5) * 4,
+  hr: 56 + Math.cos(i / 3) * 4,
+}));
+
+const latest = sessions[sessions.length - 1];
+const baseline = sessions.slice(0, 7).reduce((a, b) => a + b.rmssd, 0) / 7;
+const ratio = latest.rmssd / baseline;
+const verdict = ratio >= 0.95 ? 'go' : ratio >= 0.80 ? 'moderate' : 'rest';
+const verdictLabels = { go: 'Go Hard', moderate: 'Moderate', rest: 'Rest' };
+
+// ---- Render ----
+const v = document.getElementById('verdict');
+v.className = 'verdict ' + verdict;
+v.textContent = verdictLabels[verdict] + ` · ${(ratio * 100).toFixed(0)}% of baseline`;
+
+const summary = document.getElementById('summary');
+const cards = [
+  { label: 'rMSSD', value: latest.rmssd.toFixed(1), unit: 'ms' },
+  { label: 'Resting HR', value: latest.hr.toFixed(0), unit: 'bpm' },
+  { label: '7-day baseline', value: baseline.toFixed(1), unit: 'ms' },
+  { label: 'Sessions', value: sessions.length, unit: '' },
+];
+summary.innerHTML = cards.map(c => `
+  <div class="card">
+    <div class="label">${c.label}</div>
+    <div class="value">${c.value}<span class="unit">${c.unit}</span></div>
+  </div>
+`).join('');
+
+const min = Math.min(...sessions.map(s => s.rmssd));
+const max = Math.max(...sessions.map(s => s.rmssd));
+const range = max - min || 1;
+const points = sessions.map((s, i) => {
+  const x = (i / (sessions.length - 1)) * 320;
+  const y = 120 - ((s.rmssd - min) / range) * 100 - 10;
+  return `${x.toFixed(1)},${y.toFixed(1)}`;
+}).join(' ');
+document.getElementById('trend').innerHTML = `
+  <polyline fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--accent')}" stroke-width="2" points="${points}" />
+`;
+
+const tbody = document.querySelector('#sessions tbody');
+tbody.innerHTML = sessions.slice().reverse().slice(0, 7).map(s => {
+  const r = s.rmssd / baseline;
+  const lab = r >= 0.95 ? 'Go' : r >= 0.80 ? 'Moderate' : 'Rest';
+  return `<tr><td>${s.date}</td><td>${s.rmssd.toFixed(1)} ms</td><td>${s.hr.toFixed(0)} bpm</td><td>${lab}</td></tr>`;
+}).join('');
+</script>
+</body>
+</html>
