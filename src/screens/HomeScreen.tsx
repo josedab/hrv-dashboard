@@ -16,6 +16,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { VerdictDisplay } from '../components/VerdictDisplay';
 import { StatCard } from '../components/StatCard';
 import { Sparkline } from '../components/Sparkline';
+import { WorkoutCard } from '../components/WorkoutCard';
 import { COLORS } from '../constants/colors';
 import { STRINGS } from '../constants/strings';
 import { Session } from '../types';
@@ -205,6 +206,13 @@ export function HomeScreen() {
           {weeklyLoad > 0 && (
             <Text style={styles.weeklyLoadText}>📊 Weekly training load: {weeklyLoad}</Text>
           )}
+        </View>
+      )}
+
+      {/* Workout of the Day */}
+      {hasReading && todaySession && (
+        <View style={{ paddingHorizontal: 20 }}>
+          <WorkoutCard session={todaySession} />
         </View>
       )}
 
