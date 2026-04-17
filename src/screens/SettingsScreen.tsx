@@ -533,6 +533,38 @@ export function SettingsScreen() {
 
         <TouchableOpacity
           style={styles.exportButton}
+          onPress={() => navigation.navigate('SyncSettings')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.exportButtonText}>Cloud Sync</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.exportButton}
+          onPress={() => navigation.navigate('ShareCoach')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.exportButtonText}>Share with Coach</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.exportButton}
+          onPress={() => navigation.navigate('Plugins')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.exportButtonText}>Plugins</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.exportButton}
+          onPress={() => navigation.navigate('Coherence')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.exportButtonText}>Coherence Training</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.exportButton}
           onPress={() => navigation.navigate('PrivacyPolicy')}
           activeOpacity={0.7}
         >
