@@ -91,13 +91,15 @@ describe('getWidgetData', () => {
     const session = makeSession({ rmssd: 40 });
     (loadSettings as jest.Mock).mockResolvedValue(DEFAULT_SETTINGS);
     (getTodaySession as jest.Mock).mockResolvedValue(session);
-    (getDailyReadings as jest.Mock).mockResolvedValue([
-      { date: '2026-04-09', rmssd: 40, verdict: 'go_hard' },
-      { date: '2026-04-10', rmssd: 40, verdict: 'go_hard' },
-      { date: '2026-04-11', rmssd: 40, verdict: 'go_hard' },
-      { date: '2026-04-12', rmssd: 40, verdict: 'go_hard' },
-      { date: '2026-04-13', rmssd: 40, verdict: 'go_hard' },
-    ]);
+    // Build readings relative to today so the rolling-window cutoff includes them.
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const today = new Date();
+    const readings = [1, 2, 3, 4, 5].map((daysAgo) => {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysAgo);
+      return { date: fmt(d), rmssd: 40, verdict: 'go_hard' as const };
+    });
+    (getDailyReadings as jest.Mock).mockResolvedValue(readings);
 
     const mockDb = {
       getAllAsync: jest.fn().mockResolvedValue([]),
