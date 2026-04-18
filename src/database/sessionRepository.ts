@@ -1,4 +1,4 @@
-import { Session, DailyReading } from '../types';
+import { Session, DailyReading, SessionLogPatch, parseVerdict, parseSessionSource } from '../types';
 import { getDatabase } from './database';
 
 /**
@@ -39,26 +39,37 @@ export async function deleteSession(sessionId: string): Promise<void> {
 
 /**
  * Updates the subjective log fields of a session.
+ *
+ * Only fields explicitly present on `patch` are written; missing fields are
+ * preserved. Pass `null` to clear an existing value.
  */
-export async function updateSessionLog(
-  sessionId: string,
-  perceivedReadiness: number | null,
-  trainingType: string | null,
-  notes: string | null,
-  sleepHours: number | null = null,
-  sleepQuality: number | null = null,
-  stressLevel: number | null = null
-): Promise<void> {
+export async function updateSessionLog(sessionId: string, patch: SessionLogPatch): Promise<void> {
+  // Map patch keys to (column, value) pairs only when defined, so a UI that
+  // only renders a subset of fields cannot accidentally null out the rest.
+  const columnMap: Record<keyof SessionLogPatch, string> = {
+    perceivedReadiness: 'perceived_readiness',
+    trainingType: 'training_type',
+    notes: 'notes',
+    sleepHours: 'sleep_hours',
+    sleepQuality: 'sleep_quality',
+    stressLevel: 'stress_level',
+  };
+
+  const assignments: string[] = [];
+  const values: unknown[] = [];
+  for (const key of Object.keys(columnMap) as (keyof SessionLogPatch)[]) {
+    if (patch[key] !== undefined) {
+      assignments.push(`${columnMap[key]} = ?`);
+      values.push(patch[key]);
+    }
+  }
+  if (assignments.length === 0) return;
+
+  values.push(sessionId);
   const db = await getDatabase();
   await db.runAsync(
-    `UPDATE sessions SET perceived_readiness = ?, training_type = ?, notes = ?, sleep_hours = ?, sleep_quality = ?, stress_level = ? WHERE id = ?`,
-    perceivedReadiness,
-    trainingType,
-    notes,
-    sleepHours,
-    sleepQuality,
-    stressLevel,
-    sessionId
+    `UPDATE sessions SET ${assignments.join(', ')} WHERE id = ?`,
+    ...(values as never[])
   );
 }
 
@@ -155,7 +166,7 @@ export async function getDailyReadings(windowDays: number): Promise<DailyReading
   return rows.map((r) => ({
     date: r.date_str,
     rmssd: r.rmssd,
-    verdict: r.verdict as DailyReading['verdict'],
+    verdict: parseVerdict(r.verdict),
   }));
 }
 
@@ -239,13 +250,58 @@ function mapRowToSession(row: SessionRow): Session {
     meanHr: row.mean_hr,
     pnn50: row.pnn50,
     artifactRate: row.artifact_rate,
-    verdict: row.verdict as Session['verdict'],
+    verdict: parseVerdict(row.verdict),
     perceivedReadiness: row.perceived_readiness,
     trainingType: row.training_type,
     notes: row.notes,
     sleepHours: row.sleep_hours ?? null,
     sleepQuality: row.sleep_quality ?? null,
     stressLevel: row.stress_level ?? null,
-    source: row.source === 'camera' ? 'camera' : 'chest_strap',
+    source: parseSessionSource(row.source),
   };
+}
+
+/**
+ * Bulk-inserts sessions, skipping any whose `id` already exists.
+ *
+ * Used by backup/restore. Wrapped in a single transaction for atomicity and
+ * speed. Returns the count of newly inserted rows.
+ */
+export async function upsertManySessionsIfMissing(sessions: Session[]): Promise<number> {
+  if (sessions.length === 0) return 0;
+  const db = await getDatabase();
+  let inserted = 0;
+  await db.withTransactionAsync(async () => {
+    for (const session of sessions) {
+      if (!session.id || !session.timestamp) continue;
+      const existing = await db.getFirstAsync<{ id: string }>(
+        `SELECT id FROM sessions WHERE id = ?`,
+        session.id
+      );
+      if (existing) continue;
+      await db.runAsync(
+        `INSERT INTO sessions (id, timestamp, duration_seconds, rr_intervals, rmssd, sdnn, mean_hr, pnn50, artifact_rate, verdict, perceived_readiness, training_type, notes, sleep_hours, sleep_quality, stress_level, source)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        session.id,
+        session.timestamp,
+        session.durationSeconds ?? 0,
+        JSON.stringify(session.rrIntervals ?? []),
+        session.rmssd ?? 0,
+        session.sdnn ?? 0,
+        session.meanHr ?? 0,
+        session.pnn50 ?? 0,
+        session.artifactRate ?? 0,
+        session.verdict ?? null,
+        session.perceivedReadiness ?? null,
+        session.trainingType ?? null,
+        session.notes ?? null,
+        session.sleepHours ?? null,
+        session.sleepQuality ?? null,
+        session.stressLevel ?? null,
+        parseSessionSource(session.source)
+      );
+      inserted++;
+    }
+  });
+  return inserted;
 }

@@ -13,7 +13,7 @@ import { COLORS } from '../constants/colors';
 import { runSync, SyncResult } from '../sync';
 import { InMemorySyncProvider } from '../sync/inMemoryProvider';
 import { SupabaseSyncProvider } from '../sync/cloudProviders';
-import { getAllSessions } from '../database/sessionRepository';
+import { getAllSessions, upsertManySessionsIfMissing } from '../database/sessionRepository';
 import { Session } from '../types';
 import { getDatabase } from '../database/database';
 
@@ -41,32 +41,13 @@ async function writeSetting(key: string, value: string): Promise<void> {
   await db.runAsync(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`, key, value);
 }
 
+/**
+ * Apply a single downloaded session to the local DB. Delegates to the
+ * repository's batch upsert so the column mapping (snake_case) and the
+ * "skip if id already present" semantics stay in one place.
+ */
 async function upsertSession(s: Session): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync(
-    `INSERT OR REPLACE INTO sessions (
-      id, timestamp, durationSeconds, rrIntervals, rmssd, sdnn, meanHr, pnn50,
-      artifactRate, verdict, perceivedReadiness, trainingType, notes,
-      sleepHours, sleepQuality, stressLevel, source
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    s.id,
-    s.timestamp,
-    s.durationSeconds,
-    JSON.stringify(s.rrIntervals),
-    s.rmssd,
-    s.sdnn,
-    s.meanHr,
-    s.pnn50,
-    s.artifactRate,
-    s.verdict,
-    s.perceivedReadiness,
-    s.trainingType,
-    s.notes,
-    s.sleepHours,
-    s.sleepQuality,
-    s.stressLevel,
-    s.source
-  );
+  await upsertManySessionsIfMissing([s]);
 }
 
 export function SyncSettingsScreen() {

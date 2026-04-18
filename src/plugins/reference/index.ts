@@ -168,11 +168,7 @@ function compute(session) {
 `,
 };
 
-export const REFERENCE_PLUGINS: ReferencePlugin[] = [
-  POINCARE_SD1_SD2,
-  FFT_LF_HF,
-  DFA_ALPHA1,
-];
+export const REFERENCE_PLUGINS: ReferencePlugin[] = [POINCARE_SD1_SD2, FFT_LF_HF, DFA_ALPHA1];
 
 export function compileReferencePlugins(): CompiledPlugin[] {
   return REFERENCE_PLUGINS.map((p) => compilePlugin(p.manifest, p.source));

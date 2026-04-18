@@ -4,9 +4,8 @@ jest.mock('expo-crypto', () => {
   return {
     CryptoDigestAlgorithm: { SHA256: 'SHA256' },
     digest: async (_alg: string, data: Uint8Array | ArrayBuffer) => {
-      const buf = data instanceof Uint8Array
-        ? Buffer.from(data)
-        : Buffer.from(new Uint8Array(data));
+      const buf =
+        data instanceof Uint8Array ? Buffer.from(data) : Buffer.from(new Uint8Array(data));
       const h = createHash('sha256').update(buf).digest();
       return h.buffer.slice(h.byteOffset, h.byteOffset + h.byteLength);
     },
@@ -107,6 +106,39 @@ describe('SupabaseSyncProvider', () => {
     expect(headers.Prefer).toContain('merge-duplicates');
   });
 
+  it('round-trips a v4 blob with salt through put + get without losing the salt', async () => {
+    const v4Blob: EncryptedSessionBlob = {
+      protocolVersion: 4,
+      sessionId: 'v4-test',
+      updatedAt: '2026-04-15T07:00:00Z',
+      iv: '0011223344556677889900aa',
+      ciphertext: 'aabbccdd',
+      salt: '00112233445566778899aabbccddeeff',
+    };
+    let captured: Record<string, unknown> | null = null;
+    const fetchImpl = jest.fn(async (url: string, init?: RequestInit) => {
+      // Capture what put() sends, replay it on get().
+      if (init?.method === 'POST') {
+        captured = JSON.parse(init.body as string);
+        return fakeResponse({ status: 201 });
+      }
+      return fakeResponse({ body: captured ? [captured] : [] });
+    });
+    const p = new SupabaseSyncProvider({
+      url: 'https://x.supabase.co',
+      anonKey: 'anon',
+      accessToken: 'jwt',
+      fetchImpl,
+    });
+    await p.put(v4Blob);
+    expect(captured).toMatchObject({
+      protocol_version: 4,
+      salt: '00112233445566778899aabbccddeeff',
+    });
+    const fetched = await p.get('v4-test');
+    expect(fetched).toEqual(v4Blob);
+  });
+
   it('treats 404 on remove as success', async () => {
     const fetchImpl = jest.fn(async () => fakeResponse({ status: 404 }));
     const p = new SupabaseSyncProvider({
@@ -127,6 +159,70 @@ describe('SupabaseSyncProvider', () => {
       fetchImpl,
     });
     await expect(p.list()).rejects.toThrow(/500/);
+  });
+
+  it('round-trips a v2 blob with its HMAC field intact', async () => {
+    // Regression: previously the row mapping dropped `mac`, silently
+    // breaking back-compat with v2 blobs already living in Supabase.
+    const v2Blob: EncryptedSessionBlob = {
+      protocolVersion: 2,
+      sessionId: 'legacy',
+      updatedAt: '2026-04-15T07:00:00Z',
+      iv: 'ab12',
+      ciphertext: 'cd34',
+      mac: 'deadbeef'.repeat(8),
+    };
+    const sentRows: unknown[] = [];
+    const fetchImpl = jest.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        sentRows.push(JSON.parse(String(init.body)));
+        return fakeResponse({ status: 201 });
+      }
+      return fakeResponse({
+        body: [
+          {
+            session_id: v2Blob.sessionId,
+            protocol_version: v2Blob.protocolVersion,
+            updated_at: v2Blob.updatedAt,
+            iv: v2Blob.iv,
+            ciphertext: v2Blob.ciphertext,
+            mac: v2Blob.mac,
+          },
+        ],
+      });
+    });
+    const p = new SupabaseSyncProvider({
+      url: 'https://x.supabase.co',
+      anonKey: 'anon',
+      accessToken: 'jwt',
+      fetchImpl,
+    });
+    await p.put(v2Blob);
+    expect((sentRows[0] as { mac?: string }).mac).toBe(v2Blob.mac);
+    expect(await p.get('legacy')).toEqual(v2Blob);
+  });
+
+  it('writes mac=null for v3 GCM blobs (no separate MAC field)', async () => {
+    const v3Blob: EncryptedSessionBlob = {
+      protocolVersion: 3,
+      sessionId: 'modern',
+      updatedAt: '2026-04-15T07:00:00Z',
+      iv: 'ab12',
+      ciphertext: 'cd34',
+    };
+    const sentRows: unknown[] = [];
+    const fetchImpl = jest.fn(async (_url: string, init?: RequestInit) => {
+      sentRows.push(JSON.parse(String(init?.body)));
+      return fakeResponse({ status: 201 });
+    });
+    const p = new SupabaseSyncProvider({
+      url: 'https://x.supabase.co',
+      anonKey: 'anon',
+      accessToken: 'jwt',
+      fetchImpl,
+    });
+    await p.put(v3Blob);
+    expect((sentRows[0] as { mac?: string | null }).mac).toBeNull();
   });
 });
 

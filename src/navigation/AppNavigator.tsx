@@ -53,11 +53,7 @@ const TAB_ICONS: Record<keyof TabParamList, keyof typeof Ionicons.glyphMap> = {
 
 function TabIcon({ name, focused }: { name: keyof TabParamList; focused: boolean }) {
   return (
-    <Ionicons
-      name={TAB_ICONS[name]}
-      size={22}
-      color={focused ? COLORS.accent : COLORS.textMuted}
-    />
+    <Ionicons name={TAB_ICONS[name]} size={22} color={focused ? COLORS.accent : COLORS.textMuted} />
   );
 }
 
@@ -151,11 +147,7 @@ export function AppNavigator() {
           component={ShareCoachScreen}
           options={{ title: 'Share with Coach' }}
         />
-        <Stack.Screen
-          name="Plugins"
-          component={PluginsScreen}
-          options={{ title: 'Plugins' }}
-        />
+        <Stack.Screen name="Plugins" component={PluginsScreen} options={{ title: 'Plugins' }} />
         <Stack.Screen
           name="Coherence"
           component={CoherenceScreen}

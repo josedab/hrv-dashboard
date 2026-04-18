@@ -1,0 +1,17 @@
+# Default owner for everything
+* @josedab
+
+# Core HRV engine — changes here need careful review
+src/hrv/ @josedab
+__tests__/hrv/ @josedab
+
+# BLE layer — device-specific, test on hardware
+src/ble/ @josedab
+__tests__/ble/ @josedab
+
+# Crypto & sync — security-sensitive
+src/sync/ @josedab
+src/share/ @josedab
+
+# Database schema — migration-sensitive
+src/database/ @josedab

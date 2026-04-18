@@ -17,6 +17,7 @@ import {
   validateCatalog,
   verifyCatalogEntry,
   installPlugin,
+  installPluginFromJson,
   uninstallPlugin,
   loadInstalledPlugins,
   InMemoryPluginStorage,
@@ -96,7 +97,7 @@ describe('install / uninstall', () => {
     const storage = new InMemoryPluginStorage();
     const installed = await installPlugin(makeEntry('a', VALID_SOURCE), storage);
     expect(installed.id).toBe('a');
-    expect((await storage.list())).toHaveLength(1);
+    expect(await storage.list()).toHaveLength(1);
   });
 
   it('rejects on fingerprint mismatch', async () => {
@@ -116,7 +117,7 @@ describe('install / uninstall', () => {
     const storage = new InMemoryPluginStorage();
     await installPlugin(makeEntry('a', VALID_SOURCE), storage);
     await uninstallPlugin('a', storage);
-    expect((await storage.list())).toHaveLength(0);
+    expect(await storage.list()).toHaveLength(0);
   });
 });
 
@@ -145,5 +146,85 @@ describe('loadInstalledPlugins', () => {
     expect(plugins).toHaveLength(1);
     expect(failures).toHaveLength(1);
     expect(failures[0].id).toBe('broken');
+  });
+});
+
+describe('installPluginFromJson', () => {
+  const VALID = JSON.stringify({
+    manifest: {
+      id: 'pasted',
+      name: 'Pasted',
+      version: '0.1.0',
+      permissions: ['read:session'],
+    },
+    source: 'function compute(s){return {metrics:{x:s.rmssd}}}',
+  });
+
+  it('installs a pasted plugin and auto-computes the fingerprint when omitted', async () => {
+    const storage = new InMemoryPluginStorage();
+    const installed = await installPluginFromJson(VALID, storage);
+    expect(installed.id).toBe('pasted');
+    expect(installed.fingerprint).toMatch(/^[0-9a-f]{64}$/);
+    const list = await storage.list();
+    expect(list).toHaveLength(1);
+  });
+
+  it('rejects empty input', async () => {
+    const storage = new InMemoryPluginStorage();
+    await expect(installPluginFromJson('   ', storage)).rejects.toThrow(/Paste a plugin/);
+  });
+
+  it('rejects malformed JSON with a clear message', async () => {
+    const storage = new InMemoryPluginStorage();
+    await expect(installPluginFromJson('not json', storage)).rejects.toThrow(/Invalid JSON/);
+  });
+
+  it('rejects missing manifest fields', async () => {
+    const storage = new InMemoryPluginStorage();
+    await expect(
+      installPluginFromJson(
+        JSON.stringify({ manifest: {}, source: 'function compute(){}' }),
+        storage
+      )
+    ).rejects.toThrow(/id, name, and version/);
+  });
+
+  it('rejects missing source', async () => {
+    const storage = new InMemoryPluginStorage();
+    await expect(
+      installPluginFromJson(
+        JSON.stringify({
+          manifest: { id: 'x', name: 'x', version: '1', permissions: ['read:session'] },
+        }),
+        storage
+      )
+    ).rejects.toThrow(/Missing `source`/);
+  });
+
+  it('honors a user-supplied fingerprint and rejects mismatches', async () => {
+    const storage = new InMemoryPluginStorage();
+    await expect(
+      installPluginFromJson(
+        JSON.stringify({
+          manifest: { id: 'pasted', name: 'P', version: '1', permissions: ['read:session'] },
+          source: 'function compute(s){return {metrics:{x:s.rmssd}}}',
+          fingerprint: '0'.repeat(64),
+        }),
+        storage
+      )
+    ).rejects.toThrow(/fingerprint mismatch/);
+  });
+
+  it('rejects sources that fail static audit', async () => {
+    const storage = new InMemoryPluginStorage();
+    await expect(
+      installPluginFromJson(
+        JSON.stringify({
+          manifest: { id: 'bad', name: 'bad', version: '1', permissions: ['read:session'] },
+          source: 'function compute(){eval("x")}',
+        }),
+        storage
+      )
+    ).rejects.toThrow();
   });
 });

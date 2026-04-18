@@ -20,6 +20,8 @@ import { COLORS } from '../constants/colors';
 import { TRAINING_TYPES } from '../constants/defaults';
 import { STRINGS } from '../constants/strings';
 import { getSessionById, updateSessionLog } from '../database/sessionRepository';
+import { autoPullSleep, DataSource } from '../integrations/healthAutoPull';
+import { loadHealthSyncSettings } from '../utils/healthSync';
 import { Session } from '../types';
 
 type LogNavProp = NativeStackNavigationProp<RootStackParamList>;
@@ -37,35 +39,58 @@ export function LogScreen() {
   const [sleepHours, setSleepHours] = useState<number | null>(null);
   const [sleepQuality, setSleepQuality] = useState<number | null>(null);
   const [stressLevel, setStressLevel] = useState<number | null>(null);
+  const [sleepSource, setSleepSource] = useState<DataSource | null>(null);
   const [toastVisible, setToastVisible] = useState(false);
 
   const NOTES_MAX_LENGTH = 500;
 
   useEffect(() => {
-    getSessionById(sessionId).then((s) => {
-      if (!s) return;
+    let cancelled = false;
+    (async () => {
+      const s = await getSessionById(sessionId);
+      if (!s || cancelled) return;
       setSession(s);
-      // Pre-populate when editing an existing logged session.
       setReadiness(s.perceivedReadiness ?? null);
       setTrainingType(s.trainingType ?? null);
       setNotes(s.notes ?? '');
       setSleepHours(s.sleepHours ?? null);
       setSleepQuality(s.sleepQuality ?? null);
       setStressLevel(s.stressLevel ?? null);
-    });
+
+      // Auto-prefill from HealthKit / Health Connect when the user opted in
+      // and hasn't already entered a value. Manual entries always win.
+      try {
+        const hs = await loadHealthSyncSettings();
+        if (!hs.enabled) return;
+        const pulled = await autoPullSleep();
+        if (cancelled) return;
+        if (s.sleepHours === null && pulled.sleepHours !== null) {
+          setSleepHours(pulled.sleepHours);
+          setSleepSource(pulled.source);
+        }
+        if (s.sleepQuality === null && pulled.sleepQuality !== null) {
+          setSleepQuality(pulled.sleepQuality);
+          setSleepSource((prev) => prev ?? pulled.source);
+        }
+      } catch {
+        // Best-effort; ignore failures so the screen still loads
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [sessionId]);
 
   const handleSave = async () => {
     try {
-      await updateSessionLog(
-        sessionId,
-        readiness,
+      await updateSessionLog(sessionId, {
+        perceivedReadiness: readiness,
         trainingType,
-        notes || null,
+        notes: notes || null,
         sleepHours,
         sleepQuality,
-        stressLevel
-      );
+        stressLevel,
+      });
       setToastVisible(true);
       // Brief delay so toast is visible before dismissal
       setTimeout(() => navigation.popToTop(), 700);
@@ -90,126 +115,139 @@ export function LogScreen() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-      <VerdictDisplay verdict={session.verdict} rmssd={session.rmssd} size="small" />
+        <VerdictDisplay verdict={session.verdict} rmssd={session.rmssd} size="small" />
 
-      <ReadinessSlider value={readiness} onChange={setReadiness} />
+        <ReadinessSlider value={readiness} onChange={setReadiness} />
 
-      <Text style={styles.label}>{STRINGS.trainingType}</Text>
-      <View style={styles.trainingTypes}>
-        {TRAINING_TYPES.map((type) => (
-          <TouchableOpacity
-            key={type}
-            style={[styles.chip, trainingType === type && styles.chipSelected]}
-            onPress={() => setTrainingType(trainingType === type ? null : type)}
-            accessibilityRole="button"
-            accessibilityLabel={`Training type: ${type}`}
-            accessibilityState={{ selected: trainingType === type }}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.chipText, trainingType === type && styles.chipTextSelected]}>
-              {type}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Text style={styles.label}>{STRINGS.notes}</Text>
-      <TextInput
-        style={styles.textInput}
-        placeholder={STRINGS.howAreYouFeeling}
-        placeholderTextColor={COLORS.textMuted}
-        multiline
-        value={notes}
-        onChangeText={setNotes}
-        maxLength={NOTES_MAX_LENGTH}
-        accessibilityLabel="Session notes"
-      />
-      <Text style={styles.charCount}>
-        {notes.length}/{NOTES_MAX_LENGTH}
-      </Text>
-
-      <Text style={styles.label}>{STRINGS.sleepOptional}</Text>
-      <View style={styles.sleepRow}>
-        {[5, 6, 7, 8, 9].map((hrs) => (
-          <TouchableOpacity
-            key={`sleep-${hrs}`}
-            style={[styles.chip, sleepHours === hrs && styles.chipSelected]}
-            onPress={() => setSleepHours(sleepHours === hrs ? null : hrs)}
-            accessibilityRole="button"
-            accessibilityLabel={`${hrs} hours of sleep`}
-            accessibilityState={{ selected: sleepHours === hrs }}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.chipText, sleepHours === hrs && styles.chipTextSelected]}>
-              {hrs}h
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Text style={styles.label}>{STRINGS.sleepQuality}</Text>
-      <View style={styles.sleepRow}>
-        {[1, 2, 3, 4, 5].map((q) => {
-          const labels = ['Very poor', 'Poor', 'Fair', 'Good', 'Excellent'];
-          return (
+        <Text style={styles.label}>{STRINGS.trainingType}</Text>
+        <View style={styles.trainingTypes}>
+          {TRAINING_TYPES.map((type) => (
             <TouchableOpacity
-              key={`sq-${q}`}
-              style={[styles.chip, sleepQuality === q && styles.chipSelected]}
-              onPress={() => setSleepQuality(sleepQuality === q ? null : q)}
+              key={type}
+              style={[styles.chip, trainingType === type && styles.chipSelected]}
+              onPress={() => setTrainingType(trainingType === type ? null : type)}
               accessibilityRole="button"
-              accessibilityLabel={`Sleep quality: ${labels[q - 1]}`}
-              accessibilityState={{ selected: sleepQuality === q }}
+              accessibilityLabel={`Training type: ${type}`}
+              accessibilityState={{ selected: trainingType === type }}
               activeOpacity={0.7}
             >
-              <Text style={[styles.chipText, sleepQuality === q && styles.chipTextSelected]}>
-                {['😴', '😕', '😐', '🙂', '😊'][q - 1]}
+              <Text style={[styles.chipText, trainingType === type && styles.chipTextSelected]}>
+                {type}
               </Text>
             </TouchableOpacity>
-          );
-        })}
-      </View>
+          ))}
+        </View>
 
-      <Text style={styles.label}>{STRINGS.stressLevel}</Text>
-      <View style={styles.sleepRow}>
-        {[1, 2, 3, 4, 5].map((s) => {
-          const labels = ['Very low', 'Low', 'Moderate', 'High', 'Very high'];
-          return (
+        <Text style={styles.label}>{STRINGS.notes}</Text>
+        <TextInput
+          style={styles.textInput}
+          placeholder={STRINGS.howAreYouFeeling}
+          placeholderTextColor={COLORS.textMuted}
+          multiline
+          value={notes}
+          onChangeText={setNotes}
+          maxLength={NOTES_MAX_LENGTH}
+          accessibilityLabel="Session notes"
+        />
+        <Text style={styles.charCount}>
+          {notes.length}/{NOTES_MAX_LENGTH}
+        </Text>
+
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>{STRINGS.sleepOptional}</Text>
+          {sleepSource && sleepSource !== 'manual' && (
+            <Text style={styles.sourceBadge} accessibilityLabel="Auto-filled from Health">
+              {sleepSource === 'health_kit' ? '❤️ from HealthKit' : '❤️ from Health Connect'}
+            </Text>
+          )}
+        </View>
+        <View style={styles.sleepRow}>
+          {[5, 6, 7, 8, 9].map((hrs) => (
             <TouchableOpacity
-              key={`stress-${s}`}
-              style={[styles.chip, stressLevel === s && styles.chipSelected]}
-              onPress={() => setStressLevel(stressLevel === s ? null : s)}
+              key={`sleep-${hrs}`}
+              style={[styles.chip, sleepHours === hrs && styles.chipSelected]}
+              onPress={() => {
+                setSleepHours(sleepHours === hrs ? null : hrs);
+                setSleepSource('manual');
+              }}
               accessibilityRole="button"
-              accessibilityLabel={`Stress level: ${labels[s - 1]}`}
-              accessibilityState={{ selected: stressLevel === s }}
+              accessibilityLabel={`${hrs} hours of sleep`}
+              accessibilityState={{ selected: sleepHours === hrs }}
               activeOpacity={0.7}
             >
-              <Text style={[styles.chipText, stressLevel === s && styles.chipTextSelected]}>
-                {['😌', '🙂', '😐', '😰', '🤯'][s - 1]}
+              <Text style={[styles.chipText, sleepHours === hrs && styles.chipTextSelected]}>
+                {hrs}h
               </Text>
             </TouchableOpacity>
-          );
-        })}
-      </View>
+          ))}
+        </View>
 
-      <TouchableOpacity
-        style={styles.saveButton}
-        onPress={handleSave}
-        accessibilityRole="button"
-        accessibilityLabel={STRINGS.saveAndFinish}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.saveButtonText}>{STRINGS.save}</Text>
-      </TouchableOpacity>
+        <Text style={styles.label}>{STRINGS.sleepQuality}</Text>
+        <View style={styles.sleepRow}>
+          {[1, 2, 3, 4, 5].map((q) => {
+            const labels = ['Very poor', 'Poor', 'Fair', 'Good', 'Excellent'];
+            return (
+              <TouchableOpacity
+                key={`sq-${q}`}
+                style={[styles.chip, sleepQuality === q && styles.chipSelected]}
+                onPress={() => {
+                  setSleepQuality(sleepQuality === q ? null : q);
+                  setSleepSource('manual');
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Sleep quality: ${labels[q - 1]}`}
+                accessibilityState={{ selected: sleepQuality === q }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.chipText, sleepQuality === q && styles.chipTextSelected]}>
+                  {['😴', '😕', '😐', '🙂', '😊'][q - 1]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-      <TouchableOpacity
-        style={styles.skipButton}
-        onPress={handleSkip}
-        accessibilityRole="button"
-        accessibilityLabel="Skip logging and return home"
-        activeOpacity={0.7}
-      >
-        <Text style={styles.skipButtonText}>{STRINGS.skip}</Text>
-      </TouchableOpacity>
+        <Text style={styles.label}>{STRINGS.stressLevel}</Text>
+        <View style={styles.sleepRow}>
+          {[1, 2, 3, 4, 5].map((s) => {
+            const labels = ['Very low', 'Low', 'Moderate', 'High', 'Very high'];
+            return (
+              <TouchableOpacity
+                key={`stress-${s}`}
+                style={[styles.chip, stressLevel === s && styles.chipSelected]}
+                onPress={() => setStressLevel(stressLevel === s ? null : s)}
+                accessibilityRole="button"
+                accessibilityLabel={`Stress level: ${labels[s - 1]}`}
+                accessibilityState={{ selected: stressLevel === s }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.chipText, stressLevel === s && styles.chipTextSelected]}>
+                  {['😌', '🙂', '😐', '😰', '🤯'][s - 1]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={handleSave}
+          accessibilityRole="button"
+          accessibilityLabel={STRINGS.saveAndFinish}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.saveButtonText}>{STRINGS.save}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.skipButton}
+          onPress={handleSkip}
+          accessibilityRole="button"
+          accessibilityLabel="Skip logging and return home"
+          activeOpacity={0.7}
+        >
+          <Text style={styles.skipButtonText}>{STRINGS.skip}</Text>
+        </TouchableOpacity>
       </ScrollView>
       <Toast
         visible={toastVisible}
@@ -236,6 +274,16 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginTop: 20,
     marginBottom: 12,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  sourceBadge: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    fontWeight: '500',
   },
   trainingTypes: {
     flexDirection: 'row',

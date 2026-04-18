@@ -27,10 +27,7 @@ function makeSession(date: string, verdict: 'go_hard' | 'moderate' | 'rest', rms
 describe('coach-web heatmap', () => {
   it('builds a grid covering the requested window', () => {
     const now = new Date('2026-04-15T12:00:00Z');
-    const sessions = [
-      makeSession('2026-04-14', 'go_hard'),
-      makeSession('2026-04-10', 'rest', 22),
-    ];
+    const sessions = [makeSession('2026-04-14', 'go_hard'), makeSession('2026-04-10', 'rest', 22)];
     const grid = buildHeatmap(sessions, now, 30);
     expect(grid.weeks.length).toBeGreaterThan(0);
     const all = grid.weeks.flat();

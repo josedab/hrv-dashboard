@@ -185,8 +185,7 @@ export function computePacerState(elapsedSeconds: number, config: PacerConfig): 
     return { phase: 'hold-top', progress, scale: 1, cycleCount };
   }
   if (cycleT < config.inhaleSeconds + hold + config.exhaleSeconds) {
-    const progress =
-      (cycleT - config.inhaleSeconds - hold) / config.exhaleSeconds;
+    const progress = (cycleT - config.inhaleSeconds - hold) / config.exhaleSeconds;
     return { phase: 'exhale', progress, scale: 1 - progress, cycleCount };
   }
   const progress =

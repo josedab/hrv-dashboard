@@ -1,4 +1,52 @@
 import { Session, BaselineResult } from '../types';
+import { isInsufficientBaseline } from './baseline';
+
+/**
+ * Composite recovery score weights.
+ *
+ * Sum to 1.0. Chosen so HRV (objective) dominates while subjective inputs
+ * round out the score; tuned against a small validation set of weeks where
+ * the next-day verdict was already known. Adjust as a unit, not piecemeal,
+ * if the model is re-tuned.
+ */
+const RECOVERY_WEIGHTS = {
+  hrv: 0.4,
+  sleep: 0.25,
+  stress: 0.2,
+  readiness: 0.15,
+} as const;
+
+/** rMSSD/baseline ratio above this is treated as "already optimal". */
+const HRV_RATIO_CAP = 1.2;
+/** Subjective scales (1–5) range. */
+const SUBJECTIVE_MIN = 1;
+const SUBJECTIVE_MAX = 5;
+const SUBJECTIVE_RANGE = SUBJECTIVE_MAX - SUBJECTIVE_MIN;
+/** Default 0–100 score when a subjective input is missing. */
+const NEUTRAL_SUBJECTIVE_SCORE = 50;
+/** Minimum days of baseline data required to compute a recovery score. */
+const MIN_BASELINE_DAYS_FOR_RECOVERY = 5;
+
+/** 0–100 thresholds that map to the qualitative recovery label. */
+const RECOVERY_LABEL_THRESHOLDS = {
+  excellent: 80,
+  good: 60,
+  fair: 40,
+} as const;
+
+/** Per-training-type baseline RPE intensity (1–10 RPE-like scale). */
+const TRAINING_INTENSITY: Record<string, number> = {
+  Strength: 7,
+  BJJ: 8,
+  Cycling: 6,
+  Rest: 1,
+  Other: 5,
+};
+/** Used when an unknown training type is encountered. */
+const DEFAULT_TRAINING_INTENSITY = 5;
+/** Effort multiplier range bounds, scaled by perceived readiness 1–5. */
+const EFFORT_BASELINE = 0.6;
+const EFFORT_RANGE = 0.8;
 
 /**
  * Composite recovery score combining HRV, sleep, stress, and subjective readiness.
@@ -17,55 +65,58 @@ export interface RecoveryScore {
   };
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function subjectiveToScore(rating: number | null): number {
+  if (rating === null) return NEUTRAL_SUBJECTIVE_SCORE;
+  return Math.round(((rating - SUBJECTIVE_MIN) / SUBJECTIVE_RANGE) * 100);
+}
+
 /**
  * Computes a composite recovery score from the latest session and baseline.
  *
- * Weights (research-informed):
- *   HRV ratio:           40%
- *   Sleep quality:        25%
- *   Stress (inverse):     20%
- *   Perceived readiness:  15%
- *
- * Returns null if baseline is unavailable.
+ * Weights (research-informed) defined in {@link RECOVERY_WEIGHTS}.
+ * Returns null if baseline is unavailable (see {@link MIN_BASELINE_DAYS_FOR_RECOVERY}).
  */
 export function computeRecoveryScore(
   session: Session,
   baseline: BaselineResult
 ): RecoveryScore | null {
-  if (baseline.median === 0 || baseline.dayCount < 5) return null;
+  if (isInsufficientBaseline(baseline) || baseline.dayCount < MIN_BASELINE_DAYS_FOR_RECOVERY) {
+    return null;
+  }
 
-  // HRV component: ratio of current rMSSD to baseline, capped at 120%
-  const ratio = Math.min(session.rmssd / baseline.median, 1.2);
-  const hrvScore = Math.round(Math.min(ratio / 1.2, 1) * 100);
+  // HRV component: ratio of current rMSSD to baseline, capped at HRV_RATIO_CAP
+  const ratio = Math.min(session.rmssd / baseline.median, HRV_RATIO_CAP);
+  const hrvScore = Math.round(Math.min(ratio / HRV_RATIO_CAP, 1) * 100);
 
-  // Sleep component: sleep quality 1-5 mapped to 0-100
-  const sleepScore =
-    session.sleepQuality !== null ? Math.round(((session.sleepQuality - 1) / 4) * 100) : 50; // neutral if not logged
-
-  // Stress component: inverted (5=high stress → low score)
+  const sleepScore = subjectiveToScore(session.sleepQuality);
+  // Stress is inverted: 5 (high stress) → 0, 1 (low) → 100.
   const stressScore =
-    session.stressLevel !== null ? Math.round(((5 - session.stressLevel) / 4) * 100) : 50;
-
-  // Readiness component: perceived readiness 1-5 mapped to 0-100
-  const readinessScore =
-    session.perceivedReadiness !== null
-      ? Math.round(((session.perceivedReadiness - 1) / 4) * 100)
-      : 50;
+    session.stressLevel !== null
+      ? Math.round(((SUBJECTIVE_MAX - session.stressLevel) / SUBJECTIVE_RANGE) * 100)
+      : NEUTRAL_SUBJECTIVE_SCORE;
+  const readinessScore = subjectiveToScore(session.perceivedReadiness);
 
   const score = Math.round(
-    hrvScore * 0.4 + sleepScore * 0.25 + stressScore * 0.2 + readinessScore * 0.15
+    hrvScore * RECOVERY_WEIGHTS.hrv +
+      sleepScore * RECOVERY_WEIGHTS.sleep +
+      stressScore * RECOVERY_WEIGHTS.stress +
+      readinessScore * RECOVERY_WEIGHTS.readiness
   );
 
-  const clampedScore = Math.max(0, Math.min(100, score));
+  const clampedScore = clamp(score, 0, 100);
 
   return {
     score: clampedScore,
     label:
-      clampedScore >= 80
+      clampedScore >= RECOVERY_LABEL_THRESHOLDS.excellent
         ? 'Excellent'
-        : clampedScore >= 60
+        : clampedScore >= RECOVERY_LABEL_THRESHOLDS.good
           ? 'Good'
-          : clampedScore >= 40
+          : clampedScore >= RECOVERY_LABEL_THRESHOLDS.fair
             ? 'Fair'
             : 'Poor',
     components: {
@@ -84,19 +135,13 @@ export function computeRecoveryScore(
 export function estimateTrainingLoad(session: Session): number {
   if (!session.trainingType) return 0;
 
-  const intensityMap: Record<string, number> = {
-    Strength: 7,
-    BJJ: 8,
-    Cycling: 6,
-    Rest: 1,
-    Other: 5,
-  };
-
-  const baseIntensity = intensityMap[session.trainingType] ?? 5;
+  const baseIntensity = TRAINING_INTENSITY[session.trainingType] ?? DEFAULT_TRAINING_INTENSITY;
 
   // Scale by perceived readiness (higher readiness → likely pushed harder)
   const effortMultiplier =
-    session.perceivedReadiness !== null ? 0.6 + (session.perceivedReadiness / 5) * 0.8 : 1.0;
+    session.perceivedReadiness !== null
+      ? EFFORT_BASELINE + (session.perceivedReadiness / SUBJECTIVE_MAX) * EFFORT_RANGE
+      : 1.0;
 
   return Math.round(baseIntensity * effortMultiplier * 10);
 }

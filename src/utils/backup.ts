@@ -2,13 +2,34 @@ import { Share } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { Paths } from 'expo-file-system';
 import * as Crypto from 'expo-crypto';
-import { getAllSessions } from '../database/sessionRepository';
-import { getDatabase } from '../database/database';
+import { getAllSessions, upsertManySessionsIfMissing } from '../database/sessionRepository';
+import { getSettingsRecord, upsertManyRaw } from '../database/settingsRepository';
 import { Session } from '../types';
+import { arrayToHex, hexToArray, getRandomBytes, hmacSha256, constantTimeEqual } from './encoding';
+import { aesGcmEncrypt, aesGcmDecrypt } from '../sync/aesGcm';
+import { scryptDeriveKey, SCRYPT_SALT_LENGTH } from '../sync/scryptKdf';
 
-const BACKUP_VERSION = 1;
-const SALT_LENGTH = 16;
+/**
+ * Backup file format version.
+ *   v1 — encrypt-then-hash plaintext (legacy, still readable for restore).
+ *   v2 — encrypt-then-MAC: HMAC-SHA-256 over (iv || ciphertext) with a
+ *        domain-separated MAC key derived from the same passphrase.
+ *   v3 — AES-256-GCM with an iterated-SHA-256 KDF (legacy, still readable).
+ *   v4 — **AES-256-GCM with a scrypt KDF** (N=2^14, r=8, p=1). The
+ *        memory-hard KDF makes offline brute-force against a leaked
+ *        backup file ~10⁴–10⁵× more expensive per guess than under v3,
+ *        which matters because backups can sit on cloud drives indefinitely.
+ *        v1–v3 files still restore for backwards compat.
+ */
+const BACKUP_VERSION = 4;
+/** Older versions this codebase can still read. */
+const MIN_SUPPORTED_VERSION = 1;
+const SALT_LENGTH = SCRYPT_SALT_LENGTH;
 const IV_LENGTH = 12;
+/** Domain-separation suffix appended to passphrase when deriving the MAC key. */
+const MAC_KEY_DOMAIN = '\0mac';
+/** AES-256 needs a 32-byte key; SHA-256-derived material is exactly that. */
+const AES_KEY_LENGTH = 32;
 
 interface BackupPayload {
   version: number;
@@ -37,31 +58,12 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<Uint8Arr
   return keyMaterial;
 }
 
-function getRandomBytes(length: number): Uint8Array {
-  const bytes = new Uint8Array(length);
-  for (let i = 0; i < length; i++) {
-    bytes[i] = Math.floor(Math.random() * 256);
-  }
-  return bytes;
-}
-
-function arrayToHex(arr: Uint8Array): string {
-  return Array.from(arr)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-function hexToArray(hex: string): Uint8Array {
-  const matches = hex.match(/.{1,2}/g);
-  if (!matches) return new Uint8Array(0);
-  return new Uint8Array(matches.map((byte) => parseInt(byte, 16)));
-}
-
 /**
- * Encrypts data using a derived key via XOR stream cipher with SHA-256 keystream.
- * This provides real encryption (not the trivial XOR from before).
- * Each block uses SHA-256(key || counter) as the keystream.
+ * Legacy v1/v2 encrypt path. Kept only because `decryptData` (used by the
+ * v1/v2 restore path below) uses the same XOR-with-SHA-256-keystream
+ * construction; new backups always go through `aesGcmEncrypt`.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function encryptData(data: string, key: Uint8Array, iv: Uint8Array): Promise<string> {
   const encoder = new TextEncoder();
   const plaintext = encoder.encode(data);
@@ -137,15 +139,7 @@ export async function createBackup(passphrase: string): Promise<void> {
   }
 
   const sessions = await getAllSessions();
-  const db = await getDatabase();
-  const settingsRows = await db.getAllAsync<{ key: string; value: string }>(
-    `SELECT key, value FROM settings WHERE key NOT LIKE 'schema_%'`
-  );
-
-  const settings: Record<string, string> = {};
-  for (const row of settingsRows) {
-    settings[row.key] = row.value;
-  }
+  const settings = await getSettingsRecord({ includeInternal: false });
 
   const payload: BackupPayload = {
     version: BACKUP_VERSION,
@@ -155,24 +149,20 @@ export async function createBackup(passphrase: string): Promise<void> {
   };
 
   const json = JSON.stringify(payload);
-  const salt = getRandomBytes(SALT_LENGTH);
-  const iv = getRandomBytes(IV_LENGTH);
-  const key = await deriveKey(passphrase, salt);
-  const encrypted = await encryptData(json, key, iv);
+  const salt = await getRandomBytes(SALT_LENGTH);
+  const iv = await getRandomBytes(IV_LENGTH);
+  // v4: scrypt KDF. The salt is bound into the scrypt input so reusing the
+  // same passphrase across backups still yields independent keys.
+  const aesKey = await scryptDeriveKey(passphrase, salt, 'hrv-backup');
+  const ciphertext = aesGcmEncrypt(aesKey, iv, new TextEncoder().encode(json));
 
-  // Compute integrity hash: SHA-256 of the plaintext JSON
-  const encoder = new TextEncoder();
-  const hashResult = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, encoder.encode(json));
-  const integrityHash =
-    typeof hashResult === 'string' ? hashResult : arrayToHex(new Uint8Array(hashResult));
-
-  // Package: version + salt + iv + integrity hash + ciphertext
+  // Package: version + salt + iv + ciphertext (with embedded GCM tag).
+  // No separate `mac` — GCM authenticates the ciphertext itself.
   const backupFile = JSON.stringify({
     v: BACKUP_VERSION,
     salt: arrayToHex(salt),
     iv: arrayToHex(iv),
-    integrity: integrityHash,
-    data: encrypted,
+    data: arrayToHex(ciphertext),
   });
 
   const filePath = `${Paths.cache}hrv-backup-${Date.now()}.hrvbak`;
@@ -197,7 +187,16 @@ export async function restoreBackup(fileUri: string, passphrase: string): Promis
 
   const raw = await FileSystem.readAsStringAsync(fileUri);
 
-  let backupFile: { v: number; salt: string; iv: string; integrity: string; data: string };
+  let backupFile: {
+    v: number;
+    salt: string;
+    iv: string;
+    /** v1 only: SHA-256 of plaintext JSON (legacy, forgeable). */
+    integrity?: string;
+    /** v2+: HMAC-SHA-256 over (iv || ciphertext) with a domain-separated MAC key. */
+    mac?: string;
+    data: string;
+  };
   try {
     backupFile = JSON.parse(raw);
   } catch {
@@ -208,32 +207,89 @@ export async function restoreBackup(fileUri: string, passphrase: string): Promis
     throw new Error('Corrupt or incompatible backup file');
   }
 
-  if (backupFile.v > BACKUP_VERSION) {
+  // Reject non-numeric / non-integer `v` before branching. JS coercion
+  // would otherwise let strings like "4" pass the range check and land
+  // in the wrong restore branch, mirroring the dispatch hardening on the
+  // sync/share envelopes.
+  if (typeof backupFile.v !== 'number' || !Number.isInteger(backupFile.v)) {
+    throw new Error('Corrupt backup file: version field must be an integer');
+  }
+
+  if (backupFile.v < MIN_SUPPORTED_VERSION || backupFile.v > BACKUP_VERSION) {
     throw new Error(
-      `Backup was created with a newer version (v${backupFile.v}). ` +
-        `Please update the app to restore this backup.`
+      `Backup version v${backupFile.v} is not supported by this app version. ` +
+        `Supported range: v${MIN_SUPPORTED_VERSION}–v${BACKUP_VERSION}.`
     );
   }
 
   const salt = hexToArray(backupFile.salt);
   const iv = hexToArray(backupFile.iv);
-  const key = await deriveKey(passphrase, salt);
 
   let json: string;
-  try {
-    json = await decryptData(backupFile.data, key, iv);
-  } catch {
-    throw new Error('Decryption failed — wrong passphrase or corrupt file');
-  }
 
-  // Verify integrity
-  const encoder = new TextEncoder();
-  const hashResult = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, encoder.encode(json));
-  const computedHash =
-    typeof hashResult === 'string' ? hashResult : arrayToHex(new Uint8Array(hashResult));
+  if (backupFile.v >= 4) {
+    // v4: scrypt KDF + AES-GCM. Authenticated; tag is part of `data`.
+    const aesKey = await scryptDeriveKey(passphrase, salt, 'hrv-backup');
+    try {
+      const pt = aesGcmDecrypt(aesKey, iv, hexToArray(backupFile.data));
+      json = new TextDecoder().decode(pt);
+    } catch {
+      throw new Error('Authentication failed — wrong passphrase or tampered file');
+    }
+  } else if (backupFile.v === 3) {
+    // v3: iterated-SHA-256 KDF + AES-GCM. Authenticated; tag is part of `data`.
+    const encKey = await deriveKey(passphrase, salt);
+    const aesKey = encKey.length === AES_KEY_LENGTH ? encKey : encKey.slice(0, AES_KEY_LENGTH);
+    try {
+      const pt = aesGcmDecrypt(aesKey, iv, hexToArray(backupFile.data));
+      json = new TextDecoder().decode(pt);
+    } catch {
+      throw new Error('Authentication failed — wrong passphrase or tampered file');
+    }
+  } else {
+    const encKey = await deriveKey(passphrase, salt);
+    // v2: verify HMAC BEFORE decrypting (encrypt-then-MAC discipline).
+    if (backupFile.v >= 2) {
+      if (!backupFile.mac) {
+        throw new Error('Corrupt backup: v2 file missing MAC');
+      }
+      const macKey = await deriveKey(passphrase + MAC_KEY_DOMAIN, salt);
+      const ciphertextBytes = hexToArray(backupFile.data);
+      const macInput = new Uint8Array(iv.length + ciphertextBytes.length);
+      macInput.set(iv);
+      macInput.set(ciphertextBytes, iv.length);
+      const expectedMac = await hmacSha256(macKey, macInput);
+      const providedMac = hexToArray(backupFile.mac);
+      if (!constantTimeEqual(expectedMac, providedMac)) {
+        throw new Error('Authentication failed — wrong passphrase or tampered file');
+      }
+    }
 
-  if (backupFile.integrity && computedHash !== backupFile.integrity) {
-    throw new Error('Integrity check failed — wrong passphrase');
+    try {
+      json = await decryptData(backupFile.data, encKey, iv);
+    } catch {
+      throw new Error('Decryption failed — wrong passphrase or corrupt file');
+    }
+
+    // v1 legacy: verify plaintext SHA-256. All historical v1 backups carry
+    // `integrity`; a missing field on a v1 file is treated as tampering
+    // (closes a downgrade attack where v2/v3 metadata is stripped to reach
+    // this unauthenticated path).
+    if (backupFile.v === 1) {
+      if (!backupFile.integrity) {
+        throw new Error('Corrupt backup: v1 file missing integrity hash');
+      }
+      const encoder = new TextEncoder();
+      const hashResult = await Crypto.digest(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        encoder.encode(json)
+      );
+      const computedHash =
+        typeof hashResult === 'string' ? hashResult : arrayToHex(new Uint8Array(hashResult));
+      if (computedHash !== backupFile.integrity) {
+        throw new Error('Integrity check failed — wrong passphrase');
+      }
+    }
   }
 
   let payload: BackupPayload;
@@ -247,55 +303,10 @@ export async function restoreBackup(fileUri: string, passphrase: string): Promis
     throw new Error('Invalid backup payload structure');
   }
 
-  const db = await getDatabase();
-  let imported = 0;
+  const imported = await upsertManySessionsIfMissing(payload.sessions);
 
-  await db.withTransactionAsync(async () => {
-    for (const session of payload.sessions) {
-      if (!session.id || !session.timestamp) continue;
-
-      const existing = await db.getFirstAsync<{ id: string }>(
-        `SELECT id FROM sessions WHERE id = ?`,
-        session.id
-      );
-
-      if (!existing) {
-        await db.runAsync(
-          `INSERT INTO sessions (id, timestamp, duration_seconds, rr_intervals, rmssd, sdnn, mean_hr, pnn50, artifact_rate, verdict, perceived_readiness, training_type, notes, sleep_hours, sleep_quality, stress_level)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          session.id,
-          session.timestamp,
-          session.durationSeconds ?? 0,
-          JSON.stringify(session.rrIntervals ?? []),
-          session.rmssd ?? 0,
-          session.sdnn ?? 0,
-          session.meanHr ?? 0,
-          session.pnn50 ?? 0,
-          session.artifactRate ?? 0,
-          session.verdict ?? null,
-          session.perceivedReadiness ?? null,
-          session.trainingType ?? null,
-          session.notes ?? null,
-          session.sleepHours ?? null,
-          session.sleepQuality ?? null,
-          session.stressLevel ?? null
-        );
-        imported++;
-      }
-    }
-
-    // Restore user settings, skipping internal state keys
-    const internalKeys = new Set([
-      'schema_version',
-      'onboarding_complete',
-      'widget_data',
-      'health_synced_ids',
-    ]);
-    for (const [key, value] of Object.entries(payload.settings ?? {})) {
-      if (internalKeys.has(key)) continue;
-      await db.runAsync(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`, key, value);
-    }
-  });
+  // Restore user-facing settings; INTERNAL_SETTINGS_KEYS are filtered out.
+  await upsertManyRaw(payload.settings ?? {});
 
   return imported;
 }

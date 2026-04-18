@@ -6,6 +6,8 @@
  * When perceived-readiness labels are available (LogScreen), a Bayesian
  * update nudges the boundary toward the label.
  *
+ * Shipped behind the `verdictMode` user setting (default `fixed`).
+ *
  * Cold-start (< {@link MIN_HISTORY_DAYS}): falls back to fixed
  * thresholds, exposed via {@link AdaptiveResult.coldStart}.
  */

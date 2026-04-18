@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,48 +12,47 @@ import { useBleRecording } from '../ble/useBleRecording';
 import { scanForDevices, isPolarH10 } from '../ble/bleManager';
 import { requestBlePermissions, showPermissionBlockedAlert } from '../ble/permissions';
 import { computeHrvMetrics } from '../hrv/metrics';
-import { computeBaseline } from '../hrv/baseline';
-import { computeVerdict } from '../hrv/verdict';
-import { saveSession } from '../database/sessionRepository';
-import type { Session } from '../types';
-import { getDailyReadings } from '../database/sessionRepository';
 import { loadSettings } from '../database/settingsRepository';
-import { generateId } from '../utils/uuid';
 import { ARTIFACT_WARNING_THRESHOLD } from '../constants/defaults';
 import { STRINGS } from '../constants/strings';
 import { BreathingExercise, BREATHING_PRESETS } from '../components/BreathingExercise';
-import { refreshWidget } from '../utils/widgetData';
 import { ConnectionPill } from '../components/ConnectionPill';
+import { useSessionPersistence } from '../hooks/useSessionPersistence';
+import { useReadingFlow } from '../hooks/useReadingFlow';
 
 type ReadingNavProp = NativeStackNavigationProp<RootStackParamList>;
 
-type Phase = 'scanning' | 'breathing' | 'recording' | 'complete';
+const SCAN_TIMEOUT_MS = 15000;
 
 export function ReadingScreen() {
   const navigation = useNavigation<ReadingNavProp>();
-  const [phase, setPhase] = useState<Phase>('scanning');
+  const flow = useReadingFlow();
   const [devices, setDevices] = useState<Device[]>([]);
   const [recording, actions] = useBleRecording();
   const [stopScan, setStopScan] = useState<(() => void) | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [scanTimedOut, setScanTimedOut] = useState(false);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [breathingEnabled, setBreathingEnabled] = useState<boolean>(true);
   const [pairedDeviceId, setPairedDeviceId] = useState<string | null>(null);
 
+  const startRecordingForDevice = useCallback(
+    (deviceId: string) => {
+      actions.startRecording(deviceId).catch((err) => {
+        console.error('startRecording failed:', err);
+      });
+    },
+    [actions]
+  );
+
   const goToBreathingOrRecording = useCallback(
     (deviceId: string) => {
-      setSelectedDeviceId(deviceId);
-      if (breathingEnabled) {
-        setPhase('breathing');
-      } else {
-        setPhase('recording');
-        actions.startRecording(deviceId).catch((err) => {
-          console.error('startRecording failed:', err);
-        });
+      const skipBreathing = !breathingEnabled;
+      flow.selectDevice(deviceId, skipBreathing);
+      if (skipBreathing) {
+        startRecordingForDevice(deviceId);
       }
     },
-    [breathingEnabled, actions]
+    [breathingEnabled, flow, startRecordingForDevice]
   );
 
   // Start scanning on mount, with auto-connect to paired device when present
@@ -91,7 +90,7 @@ export function ReadingScreen() {
           setStopScan(() => stop);
           setTimeout(() => {
             if (!cancelled) setScanTimedOut(true);
-          }, 15000);
+          }, SCAN_TIMEOUT_MS);
         }
       } catch (error) {
         console.error('Scan error:', error);
@@ -114,7 +113,7 @@ export function ReadingScreen() {
         });
       });
       setStopScan(() => stop);
-      setTimeout(() => setScanTimedOut(true), 15000);
+      setTimeout(() => setScanTimedOut(true), SCAN_TIMEOUT_MS);
     } catch (error) {
       console.error('Rescan error:', error);
     }
@@ -131,20 +130,16 @@ export function ReadingScreen() {
   );
 
   const startAfterBreathing = useCallback(async () => {
-    if (!selectedDeviceId) return;
-    setPhase('recording');
-    await actions.startRecording(selectedDeviceId);
-  }, [selectedDeviceId, actions]);
+    if (flow.phase.kind !== 'breathing') return;
+    const deviceId = flow.phase.deviceId;
+    flow.finishBreathing();
+    await actions.startRecording(deviceId);
+  }, [flow, actions]);
 
-  // Auto-transition to complete when recording stops with data
-  useEffect(() => {
-    if (!recording.isRecording && recording.rrIntervals.length > 0 && phase === 'recording') {
-      handleComplete();
-    }
-  }, [recording.isRecording]);
+  const { finalize } = useSessionPersistence();
 
   const handleComplete = useCallback(async () => {
-    setPhase('complete');
+    flow.finishRecording();
     actions.stopRecording();
 
     const rrIntervals = recording.rrIntervals;
@@ -155,42 +150,33 @@ export function ReadingScreen() {
       return;
     }
 
-    try {
-      const metrics = computeHrvMetrics(rrIntervals);
-      const settings = await loadSettings();
-      const dailyReadings = await getDailyReadings(settings.baselineWindowDays);
-      const baseline = computeBaseline(dailyReadings, settings.baselineWindowDays);
-      const verdict = computeVerdict(metrics.rmssd, baseline, settings);
-
-      const session: Session = {
-        id: generateId(),
-        timestamp: new Date().toISOString(),
-        durationSeconds: recording.elapsedSeconds,
-        rrIntervals,
-        rmssd: metrics.rmssd,
-        sdnn: metrics.sdnn,
-        meanHr: metrics.meanHr,
-        pnn50: metrics.pnn50,
-        artifactRate: metrics.artifactRate,
-        verdict,
-        perceivedReadiness: null,
-        trainingType: null,
-        notes: null,
-        sleepHours: null,
-        sleepQuality: null,
-        stressLevel: null,
-        source: 'chest_strap',
-      };
-
-      await saveSession(session);
-      refreshWidget().catch(() => {}); // Fire and forget
-      navigation.replace('Log', { sessionId: session.id });
-    } catch (error) {
-      console.error('Failed to save session:', error);
+    const result = await finalize({
+      rrIntervals,
+      durationSeconds: recording.elapsedSeconds,
+      source: 'chest_strap',
+    });
+    if (result.kind === 'error') {
       Alert.alert('Error', 'Failed to save session. Please try again.');
       navigation.goBack();
     }
-  }, [recording, actions, navigation]);
+  }, [recording.rrIntervals, recording.elapsedSeconds, actions, navigation, finalize, flow]);
+
+  // Auto-transition to complete when recording stops with data.
+  // Phase is read via a ref to avoid re-running the effect when phase changes;
+  // the trigger should only be the recording becoming inactive.
+  const phaseKindRef = useRef(flow.phase.kind);
+  useEffect(() => {
+    phaseKindRef.current = flow.phase.kind;
+  }, [flow.phase.kind]);
+  useEffect(() => {
+    if (
+      !recording.isRecording &&
+      recording.rrIntervals.length > 0 &&
+      phaseKindRef.current === 'recording'
+    ) {
+      handleComplete();
+    }
+  }, [recording.isRecording, recording.rrIntervals.length, handleComplete]);
 
   const handleFinishEarly = useCallback(() => {
     actions.stopRecording();
@@ -204,16 +190,14 @@ export function ReadingScreen() {
   const showArtifactWarning = artifactRate > ARTIFACT_WARNING_THRESHOLD;
 
   // Scanning phase
-  if (phase === 'scanning') {
+  if (flow.phase.kind === 'scanning') {
     const polarDevices = devices.filter(isPolarH10);
     const otherDevices = devices.filter((d) => !isPolarH10(d));
 
     return (
       <View style={styles.container}>
         <Text style={styles.title}>{STRINGS.connectToSensor}</Text>
-        {pairedDeviceId && (
-          <Text style={styles.subtitle}>{STRINGS.lookingForPaired}</Text>
-        )}
+        {pairedDeviceId && <Text style={styles.subtitle}>{STRINGS.lookingForPaired}</Text>}
         {!scanTimedOut || devices.length > 0 ? (
           <>
             <Text style={styles.subtitle}>{STRINGS.scanningForDevices}</Text>
@@ -290,7 +274,7 @@ export function ReadingScreen() {
   }
 
   // Breathing phase
-  if (phase === 'breathing') {
+  if (flow.phase.kind === 'breathing') {
     return (
       <BreathingExercise
         durationSeconds={120}
@@ -302,11 +286,21 @@ export function ReadingScreen() {
   }
 
   // Recording phase
-  if (phase === 'recording') {
+  if (flow.phase.kind === 'recording') {
     return (
       <View style={styles.container}>
         <View style={styles.pillRow}>
-          <ConnectionPill state={recording.connectionState as 'connected' | 'connecting' | 'reconnecting' | 'disconnected' | 'error' | 'idle'} />
+          <ConnectionPill
+            state={
+              recording.connectionState as
+                | 'connected'
+                | 'connecting'
+                | 'reconnecting'
+                | 'disconnected'
+                | 'error'
+                | 'idle'
+            }
+          />
         </View>
 
         {recording.error && <Text style={styles.errorText}>{recording.error}</Text>}

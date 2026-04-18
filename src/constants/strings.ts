@@ -254,9 +254,9 @@ export const STRINGS = {
   moreWaysToRecord: 'More ways to record',
 
   // Camera disclaimer
-  cameraBeta: '⚠️ Beta — Less Accurate',
+  cameraBeta: '⚠️ Demo Mode — Simulated Signal',
   cameraBetaDesc:
-    'Camera PPG is experimental in this build and noticeably less accurate than a chest strap. Camera sessions are excluded from your baseline.',
+    'This build does not yet read real camera frames. The waveform shown is a synthetic PPG simulation used to validate the processing pipeline; it does not reflect your actual heart rate. Camera sessions are excluded from your baseline. A real frame-processor implementation requires a native build (vision-camera) and is on the roadmap.',
 
   // Generic actions
   confirm: 'OK',

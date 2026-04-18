@@ -1,4 +1,5 @@
 import { ARTIFACT_DEVIATION_FACTOR } from '../constants/defaults';
+import { computeMedian } from './baseline';
 
 /**
  * Detects artifacts in RR interval data using a local moving median approach.
@@ -23,7 +24,7 @@ export function detectArtifacts(
     const start = Math.max(0, i - halfWindow);
     const end = Math.min(rrIntervals.length, i + halfWindow + 1);
     const window = rrIntervals.slice(start, end);
-    const localMedian = median(window);
+    const localMedian = computeMedian(window);
 
     if (localMedian === 0) continue;
 
@@ -49,11 +50,4 @@ export function filterArtifacts(rrIntervals: number[]): {
   const cleanIntervals = rrIntervals.filter((_, i) => !artifacts[i]);
 
   return { cleanIntervals, artifactRate, artifacts };
-}
-
-function median(values: number[]): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }

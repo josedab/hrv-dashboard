@@ -59,4 +59,3 @@ describe('WorkoutCard', () => {
     expect(out.length).toBeGreaterThan(0);
   });
 });
-

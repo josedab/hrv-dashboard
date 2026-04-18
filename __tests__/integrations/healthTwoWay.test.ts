@@ -5,7 +5,7 @@ jest.mock('../../src/utils/healthSync', () => ({
   syncSessionToHealth: async () => ({ ok: false, error: 'sdk not loaded' }),
 }));
 
-import { syncBoth, pullForReading } from '../../src/integrations/healthTwoWay';
+import { syncBoth, pullForReading } from '../../src/experimental/integrations/healthTwoWay';
 import { Session } from '../../src/types';
 
 function mk(over: Partial<Session> = {}): Session {

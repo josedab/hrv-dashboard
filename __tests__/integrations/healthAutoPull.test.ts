@@ -75,4 +75,50 @@ describe('autoPullSleep', () => {
     expect(result).toHaveProperty('sleepHours');
     expect(result).toHaveProperty('source');
   });
+
+  it('maps platform to the right DataSource when sleep is available', async () => {
+    jest.resetModules();
+    jest.doMock('react-native', () => ({ Platform: { OS: 'ios' } }));
+    jest.doMock('../../src/integrations/healthSleep', () => ({
+      readLastNightSleep: jest.fn(async () => ({
+        hoursTotal: 7.25,
+        qualityEstimate: 4,
+      })),
+    }));
+    // Make the runtime check inside autoPullSleep see Platform.OS = 'ios'.
+    (globalThis as { Platform?: { OS?: string } }).Platform = { OS: 'ios' };
+
+    /* eslint-disable @typescript-eslint/no-var-requires -- dynamic require for jest.doMock */
+    const mod =
+      require('../../src/integrations/healthAutoPull') as typeof import('../../src/integrations/healthAutoPull');
+    /* eslint-enable @typescript-eslint/no-var-requires */
+    const ios = await mod.autoPullSleep();
+    expect(ios).toEqual({ sleepHours: 7.25, sleepQuality: 4, source: 'health_kit' });
+
+    (globalThis as { Platform?: { OS?: string } }).Platform = { OS: 'android' };
+    const android = await mod.autoPullSleep();
+    expect(android.source).toBe('health_connect');
+
+    delete (globalThis as { Platform?: { OS?: string } }).Platform;
+    jest.dontMock('../../src/integrations/healthSleep');
+    jest.dontMock('react-native');
+    jest.resetModules();
+  });
+
+  it('returns null shape when readLastNightSleep throws', async () => {
+    jest.resetModules();
+    jest.doMock('../../src/integrations/healthSleep', () => ({
+      readLastNightSleep: jest.fn(async () => {
+        throw new Error('permissions denied');
+      }),
+    }));
+    /* eslint-disable @typescript-eslint/no-var-requires -- dynamic require for jest.doMock */
+    const mod =
+      require('../../src/integrations/healthAutoPull') as typeof import('../../src/integrations/healthAutoPull');
+    /* eslint-enable @typescript-eslint/no-var-requires */
+    const result = await mod.autoPullSleep();
+    expect(result).toEqual({ sleepHours: null, sleepQuality: null, source: 'manual' });
+    jest.dontMock('../../src/integrations/healthSleep');
+    jest.resetModules();
+  });
 });

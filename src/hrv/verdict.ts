@@ -1,20 +1,16 @@
 import { VerdictType, BaselineResult, Settings, DEFAULT_SETTINGS } from '../types';
-import { MIN_BASELINE_DAYS } from '../constants/defaults';
+import { isInsufficientBaseline } from './baseline';
 
 /**
  * Determines the readiness verdict based on current rMSSD vs baseline.
- * Returns null if insufficient baseline data (< MIN_BASELINE_DAYS days).
+ * Returns null if the baseline is insufficient (see {@link isInsufficientBaseline}).
  */
 export function computeVerdict(
   currentRmssd: number,
   baseline: BaselineResult,
   settings: Settings = DEFAULT_SETTINGS
 ): VerdictType | null {
-  if (baseline.dayCount < MIN_BASELINE_DAYS) {
-    return null;
-  }
-
-  if (baseline.median === 0) {
+  if (isInsufficientBaseline(baseline)) {
     return null;
   }
 

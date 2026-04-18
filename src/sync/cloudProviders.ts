@@ -37,6 +37,10 @@ interface SupabaseRow {
   updated_at: string;
   iv: string;
   ciphertext: string;
+  /** Hex HMAC for legacy v2 blobs; null/undefined for v3/v4 GCM. */
+  mac?: string | null;
+  /** Hex per-blob random salt for v4 scrypt KDF; null/undefined for v1–v3. */
+  salt?: string | null;
 }
 
 /**
@@ -49,11 +53,18 @@ interface SupabaseRow {
  *     updated_at timestamptz not null,
  *     iv text not null,
  *     ciphertext text not null,
+ *     mac text,
+ *     salt text,
  *     primary key (user_id, session_id)
  *   );
  *   alter table hrv_session_blobs enable row level security;
  *   create policy own_rows on hrv_session_blobs
  *     using (auth.uid() = user_id) with check (auth.uid() = user_id);
+ *
+ * `mac` is nullable: only legacy v2 blobs need it (HMAC verification).
+ * `salt` is nullable: only v4 blobs need it (scrypt KDF input). Existing
+ * deployments must run `alter table hrv_session_blobs add column salt text;`
+ * before this client version uploads anything.
  */
 export class SupabaseSyncProvider implements SyncProvider {
   readonly id = 'supabase';
@@ -110,6 +121,8 @@ export class SupabaseSyncProvider implements SyncProvider {
       updatedAt: r.updated_at,
       iv: r.iv,
       ciphertext: r.ciphertext,
+      ...(r.mac ? { mac: r.mac } : {}),
+      ...(r.salt ? { salt: r.salt } : {}),
     };
   }
 
@@ -120,6 +133,8 @@ export class SupabaseSyncProvider implements SyncProvider {
       updated_at: blob.updatedAt,
       iv: blob.iv,
       ciphertext: blob.ciphertext,
+      mac: blob.mac ?? null,
+      salt: blob.salt ?? null,
     };
     const res = await this.fetchImpl(this.endpoint(), {
       method: 'POST',

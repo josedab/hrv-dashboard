@@ -280,6 +280,15 @@ The database uses a version-tracked migration system. The current version is sto
 
 **Current schema version:** `3`
 
+## Cryptography & Sync Protocol
+
+Backups, share bundles, and cloud sync are encrypted with AES-256-GCM
+keyed by a memory-hard scrypt KDF (protocol v4). v1–v3 blobs still
+decrypt for back-compat. Operators running the optional Supabase sync
+provider must add a nullable `salt` column to the
+`hrv_session_blobs` table — see [`docs/CRYPTO.md`](./CRYPTO.md) for
+the full wire format, migration SQL, and dispatch hardening notes.
+
 ## Navigation Structure
 
 ```mermaid

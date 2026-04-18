@@ -6,6 +6,7 @@ import { AppNavigator } from './src/navigation/AppNavigator';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { getDatabase } from './src/database/database';
+import { isOnboardingComplete, setOnboardingComplete } from './src/database/settingsRepository';
 import { initCrashReporting } from './src/utils/crashReporting';
 import { COLORS } from './src/constants/colors';
 
@@ -18,12 +19,10 @@ export default function App() {
     async function init() {
       try {
         initCrashReporting();
-        const db = await getDatabase();
-        const row = await db.getFirstAsync<{ value: string }>(
-          'SELECT value FROM settings WHERE key = ?',
-          'onboarding_complete'
-        );
-        setShowOnboarding(!row || row.value !== 'true');
+        // Ensure schema is initialised before reading settings.
+        await getDatabase();
+        const complete = await isOnboardingComplete();
+        setShowOnboarding(!complete);
         setReady(true);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to initialize';
@@ -36,12 +35,7 @@ export default function App() {
 
   const handleOnboardingComplete = async () => {
     try {
-      const db = await getDatabase();
-      await db.runAsync(
-        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
-        'onboarding_complete',
-        'true'
-      );
+      await setOnboardingComplete();
       setShowOnboarding(false);
     } catch (err) {
       console.error('Failed to save onboarding state:', err);

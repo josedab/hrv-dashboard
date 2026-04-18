@@ -62,8 +62,15 @@ describe('processPpgSignal', () => {
     const brightness: number[] = [];
     const timestamps: number[] = [];
 
+    // Deterministic LCG so the assertion is repeatable.
+    let seed = 0xc0ffee01;
+    const rand = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 0xffffffff;
+    };
+
     for (let i = 0; i < fps * 20; i++) {
-      brightness.push(128 + (Math.random() - 0.5) * 200); // Pure noise
+      brightness.push(128 + (rand() - 0.5) * 200); // Pure noise
       timestamps.push(Math.round((i / fps) * 1000));
     }
 

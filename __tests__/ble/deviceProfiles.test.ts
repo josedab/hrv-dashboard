@@ -3,7 +3,7 @@ import {
   getProfileById,
   isBaselineEligible,
   listVerifiedDevices,
-} from '../../src/ble/deviceProfiles';
+} from '../../src/experimental/ble/deviceProfiles';
 
 describe('resolveProfile', () => {
   it('matches Polar H10 by name prefix', () => {

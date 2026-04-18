@@ -68,7 +68,7 @@ describe('loadHealthSyncSettings', () => {
 
   it('returns defaults when no settings exist', async () => {
     const mockDb = {
-      getAllAsync: jest.fn().mockResolvedValue([]),
+      getFirstAsync: jest.fn().mockResolvedValue(undefined),
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
 
@@ -81,7 +81,11 @@ describe('loadHealthSyncSettings', () => {
 
   it('loads enabled state from database', async () => {
     const mockDb = {
-      getAllAsync: jest.fn().mockResolvedValue([{ key: 'health_enabled', value: 'true' }]),
+      getFirstAsync: jest
+        .fn()
+        .mockImplementation((_sql: string, key: string) =>
+          Promise.resolve(key === 'health_enabled' ? { value: 'true' } : undefined)
+        ),
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
 
@@ -92,9 +96,13 @@ describe('loadHealthSyncSettings', () => {
 
   it('loads last sync timestamp', async () => {
     const mockDb = {
-      getAllAsync: jest
+      getFirstAsync: jest
         .fn()
-        .mockResolvedValue([{ key: 'health_last_sync', value: '2026-04-15T10:00:00Z' }]),
+        .mockImplementation((_sql: string, key: string) =>
+          Promise.resolve(
+            key === 'health_last_sync' ? { value: '2026-04-15T10:00:00Z' } : undefined
+          )
+        ),
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
 
@@ -105,11 +113,15 @@ describe('loadHealthSyncSettings', () => {
 
   it('counts synced sessions from stored IDs', async () => {
     const mockDb = {
-      getAllAsync: jest
+      getFirstAsync: jest
         .fn()
-        .mockResolvedValue([
-          { key: 'health_synced_ids', value: JSON.stringify(['id-1', 'id-2', 'id-3']) },
-        ]),
+        .mockImplementation((_sql: string, key: string) =>
+          Promise.resolve(
+            key === 'health_synced_ids'
+              ? { value: JSON.stringify(['id-1', 'id-2', 'id-3']) }
+              : undefined
+          )
+        ),
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
 

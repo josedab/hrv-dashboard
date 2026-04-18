@@ -35,11 +35,7 @@ describe('reference plugins', () => {
   it('exports exactly 3 reference plugins with stable manifests', () => {
     expect(REFERENCE_PLUGINS).toHaveLength(3);
     const ids = REFERENCE_PLUGINS.map((p) => p.manifest.id).sort();
-    expect(ids).toEqual([
-      'org.hrv.dfa_alpha1',
-      'org.hrv.fft_lf_hf',
-      'org.hrv.poincare',
-    ]);
+    expect(ids).toEqual(['org.hrv.dfa_alpha1', 'org.hrv.fft_lf_hf', 'org.hrv.poincare']);
     for (const p of REFERENCE_PLUGINS) {
       expect(p.manifest.permissions).toEqual(['read:session']);
       expect(p.manifest.version).toMatch(/^\d+\.\d+\.\d+$/);

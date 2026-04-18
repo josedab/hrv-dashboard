@@ -1,0 +1,43 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this feature solve?
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Other solutions or workarounds you've considered.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      options:
+        - HRV Engine (metrics, baseline, verdict)
+        - BLE / Sensor (scanning, recording, parsing)
+        - Camera PPG
+        - UI / UX
+        - Data (export, import, backup, sync)
+        - Integrations (HealthKit, Health Connect, Strava)
+        - Notifications
+        - Watch Companion
+        - Other
+    validations:
+      required: true

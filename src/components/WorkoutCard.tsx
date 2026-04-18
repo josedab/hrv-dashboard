@@ -2,11 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../constants/colors';
 import { Session } from '../types';
-import {
-  generateWorkout,
-  SportProfile,
-  WorkoutPrescription,
-} from '../workout/generator';
+import { generateWorkout, SportProfile, WorkoutPrescription } from '../workout/generator';
 
 interface Props {
   session: Session | null;

@@ -7,10 +7,20 @@ jest.mock('expo-file-system', () => ({
   writeAsStringAsync: jest.fn(),
   deleteAsync: jest.fn(),
 }));
-jest.mock('expo-crypto', () => ({
-  CryptoDigestAlgorithm: { SHA256: 'SHA256' },
-  digest: jest.fn(),
-}));
+jest.mock('expo-crypto', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { createHash, randomBytes } = require('crypto');
+  return {
+    CryptoDigestAlgorithm: { SHA256: 'SHA256' },
+    digest: jest.fn(async (_alg: string, data: Uint8Array | ArrayBuffer) => {
+      const buf =
+        data instanceof Uint8Array ? Buffer.from(data) : Buffer.from(new Uint8Array(data));
+      const h = createHash('sha256').update(buf).digest();
+      return h.buffer.slice(h.byteOffset, h.byteOffset + h.byteLength);
+    }),
+    getRandomBytesAsync: jest.fn(async (n: number) => new Uint8Array(randomBytes(n))),
+  };
+});
 jest.mock('react-native', () => ({
   Share: {
     share: jest.fn(),
@@ -21,10 +31,14 @@ jest.mock('../../src/database/database', () => ({
 }));
 jest.mock('../../src/database/sessionRepository', () => ({
   getAllSessions: jest.fn(),
+  upsertManySessionsIfMissing: jest.fn(async (sessions: unknown[]) => sessions.length),
+}));
+jest.mock('../../src/database/settingsRepository', () => ({
+  getSettingsRecord: jest.fn(async () => ({})),
+  upsertManyRaw: jest.fn(async () => undefined),
 }));
 
 import * as FileSystem from 'expo-file-system';
-import * as Crypto from 'expo-crypto';
 import { Share } from 'react-native';
 import { createBackup, restoreBackup } from '../../src/utils/backup';
 import { getDatabase } from '../../src/database/database';
@@ -56,7 +70,6 @@ describe('createBackup', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
     (getAllSessions as jest.Mock).mockResolvedValue([]);
-    (Crypto.digest as jest.Mock).mockResolvedValue('abc123');
     (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
     (Share.share as jest.Mock).mockResolvedValue({ action: 'sharedAction' });
 
@@ -72,7 +85,6 @@ describe('createBackup', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
     (getAllSessions as jest.Mock).mockResolvedValue([]);
-    (Crypto.digest as jest.Mock).mockResolvedValue('abc123');
     (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
     (Share.share as jest.Mock).mockResolvedValue({ action: 'sharedAction' });
 
@@ -87,7 +99,6 @@ describe('createBackup', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
     (getAllSessions as jest.Mock).mockResolvedValue([]);
-    (Crypto.digest as jest.Mock).mockResolvedValue('abc123');
     (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
     (Share.share as jest.Mock).mockResolvedValue({ action: 'sharedAction' });
 
@@ -105,7 +116,6 @@ describe('createBackup', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
     (getAllSessions as jest.Mock).mockResolvedValue([]);
-    (Crypto.digest as jest.Mock).mockResolvedValue('abc123');
     (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
     (Share.share as jest.Mock).mockResolvedValue({ action: 'sharedAction' });
 
@@ -136,7 +146,7 @@ describe('createBackup', () => {
         sleepHours: null,
         sleepQuality: null,
         stressLevel: null,
-    source: 'chest_strap',
+        source: 'chest_strap',
       },
       {
         id: '2',
@@ -155,7 +165,7 @@ describe('createBackup', () => {
         sleepHours: null,
         sleepQuality: null,
         stressLevel: null,
-    source: 'chest_strap',
+        source: 'chest_strap',
       },
     ];
 
@@ -164,7 +174,6 @@ describe('createBackup', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
     (getAllSessions as jest.Mock).mockResolvedValue(mockSessions);
-    (Crypto.digest as jest.Mock).mockResolvedValue('abc123');
     (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
     (Share.share as jest.Mock).mockResolvedValue({ action: 'sharedAction' });
 
@@ -183,7 +192,6 @@ describe('createBackup', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
     (getAllSessions as jest.Mock).mockResolvedValue([]);
-    (Crypto.digest as jest.Mock).mockResolvedValue('abc123');
     (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
     (Share.share as jest.Mock).mockResolvedValue({ action: 'sharedAction' });
 
@@ -193,10 +201,11 @@ describe('createBackup', () => {
     const backupContent = (FileSystem.writeAsStringAsync as jest.Mock).mock.calls[0][1];
     const parsed = JSON.parse(backupContent);
 
-    expect(parsed.v).toBe(1);
+    expect(parsed.v).toBe(4);
     expect(parsed.salt).toBeDefined();
     expect(parsed.iv).toBeDefined();
-    expect(parsed.integrity).toBeDefined();
+    // v3 uses AES-GCM; the auth tag is embedded in `data` (no separate `mac`).
+    expect(parsed.mac).toBeUndefined();
     expect(parsed.data).toBeDefined();
   });
 });
@@ -247,7 +256,53 @@ describe('restoreBackup', () => {
     });
     (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(backup);
 
-    await expect(restoreBackup('file-uri', 'password123')).rejects.toThrow(/newer version/);
+    await expect(restoreBackup('file-uri', 'password123')).rejects.toThrow(/not supported/);
+  });
+
+  it('rejects backups whose version is a string instead of a number', async () => {
+    // Without explicit type-checking, JS coercion would let "4" pass
+    // `4 >= MIN && 4 <= MAX` and land in the wrong restore branch.
+    const backup = JSON.stringify({
+      v: '4',
+      salt: 'abc123',
+      iv: 'def456',
+      data: 'encrypted',
+    });
+    (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(backup);
+
+    await expect(restoreBackup('file-uri', 'password123')).rejects.toThrow(
+      /version field must be an integer/
+    );
+  });
+
+  it('rejects backups whose version is non-integer', async () => {
+    const backup = JSON.stringify({
+      v: 4.5,
+      salt: 'abc123',
+      iv: 'def456',
+      data: 'encrypted',
+    });
+    (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(backup);
+
+    await expect(restoreBackup('file-uri', 'password123')).rejects.toThrow(
+      /version field must be an integer/
+    );
+  });
+
+  it('rejects v1 backups missing the integrity hash (downgrade-attack guard)', async () => {
+    // Without this guard a v2/v3 file could be downgraded to v1 by
+    // stripping its `mac`/`v` fields, reaching an unauthenticated path.
+    const backup = JSON.stringify({
+      v: 1,
+      salt: 'abc123',
+      iv: 'def456',
+      data: 'aabbcc',
+      // integrity intentionally omitted
+    });
+    (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(backup);
+    await expect(restoreBackup('file-uri', 'password123')).rejects.toThrow(
+      /missing integrity hash/i
+    );
   });
 
   it('throws on decryption failure', async () => {
@@ -258,6 +313,8 @@ describe('restoreBackup', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
 
+    // Bogus v1 hex with odd lengths / invalid bytes — decryption will fail
+    // naturally under real SHA-256 KDF.
     const backup = JSON.stringify({
       v: 1,
       salt: 'abc123',
@@ -266,19 +323,9 @@ describe('restoreBackup', () => {
       data: 'corrupted_encrypted_data',
     });
     (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(backup);
-    // Mock digest to fail during decryption (which calls it multiple times)
-    let callCount = 0;
-    (Crypto.digest as jest.Mock).mockImplementation(async () => {
-      callCount++;
-      if (callCount > 2) {
-        // Let the first couple calls succeed for key derivation
-        throw new Error('Crypto error');
-      }
-      return 'abc123';
-    });
 
     await expect(restoreBackup('file-uri', 'password123')).rejects.toThrow(
-      /Decryption failed|Crypto error/
+      /Decryption failed|Integrity check failed|Decryption produced invalid data|Invalid backup payload/
     );
   });
 
@@ -298,13 +345,11 @@ describe('restoreBackup', () => {
       data: 'not_valid_json_after_decrypt',
     });
     (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(backup);
-    (Crypto.digest as jest.Mock).mockResolvedValue('hash123');
-
     // Mock decryption to return invalid JSON
     // In the real implementation, decryptData would fail on JSON parse
     // We need to simulate the decryption returning non-JSON
     await expect(restoreBackup('file-uri', 'password123')).rejects.toThrow(
-      /Decryption produced invalid data|Invalid backup payload/
+      /Decryption produced invalid data|Invalid backup payload|Integrity check failed/
     );
   });
 
@@ -325,8 +370,6 @@ describe('restoreBackup', () => {
     });
     (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(backup);
     // Mock digest to return a valid hash so integrity check passes
-    (Crypto.digest as jest.Mock).mockResolvedValue('hash123');
-
     await expect(restoreBackup('file-uri', 'password123')).rejects.toThrow(
       /Invalid backup payload|wrong passphrase/
     );
@@ -350,8 +393,6 @@ describe('restoreBackup', () => {
       data: 'encrypted',
     });
     (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(backup);
-    (Crypto.digest as jest.Mock).mockResolvedValue('hash123');
-
     // This test verifies the logic without needing actual decryption
     // In practice, we'd need to mock the entire decryption chain
     // For now, just verify the error handling
@@ -392,7 +433,6 @@ describe('backup crypto integrity', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
     (getAllSessions as jest.Mock).mockResolvedValue([]);
-    (Crypto.digest as jest.Mock).mockResolvedValue('abc123');
     (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
     (Share.share as jest.Mock).mockResolvedValue({ action: 'sharedAction' });
 
@@ -400,7 +440,7 @@ describe('backup crypto integrity', () => {
 
     const backupContent = (FileSystem.writeAsStringAsync as jest.Mock).mock.calls[0][1];
     const parsed = JSON.parse(backupContent);
-    expect(parsed.v).toBe(1);
+    expect(parsed.v).toBe(4);
   });
 
   it('backup file contains salt for key derivation', async () => {
@@ -409,7 +449,6 @@ describe('backup crypto integrity', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
     (getAllSessions as jest.Mock).mockResolvedValue([]);
-    (Crypto.digest as jest.Mock).mockResolvedValue('abc123');
     (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
     (Share.share as jest.Mock).mockResolvedValue({ action: 'sharedAction' });
 
@@ -427,7 +466,6 @@ describe('backup crypto integrity', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
     (getAllSessions as jest.Mock).mockResolvedValue([]);
-    (Crypto.digest as jest.Mock).mockResolvedValue('abc123');
     (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
     (Share.share as jest.Mock).mockResolvedValue({ action: 'sharedAction' });
 
@@ -439,13 +477,12 @@ describe('backup crypto integrity', () => {
     expect(typeof parsed.iv).toBe('string');
   });
 
-  it('backup file contains integrity hash', async () => {
+  it('backup file does NOT contain a separate HMAC field (v4 GCM is self-authenticating)', async () => {
     const mockDb = {
       getAllAsync: jest.fn().mockResolvedValue([]),
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
     (getAllSessions as jest.Mock).mockResolvedValue([]);
-    (Crypto.digest as jest.Mock).mockResolvedValue('abc123');
     (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
     (Share.share as jest.Mock).mockResolvedValue({ action: 'sharedAction' });
 
@@ -453,8 +490,8 @@ describe('backup crypto integrity', () => {
 
     const backupContent = (FileSystem.writeAsStringAsync as jest.Mock).mock.calls[0][1];
     const parsed = JSON.parse(backupContent);
-    expect(parsed.integrity).toBeDefined();
-    expect(typeof parsed.integrity).toBe('string');
+    expect(parsed.mac).toBeUndefined();
+    expect(parsed.data.length).toBeGreaterThanOrEqual(32);
   });
 
   it('backup file contains encrypted data', async () => {
@@ -463,7 +500,6 @@ describe('backup crypto integrity', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
     (getAllSessions as jest.Mock).mockResolvedValue([]);
-    (Crypto.digest as jest.Mock).mockResolvedValue('abc123');
     (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
     (Share.share as jest.Mock).mockResolvedValue({ action: 'sharedAction' });
 
@@ -473,6 +509,105 @@ describe('backup crypto integrity', () => {
     const parsed = JSON.parse(backupContent);
     expect(parsed.data).toBeDefined();
     expect(typeof parsed.data).toBe('string');
+  });
+});
+
+describe('backup back-compat (v4 client restoring older formats)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  /** Build a real v3 backup file (iterated SHA-256 KDF + AES-GCM, no scrypt). */
+  async function buildV3Backup(passphrase: string, payload: object): Promise<string> {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { createHash, randomBytes, createCipheriv } = require('crypto');
+    const sha = (b: Uint8Array) =>
+      new Uint8Array(createHash('sha256').update(Buffer.from(b)).digest());
+    const enc = new TextEncoder();
+    const salt = new Uint8Array(randomBytes(16));
+    const iv = new Uint8Array(randomBytes(12));
+    let key = enc.encode(
+      passphrase +
+        Array.from(salt)
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('')
+    );
+    for (let i = 0; i < 1000; i++) key = sha(key);
+    const aesKey = key.slice(0, 32);
+    const cipher = createCipheriv('aes-256-gcm', Buffer.from(aesKey), Buffer.from(iv));
+    const json = JSON.stringify(payload);
+    const ctRaw = Buffer.concat([cipher.update(Buffer.from(enc.encode(json))), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    const ct = Buffer.concat([ctRaw, tag]);
+    const toHex = (u: Uint8Array | Buffer) =>
+      Array.from(u)
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    return JSON.stringify({
+      v: 3,
+      salt: toHex(salt),
+      iv: toHex(iv),
+      data: toHex(ct),
+    });
+  }
+
+  it('a v4 client successfully restores a v3 backup file (no salt re-derivation)', async () => {
+    const mockDb = {
+      getFirstAsync: jest.fn().mockResolvedValue(null),
+      runAsync: jest.fn().mockResolvedValue(undefined),
+      withTransactionAsync: jest.fn(async (fn: () => Promise<void>) => fn()),
+    };
+    (getDatabase as jest.Mock).mockResolvedValue(mockDb);
+
+    const session: Session = {
+      id: 'v3-back-compat-session',
+      timestamp: new Date('2025-01-01T08:00:00Z').toISOString(),
+      durationSeconds: 60,
+      rrIntervals: [1000, 1010, 990],
+      rmssd: 42,
+      sdnn: 50,
+      meanHr: 60,
+      pnn50: 10,
+      artifactRate: 0,
+      verdict: 'go_hard',
+      perceivedReadiness: null,
+      trainingType: null,
+      notes: null,
+      sleepHours: null,
+      sleepQuality: null,
+      stressLevel: null,
+      source: 'chest_strap',
+    };
+    const v3File = await buildV3Backup('password123', {
+      version: 3,
+      exportedAt: new Date().toISOString(),
+      sessions: [session],
+      settings: {},
+    });
+    (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(v3File);
+
+    const count = await restoreBackup('file-uri', 'password123');
+    // Decryption succeeded → upsert was called with the session list.
+    // (The mock of upsertManySessionsIfMissing returns the input array length.)
+    expect(count).toBe(1);
+  });
+
+  it('rejects v3 backup with tampered ciphertext under v4 client (GCM tag still enforced)', async () => {
+    const mockDb = {
+      getFirstAsync: jest.fn().mockResolvedValue(null),
+      runAsync: jest.fn().mockResolvedValue(undefined),
+      withTransactionAsync: jest.fn(async (fn: () => Promise<void>) => fn()),
+    };
+    (getDatabase as jest.Mock).mockResolvedValue(mockDb);
+
+    const v3File = await buildV3Backup('password123', { version: 3, sessions: [], settings: {} });
+    const parsed = JSON.parse(v3File);
+    const bytes = Buffer.from(parsed.data, 'hex');
+    bytes[0] ^= 0x01;
+    parsed.data = bytes.toString('hex');
+    (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(JSON.stringify(parsed));
+
+    await expect(restoreBackup('file-uri', 'password123')).rejects.toThrow(/Authentication failed/);
   });
 });
 
@@ -487,7 +622,6 @@ describe('backup content structure', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
     (getAllSessions as jest.Mock).mockResolvedValue([]);
-    (Crypto.digest as jest.Mock).mockResolvedValue('abc123');
     (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
     (Share.share as jest.Mock).mockResolvedValue({ action: 'sharedAction' });
 
@@ -508,7 +642,6 @@ describe('backup content structure', () => {
     };
     (getDatabase as jest.Mock).mockResolvedValue(mockDb);
     (getAllSessions as jest.Mock).mockResolvedValue([]);
-    (Crypto.digest as jest.Mock).mockResolvedValue('abc123');
     (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
     (Share.share as jest.Mock).mockResolvedValue({ action: 'sharedAction' });
 

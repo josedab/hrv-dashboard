@@ -1,15 +1,13 @@
-import {
-  PushService,
-  InMemoryTokenStore,
-} from '../../src/workout/pushService';
+import { PushService, InMemoryTokenStore } from '../../src/experimental/workout/pushService';
 import { generateWorkout } from '../../src/workout/generator';
 
 function fakeFetch(ok = true, body: object = { id: 'abc123' }): typeof fetch {
-  return jest.fn(async () =>
-    new Response(JSON.stringify(body), {
-      status: ok ? 200 : 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+  return jest.fn(
+    async () =>
+      new Response(JSON.stringify(body), {
+        status: ok ? 200 : 500,
+        headers: { 'Content-Type': 'application/json' },
+      })
   ) as unknown as typeof fetch;
 }
 
@@ -26,7 +24,10 @@ describe('PushService', () => {
   it('refuses to push when not connected', async () => {
     const svc = new PushService(new InMemoryTokenStore());
     const w = generateWorkout({ sport: 'cycling', verdict: 'go_hard' });
-    const r = await svc.pushPlannedWorkout('strava', w, { date: '2026-04-15', fetchImpl: fakeFetch() });
+    const r = await svc.pushPlannedWorkout('strava', w, {
+      date: '2026-04-15',
+      fetchImpl: fakeFetch(),
+    });
     expect(r.ok).toBe(false);
     expect(r.error).toMatch(/not connected/);
   });

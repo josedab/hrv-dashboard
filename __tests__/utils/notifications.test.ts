@@ -337,6 +337,25 @@ describe('loadNotificationSettings', () => {
 
     expect(settings.streakReminderEnabled).toBe(false);
   });
+
+  it('falls back to defaults for out-of-range or non-numeric stored values', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const mockDb = {
+      getAllAsync: jest.fn().mockResolvedValue([
+        { key: 'notification_morning_hour', value: '99' },
+        { key: 'notification_morning_minute', value: 'not-a-number' },
+      ]),
+    };
+    (getDatabase as jest.Mock).mockResolvedValue(mockDb);
+
+    const settings = await loadNotificationSettings();
+
+    expect(settings.morningReminderHour).toBe(DEFAULT_NOTIFICATION_SETTINGS.morningReminderHour);
+    expect(settings.morningReminderMinute).toBe(
+      DEFAULT_NOTIFICATION_SETTINGS.morningReminderMinute
+    );
+    warnSpy.mockRestore();
+  });
 });
 
 describe('saveNotificationSettings', () => {

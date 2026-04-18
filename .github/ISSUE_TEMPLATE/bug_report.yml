@@ -1,0 +1,71 @@
+name: Bug Report
+description: Report a bug in HRV Readiness Dashboard
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear description of what the bug is.
+      placeholder: "When I tap 'Start Recording', the app..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the issue.
+      value: |
+        1. Open the app
+        2. Navigate to ...
+        3. Tap ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - iOS
+        - Android
+        - Both
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device & OS Version
+      placeholder: "iPhone 15 Pro, iOS 18.2"
+
+  - type: input
+    id: hr-monitor
+    attributes:
+      label: Heart Rate Monitor
+      placeholder: "Polar H10, Wahoo TICKR, Camera PPG, etc."
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Error Messages
+      description: Any relevant error messages or crash logs.
+      render: shell

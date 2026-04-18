@@ -11,8 +11,8 @@ import {
   ingestWatchSession,
   buildComplicationSnapshot,
   WatchSessionPayload,
-} from '../../src/watch';
-import { GOLDEN_VECTORS, GOLDEN_TOLERANCE_MS } from '../../src/watch/goldenVectors';
+} from '../../src/experimental/watch';
+import { GOLDEN_VECTORS, GOLDEN_TOLERANCE_MS } from '../../src/experimental/watch/goldenVectors';
 import { computeHrvMetrics } from '../../src/hrv/metrics';
 import { saveSession, getDailyReadings } from '../../src/database/sessionRepository';
 import { loadSettings } from '../../src/database/settingsRepository';
@@ -46,7 +46,9 @@ describe('validateWatchPayload', () => {
   });
 
   it('rejects mismatched bridge version', () => {
-    expect(() => validateWatchPayload(makePayload({ bridgeVersion: 99 }))).toThrow(/Bridge version/);
+    expect(() => validateWatchPayload(makePayload({ bridgeVersion: 99 }))).toThrow(
+      /Bridge version/
+    );
   });
 
   it('rejects invalid timestamps', () => {
@@ -58,9 +60,9 @@ describe('validateWatchPayload', () => {
   });
 
   it('rejects unknown source', () => {
-    expect(() =>
-      validateWatchPayload(makePayload({ source: 'fitbit' as 'watchos' }))
-    ).toThrow(/source/);
+    expect(() => validateWatchPayload(makePayload({ source: 'fitbit' as 'watchos' }))).toThrow(
+      /source/
+    );
   });
 });
 

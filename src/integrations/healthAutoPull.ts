@@ -6,7 +6,7 @@
  * via small badges so the user knows what's editable.
  */
 import { Session } from '../types';
-import { readLastNightSleep } from '../integrations/sleepStrain';
+import { readLastNightSleep } from './healthSleep';
 
 export type DataSource = 'manual' | 'health_kit' | 'health_connect' | 'auto';
 
@@ -56,10 +56,7 @@ export async function autoPullSleep(now: Date = new Date()): Promise<AutoPullRes
  * Merge auto-pulled values into a session, only when the corresponding
  * manual field is null. Returns the augmented session + provenance.
  */
-export function mergeAutoPull(
-  session: Session,
-  pulled: AutoPullResult
-): ProvenancedSession {
+export function mergeAutoPull(session: Session, pulled: AutoPullResult): ProvenancedSession {
   const provenance: ProvenancedSession['provenance'] = {};
   let merged: Session = session;
   if (session.sleepHours === null && pulled.sleepHours !== null) {

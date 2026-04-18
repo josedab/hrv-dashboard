@@ -27,9 +27,7 @@ describe('goertzelPower', () => {
     const fs = 4;
     const f = 0.1;
     const N = 256;
-    const samples = Array.from({ length: N }, (_, i) =>
-      Math.sin((2 * Math.PI * f * i) / fs)
-    );
+    const samples = Array.from({ length: N }, (_, i) => Math.sin((2 * Math.PI * f * i) / fs));
     const onTarget = goertzelPower(samples, fs, 0.1);
     const offTarget = goertzelPower(samples, fs, 0.3);
     expect(onTarget).toBeGreaterThan(offTarget * 5);
@@ -59,7 +57,19 @@ describe('computeCoherence', () => {
       rr.push(rrMs);
       t += rrMs / 1000;
     }
-    const noisy = computeCoherence(Array(300).fill(900).map((v) => v + (Math.random() - 0.5) * 5));
+    // Deterministic pseudo-random noise (LCG) so the assertion is repeatable.
+    // Math.random() previously caused intermittent failures when noise happened
+    // to align with a band that scored near the coherent signal.
+    let seed = 0x1234abcd;
+    const rand = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 0xffffffff;
+    };
+    const noisy = computeCoherence(
+      Array(300)
+        .fill(900)
+        .map((v) => v + (rand() - 0.5) * 5)
+    );
     const coherent = computeCoherence(rr);
     expect(coherent.score).toBeGreaterThan(noisy.score);
   });

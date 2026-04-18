@@ -218,7 +218,7 @@ export function useBleRecording(): [RecordingState, RecordingActions] {
         clearTimer();
       }
     },
-    [resetRecording, stopRecording, clearTimer]
+    [resetRecording, stopRecording, clearTimer, attemptReconnect]
   );
 
   // Cleanup on unmount

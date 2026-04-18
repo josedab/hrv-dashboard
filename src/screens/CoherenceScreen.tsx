@@ -68,6 +68,14 @@ export function CoherenceScreen({ pacer = RESONANCE_PACER }: { pacer?: PacerConf
         Breathe with the ring. Inhale {pacer.inhaleSeconds}s · Exhale {pacer.exhaleSeconds}s
       </Text>
 
+      <View style={styles.demoBadge} accessibilityLabel="Demo mode notice">
+        <Text style={styles.demoBadgeText}>DEMO · simulated RR signal</Text>
+      </View>
+      <Text style={styles.demoNote}>
+        The coherence score below is computed from a synthetic ~6 brpm RR signal, not your live
+        chest-strap data. A future build will tap into the BLE recording stream.
+      </Text>
+
       <View style={styles.ringWrap}>
         <View
           style={[
@@ -115,7 +123,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginTop: 12 },
-  subtitle: { fontSize: 13, color: COLORS.textMuted, marginTop: 4, marginBottom: 32 },
+  subtitle: { fontSize: 13, color: COLORS.textMuted, marginTop: 4, marginBottom: 16 },
+  demoBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: COLORS.warning ?? '#F59E0B',
+    marginBottom: 8,
+  },
+  demoBadgeText: { color: '#0F172A', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  demoNote: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 24,
+    lineHeight: 16,
+  },
   ringWrap: {
     width: RING_SIZE,
     height: RING_SIZE,

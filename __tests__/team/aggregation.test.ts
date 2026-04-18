@@ -4,7 +4,7 @@ import {
   aggregateTeam,
   suggestTeamSession,
   TeamMemberPublication,
-} from '../../src/team/aggregation';
+} from '../../src/experimental/team/aggregation';
 import { Session } from '../../src/types';
 
 function mkSession(over: Partial<Session> = {}): Session {
@@ -66,7 +66,11 @@ describe('buildPublication', () => {
 });
 
 describe('aggregateTeam', () => {
-  function pub(memberId: string, verdict: 'go_hard' | 'moderate' | 'rest', date = '2026-04-15'): TeamMemberPublication {
+  function pub(
+    memberId: string,
+    verdict: 'go_hard' | 'moderate' | 'rest',
+    date = '2026-04-15'
+  ): TeamMemberPublication {
     return { memberId, date, verdict, bucket: 'medium', ratioPct: 90 };
   }
 
@@ -78,10 +82,7 @@ describe('aggregateTeam', () => {
   });
 
   it('aggregates when threshold met', () => {
-    const rows = aggregateTeam(
-      [pub('a', 'go_hard'), pub('b', 'moderate'), pub('c', 'rest')],
-      3
-    );
+    const rows = aggregateTeam([pub('a', 'go_hard'), pub('b', 'moderate'), pub('c', 'rest')], 3);
     expect(rows[0].suppressed).toBe(false);
     expect(rows[0].goHard + rows[0].moderate + rows[0].rest).toBe(3);
   });

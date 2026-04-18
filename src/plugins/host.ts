@@ -159,7 +159,10 @@ async function runWithTimeout<T>(fn: () => T | Promise<T>, timeoutMs: number): P
     const result = await Promise.race([
       Promise.resolve().then(() => fn()),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`Plugin exceeded ${timeoutMs}ms deadline`)), timeoutMs);
+        timer = setTimeout(
+          () => reject(new Error(`Plugin exceeded ${timeoutMs}ms deadline`)),
+          timeoutMs
+        );
       }),
     ]);
     if (Date.now() - start > timeoutMs) {

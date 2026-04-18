@@ -7,15 +7,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS } from '../constants/colors';
 import { StatCard } from '../components/StatCard';
 import { processPpgSignal, PpgResult, DEFAULT_PPG_CONFIG } from '../ble/ppgProcessor';
-import { computeHrvMetrics } from '../hrv/metrics';
-import { computeBaseline } from '../hrv/baseline';
-import { computeVerdict } from '../hrv/verdict';
-import { saveSession } from '../database/sessionRepository';
-import type { Session } from '../types';
-import { getDailyReadings } from '../database/sessionRepository';
-import { loadSettings } from '../database/settingsRepository';
-import { generateId } from '../utils/uuid';
-import { refreshWidget } from '../utils/widgetData';
+import { useSessionPersistence } from '../hooks/useSessionPersistence';
 import { STRINGS } from '../constants/strings';
 
 const CAMERA_DURATION_SECONDS = 60;
@@ -54,8 +46,19 @@ export function CameraReadingScreen() {
     };
   }, []);
 
-  // Realistic PPG waveform with natural heart rate variability
-  const collectBrightnessSample = useCallback(() => {
+  // Synthetic PPG sample generator.
+  //
+  // ⚠️ This does NOT read real camera frames. expo-camera (managed workflow)
+  // does not expose a frame-processor API; capturing pixels requires a
+  // native build with `react-native-vision-camera`. Until that lands, this
+  // function emits a synthetic cardiac waveform purely to exercise the
+  // downstream `processPpgSignal` pipeline and the recording UI. Sessions
+  // produced from this signal are stored with `source: 'camera'` and are
+  // explicitly excluded from baseline computation (see hrv/baseline.ts).
+  //
+  // The Demo banner in the intro screen makes this disclosure visible to
+  // the user.
+  const collectSimulatedSample = useCallback(() => {
     const now = Date.now();
     const t = (now - startTimeRef.current) / 1000;
 
@@ -76,6 +79,8 @@ export function CameraReadingScreen() {
     timestampsRef.current.push(now - startTimeRef.current);
   }, []);
 
+  const processRecordingRef = useRef<() => void>(() => {});
+
   const startRecording = useCallback(async () => {
     if (!permission?.granted) {
       const result = await requestPermission();
@@ -93,7 +98,7 @@ export function CameraReadingScreen() {
 
     captureRef.current = setInterval(
       () => {
-        if (isMountedRef.current) collectBrightnessSample();
+        if (isMountedRef.current) collectSimulatedSample();
       },
       Math.round(1000 / CAPTURE_FPS)
     );
@@ -116,10 +121,14 @@ export function CameraReadingScreen() {
       if (e >= CAMERA_DURATION_SECONDS) {
         if (captureRef.current) clearInterval(captureRef.current);
         if (timerRef.current) clearInterval(timerRef.current);
-        processRecording();
+        // Indirected through a ref so startRecording does not need to depend on
+        // processRecording (which depends on hooks declared after this one).
+        processRecordingRef.current();
       }
     }, 1000);
-  }, [permission, requestPermission, collectBrightnessSample]);
+  }, [permission, requestPermission, collectSimulatedSample]);
+
+  const { finalize } = useSessionPersistence();
 
   const processRecording = useCallback(async () => {
     if (!isMountedRef.current) return;
@@ -157,42 +166,20 @@ export function CameraReadingScreen() {
       return;
     }
 
-    try {
-      const metrics = computeHrvMetrics(result.rrIntervals);
-      const settings = await loadSettings();
-      const dailyReadings = await getDailyReadings(settings.baselineWindowDays);
-      const baseline = computeBaseline(dailyReadings, settings.baselineWindowDays);
-      const verdict = computeVerdict(metrics.rmssd, baseline, settings);
-
-      const session: Session = {
-        id: generateId(),
-        timestamp: new Date().toISOString(),
-        durationSeconds: CAMERA_DURATION_SECONDS,
-        rrIntervals: result.rrIntervals,
-        rmssd: metrics.rmssd,
-        sdnn: metrics.sdnn,
-        meanHr: metrics.meanHr,
-        pnn50: metrics.pnn50,
-        artifactRate: metrics.artifactRate,
-        verdict,
-        perceivedReadiness: null,
-        trainingType: null,
-        notes: null,
-        sleepHours: null,
-        sleepQuality: null,
-        stressLevel: null,
-        source: 'camera',
-      };
-
-      await saveSession(session);
-      refreshWidget().catch(() => {});
-      navigation.replace('Log', { sessionId: session.id });
-    } catch (error) {
-      console.error('Camera reading save failed:', error);
+    const saveResult = await finalize({
+      rrIntervals: result.rrIntervals,
+      durationSeconds: CAMERA_DURATION_SECONDS,
+      source: 'camera',
+    });
+    if (saveResult.kind === 'error') {
       Alert.alert('Error', 'Failed to process camera recording.');
       navigation.goBack();
     }
-  }, [navigation]);
+  }, [navigation, finalize]);
+
+  useEffect(() => {
+    processRecordingRef.current = processRecording;
+  }, [processRecording]);
 
   if (phase === 'intro') {
     return (
@@ -249,6 +236,9 @@ export function CameraReadingScreen() {
       <View style={styles.container}>
         <CameraView style={styles.cameraPreview} facing="back" enableTorch={true} />
         <Text style={styles.cameraOverlay}>Keep fingertip on camera</Text>
+        <View style={styles.demoBadge} accessibilityLabel="Demo mode notice">
+          <Text style={styles.demoBadgeText}>DEMO · simulated waveform</Text>
+        </View>
         <Text style={styles.timer}>
           {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}
         </Text>
@@ -336,6 +326,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cameraOverlay: { fontSize: 14, color: COLORS.textMuted, marginBottom: 16 },
+  demoBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: COLORS.warning ?? '#F59E0B',
+    marginBottom: 12,
+  },
+  demoBadgeText: { color: '#0F172A', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
   timer: {
     fontSize: 48,
     fontWeight: '700',

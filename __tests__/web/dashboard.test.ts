@@ -3,10 +3,14 @@ import {
   buildTrendSeries,
   buildPdfReportData,
   renderReportHtml,
-} from '../../src/web/dashboard';
+} from '../../src/experimental/web/dashboard';
 import { Session } from '../../src/types';
 
-function makeSession(daysAgo: number, rmssd: number, source: 'chest_strap' | 'camera' = 'chest_strap'): Session {
+function makeSession(
+  daysAgo: number,
+  rmssd: number,
+  source: 'chest_strap' | 'camera' = 'chest_strap'
+): Session {
   const ts = new Date(Date.now() - daysAgo * 86_400_000).toISOString();
   return {
     id: `s-${daysAgo}-${rmssd}`,

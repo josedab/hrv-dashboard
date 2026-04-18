@@ -1,4 +1,4 @@
-import { planImport, commitImport } from '../../src/integrations/import/wizard';
+import { planImport, commitImport } from '../../src/experimental/integrations/import/wizard';
 import { Session } from '../../src/types';
 
 const WHOOP_CSV = `Cycle start time,Heart rate variability (ms),Resting heart rate (bpm),Recovery score %
@@ -19,11 +19,7 @@ describe('import wizard', () => {
   it('detects collisions by ID', async () => {
     const fresh = await planImport('whoop', WHOOP_CSV, async () => new Set());
     const collidingId = fresh.sessions[0].id;
-    const preview = await planImport(
-      'whoop',
-      WHOOP_CSV,
-      async () => new Set([collidingId])
-    );
+    const preview = await planImport('whoop', WHOOP_CSV, async () => new Set([collidingId]));
     expect(preview.willInsert).toBe(2);
     expect(preview.collisions).toBe(1);
     expect(preview.collisionIds).toContain(collidingId);

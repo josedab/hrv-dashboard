@@ -119,6 +119,59 @@ export async function uninstallPlugin(id: string, storage: PluginStorage): Promi
   await storage.remove(id);
 }
 
+/**
+ * User-friendly install path: parse a raw JSON string the user pasted,
+ * autocompute the fingerprint when omitted (most users won't precompute
+ * a SHA-256), then delegate to {@link installPlugin}. Throws with a
+ * specific message on JSON parse / shape / compile failure so the UI
+ * can surface it.
+ *
+ * Accepts either a single `PluginCatalogEntry` or `{manifest, source}`
+ * with `fingerprint` optional.
+ */
+export async function installPluginFromJson(
+  rawJson: string,
+  storage: PluginStorage,
+  now: () => Date = () => new Date()
+): Promise<InstalledPlugin> {
+  if (typeof rawJson !== 'string' || rawJson.trim().length === 0) {
+    throw new Error('Paste a plugin manifest+source JSON.');
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch (err) {
+    throw new Error(`Invalid JSON: ${err instanceof Error ? err.message : 'parse error'}`);
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Plugin JSON must be an object.');
+  }
+  const obj = parsed as Partial<PluginCatalogEntry>;
+  if (!obj.manifest || typeof obj.manifest !== 'object') {
+    throw new Error('Missing `manifest` object.');
+  }
+  if (!obj.manifest.id || !obj.manifest.name || !obj.manifest.version) {
+    throw new Error('Manifest must include id, name, and version.');
+  }
+  if (typeof obj.source !== 'string' || obj.source.length === 0) {
+    throw new Error('Missing `source` (plugin JS source string).');
+  }
+  const fingerprint =
+    typeof obj.fingerprint === 'string' && obj.fingerprint.length > 0
+      ? obj.fingerprint
+      : await sha256Hex(obj.source);
+  return installPlugin(
+    {
+      manifest: obj.manifest,
+      source: obj.source,
+      fingerprint,
+      changelog: obj.changelog,
+    },
+    storage,
+    now
+  );
+}
+
 /** Recompiles all installed plugins, dropping any that fail to compile. */
 export async function loadInstalledPlugins(storage: PluginStorage): Promise<{
   plugins: CompiledPlugin[];

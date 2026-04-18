@@ -98,8 +98,30 @@ export async function cancelAllReminders(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(STREAK_REMINDER_ID).catch(() => {});
 }
 
+/** Range-clamping integer parser shared with settingsRepository style. */
+function parseClampedInt(
+  raw: string | undefined,
+  fallback: number,
+  min: number,
+  max: number
+): number {
+  if (raw === undefined || raw === '') return fallback;
+  const parsed = parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  if (parsed < min || parsed > max) {
+    console.warn(
+      `[notifications] Stored value '${raw}' outside ${min}–${max}; using default ${fallback}`
+    );
+    return fallback;
+  }
+  return parsed;
+}
+
 /**
  * Loads notification settings from the database.
+ *
+ * Validates each value through {@link parseClampedInt} so a corrupted DB
+ * row (e.g. an out-of-range hour) cannot crash the scheduler.
  */
 export async function loadNotificationSettings(): Promise<NotificationSettings> {
   const db = await getDatabase();
@@ -114,26 +136,37 @@ export async function loadNotificationSettings(): Promise<NotificationSettings> 
 
   return {
     morningReminderEnabled: stored.notification_morning_enabled === 'true',
-    morningReminderHour: stored.notification_morning_hour
-      ? parseInt(stored.notification_morning_hour, 10)
-      : DEFAULT_NOTIFICATION_SETTINGS.morningReminderHour,
-    morningReminderMinute: stored.notification_morning_minute
-      ? parseInt(stored.notification_morning_minute, 10)
-      : DEFAULT_NOTIFICATION_SETTINGS.morningReminderMinute,
+    morningReminderHour: parseClampedInt(
+      stored.notification_morning_hour,
+      DEFAULT_NOTIFICATION_SETTINGS.morningReminderHour,
+      0,
+      23
+    ),
+    morningReminderMinute: parseClampedInt(
+      stored.notification_morning_minute,
+      DEFAULT_NOTIFICATION_SETTINGS.morningReminderMinute,
+      0,
+      59
+    ),
     streakReminderEnabled: stored.notification_streak_enabled !== 'false',
   };
 }
 
 /**
  * Saves notification settings and reschedules notifications.
+ *
+ * Values are clamped to their valid domain before persisting so a UI bug
+ * cannot poison the stored config.
  */
 export async function saveNotificationSettings(settings: NotificationSettings): Promise<void> {
   const db = await getDatabase();
+  const hour = Math.max(0, Math.min(23, Math.floor(settings.morningReminderHour)));
+  const minute = Math.max(0, Math.min(59, Math.floor(settings.morningReminderMinute)));
   const entries = [
-    ['notification_morning_enabled', String(settings.morningReminderEnabled)],
-    ['notification_morning_hour', String(settings.morningReminderHour)],
-    ['notification_morning_minute', String(settings.morningReminderMinute)],
-    ['notification_streak_enabled', String(settings.streakReminderEnabled)],
+    ['notification_morning_enabled', String(!!settings.morningReminderEnabled)],
+    ['notification_morning_hour', String(hour)],
+    ['notification_morning_minute', String(minute)],
+    ['notification_streak_enabled', String(!!settings.streakReminderEnabled)],
   ];
 
   await db.withTransactionAsync(async () => {
@@ -143,7 +176,7 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
   });
 
   if (settings.morningReminderEnabled) {
-    await scheduleMorningReminder(settings.morningReminderHour, settings.morningReminderMinute);
+    await scheduleMorningReminder(hour, minute);
   } else {
     await Notifications.cancelScheduledNotificationAsync(MORNING_REMINDER_ID).catch(() => {});
   }

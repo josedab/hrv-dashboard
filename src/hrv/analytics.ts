@@ -2,6 +2,20 @@ import { Session, VerdictType } from '../types';
 import { computeMedian } from './baseline';
 
 /**
+ * Trend direction is "improving"/"declining" only when the period-over-period
+ * change exceeds this magnitude (in percentage points). Avoids labelling 1%
+ * noise as a trend.
+ */
+const TREND_THRESHOLD_PCT = 5;
+/** Minimum paired observations required to compute a correlation. */
+const MIN_CORRELATION_SAMPLES = 5;
+/** |r| above this is treated as a meaningful linear relationship. */
+const SIGNIFICANT_CORRELATION_THRESHOLD = 0.3;
+/** Inclusive day-gap that counts as "consecutive" for streak counting. */
+const CONSECUTIVE_DAY_GAP = 1;
+const MS_PER_DAY = 86_400_000;
+
+/**
  * Weekly summary of HRV metrics and trends.
  */
 export interface WeeklySummary {
@@ -59,8 +73,8 @@ export function computeWeeklySummary(
 
   if (prevAvg > 0 && currentRmssd.length > 0) {
     trendPercent = ((avgRmssd - prevAvg) / prevAvg) * 100;
-    if (trendPercent > 5) trendDirection = 'improving';
-    else if (trendPercent < -5) trendDirection = 'declining';
+    if (trendPercent > TREND_THRESHOLD_PCT) trendDirection = 'improving';
+    else if (trendPercent < -TREND_THRESHOLD_PCT) trendDirection = 'declining';
   }
 
   let bestDay: WeeklySummary['bestDay'] = null;
@@ -102,8 +116,8 @@ function computeStreakInSessions(sessions: Session[]): number {
   for (let i = 1; i < dates.length; i++) {
     const prev = new Date(dates[i - 1] + 'T12:00:00');
     const curr = new Date(dates[i] + 'T12:00:00');
-    const diffDays = Math.round((curr.getTime() - prev.getTime()) / 86400000);
-    if (diffDays === 1) {
+    const diffDays = Math.round((curr.getTime() - prev.getTime()) / MS_PER_DAY);
+    if (diffDays === CONSECUTIVE_DAY_GAP) {
       current++;
       maxStreak = Math.max(maxStreak, current);
     } else {
@@ -115,7 +129,7 @@ function computeStreakInSessions(sessions: Session[]): number {
 
 /**
  * Correlation between sleep quality and next-day rMSSD.
- * Returns null if insufficient data (<5 paired observations).
+ * Returns null if insufficient data (< {@link MIN_CORRELATION_SAMPLES} paired observations).
  */
 export interface CorrelationResult {
   factor: string;
@@ -124,54 +138,54 @@ export interface CorrelationResult {
   interpretation: string;
 }
 
-export function computeSleepHrvCorrelation(sessions: Session[]): CorrelationResult | null {
-  const pairs = sessions
-    .filter((s) => s.sleepQuality !== null && s.sleepQuality !== undefined)
-    .map((s) => ({ x: s.sleepQuality!, y: s.rmssd }));
+interface CorrelationInterpretations {
+  /** Shown when r > +SIGNIFICANT_CORRELATION_THRESHOLD. */
+  positive: string;
+  /** Shown when r < -SIGNIFICANT_CORRELATION_THRESHOLD. */
+  negative: string;
+  /** Shown otherwise. */
+  weak: string;
+}
 
-  if (pairs.length < 5) return null;
+function computeFactorCorrelation(
+  sessions: Session[],
+  factor: string,
+  selector: (s: Session) => number | null | undefined,
+  interpretations: CorrelationInterpretations
+): CorrelationResult | null {
+  const pairs = sessions
+    .map((s) => ({ x: selector(s), y: s.rmssd }))
+    .filter((p): p is { x: number; y: number } => p.x !== null && p.x !== undefined);
+
+  if (pairs.length < MIN_CORRELATION_SAMPLES) return null;
 
   const r = pearsonCorrelation(
     pairs.map((p) => p.x),
     pairs.map((p) => p.y)
   );
 
-  return {
-    factor: 'Sleep Quality',
-    correlation: r,
-    sampleSize: pairs.length,
-    interpretation:
-      r > 0.3
-        ? 'Better sleep → higher HRV'
-        : r < -0.3
-          ? 'Unexpected inverse relationship'
-          : 'Weak or no clear relationship',
-  };
+  let interpretation: string;
+  if (r > SIGNIFICANT_CORRELATION_THRESHOLD) interpretation = interpretations.positive;
+  else if (r < -SIGNIFICANT_CORRELATION_THRESHOLD) interpretation = interpretations.negative;
+  else interpretation = interpretations.weak;
+
+  return { factor, correlation: r, sampleSize: pairs.length, interpretation };
+}
+
+export function computeSleepHrvCorrelation(sessions: Session[]): CorrelationResult | null {
+  return computeFactorCorrelation(sessions, 'Sleep Quality', (s) => s.sleepQuality, {
+    positive: 'Better sleep → higher HRV',
+    negative: 'Unexpected inverse relationship',
+    weak: 'Weak or no clear relationship',
+  });
 }
 
 export function computeStressHrvCorrelation(sessions: Session[]): CorrelationResult | null {
-  const pairs = sessions
-    .filter((s) => s.stressLevel !== null && s.stressLevel !== undefined)
-    .map((s) => ({ x: s.stressLevel!, y: s.rmssd }));
-
-  if (pairs.length < 5) return null;
-
-  const r = pearsonCorrelation(
-    pairs.map((p) => p.x),
-    pairs.map((p) => p.y)
-  );
-
-  return {
-    factor: 'Stress Level',
-    correlation: r,
-    sampleSize: pairs.length,
-    interpretation:
-      r < -0.3
-        ? 'Higher stress → lower HRV'
-        : r > 0.3
-          ? 'Unexpected positive relationship'
-          : 'Weak or no clear relationship',
-  };
+  return computeFactorCorrelation(sessions, 'Stress Level', (s) => s.stressLevel, {
+    positive: 'Unexpected positive relationship',
+    negative: 'Higher stress → lower HRV',
+    weak: 'Weak or no clear relationship',
+  });
 }
 
 function pearsonCorrelation(x: number[], y: number[]): number {

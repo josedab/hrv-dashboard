@@ -4,9 +4,8 @@ jest.mock('expo-crypto', () => {
   return {
     CryptoDigestAlgorithm: { SHA256: 'SHA256' },
     digest: async (_alg: string, data: Uint8Array | ArrayBuffer) => {
-      const buf = data instanceof Uint8Array
-        ? Buffer.from(data)
-        : Buffer.from(new Uint8Array(data));
+      const buf =
+        data instanceof Uint8Array ? Buffer.from(data) : Buffer.from(new Uint8Array(data));
       const h = createHash('sha256').update(buf).digest();
       return h.buffer.slice(h.byteOffset, h.byteOffset + h.byteLength);
     },
@@ -49,10 +48,14 @@ function makeSession(id: string, daysAgo: number): Session {
 }
 
 describe('pairing codes', () => {
-  it('generates a code with 4-char id and 3 hyphenated words', () => {
+  it('generates a code with 4-char id and 4 hyphenated words', () => {
     const { bundleId, passphrase } = generatePairingCode();
     expect(bundleId).toMatch(/^[A-HJ-NP-Z2-9]{4}$/);
-    expect(passphrase.split('-')).toHaveLength(3);
+    expect(passphrase.split('-')).toHaveLength(4);
+    // Each word should be lowercase letters only — no Math.random punctuation.
+    for (const w of passphrase.split('-')) {
+      expect(w).toMatch(/^[a-z]+$/);
+    }
   });
 
   it('round-trips through parsePairingCode', () => {
@@ -60,6 +63,20 @@ describe('pairing codes', () => {
     const parsed = parsePairingCode(`${bundleId}-${passphrase}`);
     expect(parsed?.bundleId).toBe(bundleId);
     expect(parsed?.passphrase).toBe(passphrase);
+  });
+
+  it('produces high-entropy CSPRNG-derived codes (no two of 50 collide)', () => {
+    // Sanity check that we actually have meaningful entropy. With ~32 bits
+    // of passphrase entropy plus ~20 bits of bundleId, the probability of
+    // any collision in 50 draws is astronomically small (~10⁻¹⁵).
+    // A failure here is almost certainly a regression to a tiny-keyspace
+    // generator, not bad luck.
+    const codes = new Set<string>();
+    for (let i = 0; i < 50; i++) {
+      const { bundleId, passphrase } = generatePairingCode();
+      codes.add(`${bundleId}-${passphrase}`);
+    }
+    expect(codes.size).toBe(50);
   });
 
   it('rejects malformed codes', () => {
@@ -129,5 +146,33 @@ describe('seal + open round trip', () => {
     const sealed = await sealShare([makeSession('a', 1)], { athleteName: 'Jose' });
     sealed.bundle.protocolVersion = SHARE_PROTOCOL_VERSION + 5;
     await expect(openShare(sealed.bundle, sealed.pairingCode)).rejects.toThrow(/newer/);
+  });
+
+  it('rejects bundles whose envelope expiresAt was extended without re-encrypting', async () => {
+    // Without authenticating expiresAt, anyone with write access to the
+    // share could extend a bundle's lifetime indefinitely. The decrypted
+    // payload's expiresAt is the source of truth.
+    const sealed = await sealShare([makeSession('a', 1)], {
+      athleteName: 'Jose',
+      ttlDays: 1,
+    });
+    sealed.bundle.expiresAt = new Date(Date.now() + 365 * 86_400_000).toISOString();
+    await expect(openShare(sealed.bundle, sealed.pairingCode)).rejects.toThrow(/tampered/i);
+  });
+
+  it('rejects v4 bundles missing the required salt field', async () => {
+    const sealed = await sealShare([makeSession('a', 1)], { athleteName: 'Jose' });
+    expect(sealed.bundle.protocolVersion).toBe(4);
+    expect(sealed.bundle.salt).toBeDefined();
+    delete sealed.bundle.salt;
+    await expect(openShare(sealed.bundle, sealed.pairingCode)).rejects.toThrow(/salt/);
+  });
+
+  it('rejects legacy bundles that smuggle in a salt field (version mismatch)', async () => {
+    const sealed = await sealShare([makeSession('a', 1)], { athleteName: 'Jose' });
+    sealed.bundle.protocolVersion = 3;
+    await expect(openShare(sealed.bundle, sealed.pairingCode)).rejects.toThrow(
+      /must not carry a salt/
+    );
   });
 });

@@ -257,7 +257,7 @@ Tests are pure logic only (no React component rendering). Jest with ts-jest in N
 - **5-minute recording** — per ESC guidelines for short-term HRV analysis
 - **Local-only storage** — no privacy concerns, no network dependency
 - **Camera PPG fallback** — extract RR intervals from fingertip camera readings when no chest strap is available
-- **Encrypted backups** — SHA-256 CTR stream cipher with PBKDF2-like key derivation for `.hrvbak` files
+- **Authenticated encryption** — AES-256-GCM with a memory-hard scrypt KDF (N=2¹⁴) for backups, share bundles, and cloud sync (protocol v4); legacy v1–v3 blobs still decrypt for back-compat. See [`docs/CRYPTO.md`](./docs/CRYPTO.md).
 - **Optional health platform sync** — write HRV data to Apple HealthKit / Android Health Connect when SDK is installed
 - **Centralized UI strings** — all user-facing text in `constants/strings.ts` for i18n readiness
 

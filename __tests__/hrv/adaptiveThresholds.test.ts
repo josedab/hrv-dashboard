@@ -5,7 +5,12 @@ import {
 } from '../../src/hrv/adaptiveThresholds';
 import { Session, BaselineResult } from '../../src/types';
 
-function mk(rmssd: number, day: string, label: number | null = null, verdict: Session['verdict'] = null): Session {
+function mk(
+  rmssd: number,
+  day: string,
+  label: number | null = null,
+  verdict: Session['verdict'] = null
+): Session {
   return {
     id: day + rmssd,
     timestamp: `${day}T07:00:00Z`,
@@ -46,10 +51,15 @@ describe('adaptive thresholds', () => {
   });
 
   it('returns null when no baseline and no history', () => {
-    const r = computeAdaptiveVerdict(50, [], { median: 0, dayCount: 0, values: [] }, {
-      goHardThreshold: 0.95,
-      moderateThreshold: 0.8,
-    });
+    const r = computeAdaptiveVerdict(
+      50,
+      [],
+      { median: 0, dayCount: 0, values: [] },
+      {
+        goHardThreshold: 0.95,
+        moderateThreshold: 0.8,
+      }
+    );
     expect(r.verdict).toBeNull();
     expect(r.coldStart).toBe(true);
   });
@@ -83,10 +93,15 @@ describe('adaptive thresholds', () => {
       sessions.push(mk(40 + i, d.toISOString().slice(0, 10), 5, 'rest'));
     }
     const baseline: BaselineResult = { median: 55, dayCount: 7, values: [] };
-    const noLabels = computeAdaptiveVerdict(50, sessions.map((s) => ({ ...s, perceivedReadiness: null })), baseline, {
-      goHardThreshold: 0.95,
-      moderateThreshold: 0.8,
-    });
+    const noLabels = computeAdaptiveVerdict(
+      50,
+      sessions.map((s) => ({ ...s, perceivedReadiness: null })),
+      baseline,
+      {
+        goHardThreshold: 0.95,
+        moderateThreshold: 0.8,
+      }
+    );
     const withLabels = computeAdaptiveVerdict(50, sessions, baseline, {
       goHardThreshold: 0.95,
       moderateThreshold: 0.8,

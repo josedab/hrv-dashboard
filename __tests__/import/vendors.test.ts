@@ -4,7 +4,7 @@ import {
   parseGarminCsv,
   parseImport,
   importHash,
-} from '../../src/integrations/import/vendors';
+} from '../../src/experimental/integrations/import/vendors';
 
 describe('parseWhoopCsv', () => {
   const csv = `Cycle start time,Cycle end time,Recovery score %,Resting heart rate (bpm),Heart rate variability (ms)
@@ -38,9 +38,7 @@ describe('parseOuraJson', () => {
       { day: '2026-04-11', average_hrv: 45, score: 60 },
       { day: '2026-04-12', average_hrv: 0 },
     ],
-    daily_sleep: [
-      { day: '2026-04-10', total_sleep_duration: 28800 },
-    ],
+    daily_sleep: [{ day: '2026-04-10', total_sleep_duration: 28800 }],
   });
 
   it('parses readings with HRV and pulls in sleep when available', () => {

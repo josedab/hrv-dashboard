@@ -4,7 +4,7 @@ import {
   pushToIntervalsIcu,
   renderPlainText,
   renderIntervalsDoc,
-} from '../../src/workout/exporters';
+} from '../../src/experimental/workout/exporters';
 import { generateWorkout } from '../../src/workout/generator';
 
 function mkWorkout() {

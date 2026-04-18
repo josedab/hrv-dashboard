@@ -4,9 +4,8 @@ jest.mock('expo-crypto', () => {
   return {
     CryptoDigestAlgorithm: { SHA256: 'SHA256' },
     digest: async (_alg: string, data: Uint8Array | ArrayBuffer) => {
-      const buf = data instanceof Uint8Array
-        ? Buffer.from(data)
-        : Buffer.from(new Uint8Array(data));
+      const buf =
+        data instanceof Uint8Array ? Buffer.from(data) : Buffer.from(new Uint8Array(data));
       const h = createHash('sha256').update(buf).digest();
       return h.buffer.slice(h.byteOffset, h.byteOffset + h.byteLength);
     },
@@ -67,6 +66,14 @@ describe('sync crypto', () => {
     const blob = await encryptSessionBlob(makeSession('a'), 'p', '2026-04-15T07:00:00Z');
     blob.protocolVersion = SYNC_PROTOCOL_VERSION + 1;
     await expect(decryptSessionBlob(blob, 'p')).rejects.toThrow(/newer/);
+  });
+
+  it('rejects v3 blobs whose envelope updatedAt was tampered with', async () => {
+    // v3 binds updatedAt inside the AEAD payload so a malicious storage
+    // provider cannot rewrite the watermark to skew conflict resolution.
+    const blob = await encryptSessionBlob(makeSession('a'), 'pass', '2026-04-15T07:00:00Z');
+    blob.updatedAt = '2099-01-01T00:00:00Z';
+    await expect(decryptSessionBlob(blob, 'pass')).rejects.toThrow(/tampered/i);
   });
 });
 

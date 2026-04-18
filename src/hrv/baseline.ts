@@ -1,4 +1,16 @@
 import { BaselineResult, DailyReading } from '../types';
+import { MIN_BASELINE_DAYS } from '../constants/defaults';
+
+/**
+ * Returns true when a {@link BaselineResult} doesn't carry enough information
+ * to compute a verdict or recovery score (too few days, or empty/zero median).
+ *
+ * Centralises the "magic-zero" guard that previously appeared in multiple
+ * call sites.
+ */
+export function isInsufficientBaseline(baseline: BaselineResult): boolean {
+  return baseline.dayCount < MIN_BASELINE_DAYS || baseline.median <= 0;
+}
 
 /**
  * Computes the baseline rMSSD using the MEDIAN of daily readings

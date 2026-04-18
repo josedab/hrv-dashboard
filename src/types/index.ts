@@ -1,8 +1,33 @@
 /** Readiness verdict determined by comparing current rMSSD to baseline. */
 export type VerdictType = 'go_hard' | 'moderate' | 'rest';
 
+const VERDICT_VALUES: ReadonlySet<string> = new Set<VerdictType>(['go_hard', 'moderate', 'rest']);
+
+/**
+ * Validates and narrows an unknown value to a {@link VerdictType} or null.
+ *
+ * Used when reading verdicts from external sources (DB rows, backups, sync
+ * payloads) so that any corruption or schema drift surfaces as `null`
+ * (= "no verdict") rather than propagating an invalid string.
+ */
+export function parseVerdict(value: unknown): VerdictType | null {
+  return typeof value === 'string' && VERDICT_VALUES.has(value) ? (value as VerdictType) : null;
+}
+
 /** How a session's RR intervals were collected. */
 export type SessionSource = 'chest_strap' | 'camera';
+
+const SESSION_SOURCE_VALUES: ReadonlySet<string> = new Set<SessionSource>([
+  'chest_strap',
+  'camera',
+]);
+
+/** Validates an unknown value as {@link SessionSource}; defaults to 'chest_strap'. */
+export function parseSessionSource(value: unknown): SessionSource {
+  return typeof value === 'string' && SESSION_SOURCE_VALUES.has(value)
+    ? (value as SessionSource)
+    : 'chest_strap';
+}
 
 /**
  * A complete HRV recording session with objective metrics and optional
@@ -71,6 +96,28 @@ export interface BaselineResult {
 }
 
 /**
+ * Verdict computation mode.
+ *
+ * - `fixed`: ratio thresholds (currentRmssd / baselineMedian) using
+ *   {@link Settings.goHardThreshold} and {@link Settings.moderateThreshold}.
+ *   Predictable and identical for every user.
+ * - `adaptive`: personal percentile cutoffs derived from the user's own
+ *   rolling rMSSD distribution (with a Bayesian nudge from perceived-
+ *   readiness labels when available). Falls back to fixed thresholds
+ *   during cold start (< 30 days of history).
+ */
+export type VerdictMode = 'fixed' | 'adaptive';
+
+const VERDICT_MODE_VALUES: ReadonlySet<string> = new Set<VerdictMode>(['fixed', 'adaptive']);
+
+/** Validates an unknown value as {@link VerdictMode}; defaults to 'fixed'. */
+export function parseVerdictMode(value: unknown): VerdictMode {
+  return typeof value === 'string' && VERDICT_MODE_VALUES.has(value)
+    ? (value as VerdictMode)
+    : 'fixed';
+}
+
+/**
  * User-configurable settings persisted in the `settings` table.
  * Missing values fall back to {@link DEFAULT_SETTINGS}.
  */
@@ -87,6 +134,8 @@ export interface Settings {
   pairedDeviceName: string | null;
   /** Whether to show the guided breathing exercise before each recording. */
   breathingExerciseEnabled: boolean;
+  /** Whether to use fixed ratio cutoffs or personal percentile cutoffs. */
+  verdictMode: VerdictMode;
 }
 
 /** Default settings used when no user overrides are stored. */
@@ -97,6 +146,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pairedDeviceId: null,
   pairedDeviceName: null,
   breathingExerciseEnabled: true,
+  verdictMode: 'fixed',
 };
 
 /**
@@ -110,4 +160,20 @@ export interface DailyReading {
   rmssd: number;
   /** Verdict from the first session of the day. */
   verdict: VerdictType | null;
+}
+
+/**
+ * Patch payload for {@link updateSessionLog}.
+ *
+ * Only the fields populated by the user-facing log form. All optional —
+ * undefined fields are treated as "no change" by the repository. Use
+ * `null` to explicitly clear a value.
+ */
+export interface SessionLogPatch {
+  perceivedReadiness?: number | null;
+  trainingType?: string | null;
+  notes?: string | null;
+  sleepHours?: number | null;
+  sleepQuality?: number | null;
+  stressLevel?: number | null;
 }

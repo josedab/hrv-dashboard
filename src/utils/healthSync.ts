@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { Session } from '../types';
-import { getDatabase } from '../database/database';
+import { getRawSetting, setRawSetting } from '../database/settingsRepository';
 
 /**
  * Health sync service for Apple HealthKit and Android Health Connect.
@@ -167,12 +167,8 @@ export async function syncSessionToHealth(session: Session): Promise<boolean> {
 export async function syncAllPendingSessions(sessions: Session[]): Promise<number> {
   if (!isHealthSyncAvailable()) return 0;
 
-  const db = await getDatabase();
-  const row = await db.getFirstAsync<{ value: string }>(
-    `SELECT value FROM settings WHERE key = 'health_synced_ids'`
-  );
-
-  const syncedIds = new Set<string>(row?.value ? JSON.parse(row.value) : []);
+  const stored = await getRawSetting('health_synced_ids');
+  const syncedIds = new Set<string>(stored ? JSON.parse(stored) : []);
   let newlySynced = 0;
 
   for (const session of sessions) {
@@ -186,16 +182,8 @@ export async function syncAllPendingSessions(sessions: Session[]): Promise<numbe
   }
 
   if (newlySynced > 0) {
-    await db.runAsync(
-      `INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`,
-      'health_synced_ids',
-      JSON.stringify([...syncedIds])
-    );
-    await db.runAsync(
-      `INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`,
-      'health_last_sync',
-      new Date().toISOString()
-    );
+    await setRawSetting('health_synced_ids', JSON.stringify([...syncedIds]));
+    await setRawSetting('health_last_sync', new Date().toISOString());
   }
 
   return newlySynced;
@@ -205,21 +193,17 @@ export async function syncAllPendingSessions(sessions: Session[]): Promise<numbe
  * Loads health sync settings from the database.
  */
 export async function loadHealthSyncSettings(): Promise<HealthSyncSettings> {
-  const db = await getDatabase();
-  const rows = await db.getAllAsync<{ key: string; value: string }>(
-    `SELECT key, value FROM settings WHERE key LIKE 'health_%'`
-  );
+  const [enabledRaw, lastSync, syncedIdsRaw] = await Promise.all([
+    getRawSetting('health_enabled'),
+    getRawSetting('health_last_sync'),
+    getRawSetting('health_synced_ids'),
+  ]);
 
-  const stored: Record<string, string> = {};
-  for (const row of rows) {
-    stored[row.key] = row.value;
-  }
-
-  const syncedIds: string[] = stored.health_synced_ids ? JSON.parse(stored.health_synced_ids) : [];
+  const syncedIds: string[] = syncedIdsRaw ? JSON.parse(syncedIdsRaw) : [];
 
   return {
-    enabled: stored.health_enabled === 'true',
-    lastSyncTimestamp: stored.health_last_sync ?? null,
+    enabled: enabledRaw === 'true',
+    lastSyncTimestamp: lastSync,
     syncedSessionCount: syncedIds.length,
   };
 }
@@ -228,10 +212,5 @@ export async function loadHealthSyncSettings(): Promise<HealthSyncSettings> {
  * Saves health sync enabled state.
  */
 export async function setHealthSyncEnabled(enabled: boolean): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync(
-    `INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`,
-    'health_enabled',
-    String(enabled)
-  );
+  await setRawSetting('health_enabled', String(enabled));
 }
