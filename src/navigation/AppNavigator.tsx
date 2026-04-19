@@ -17,6 +17,9 @@ import { SyncSettingsScreen } from '../screens/SyncSettingsScreen';
 import { ShareCoachScreen } from '../screens/ShareCoachScreen';
 import { PluginsScreen } from '../screens/PluginsScreen';
 import { CoherenceScreen } from '../screens/CoherenceScreen';
+import { ImportScreen } from '../screens/ImportScreen';
+import { ProfilesScreen } from '../screens/ProfilesScreen';
+import { MorningProtocolScreen } from '../screens/MorningProtocolScreen';
 import { COLORS } from '../constants/colors';
 import { STRINGS } from '../constants/strings';
 
@@ -32,6 +35,9 @@ export type RootStackParamList = {
   ShareCoach: undefined;
   Plugins: undefined;
   Coherence: undefined;
+  Import: undefined;
+  Profiles: undefined;
+  MorningProtocol: { quickMode?: boolean };
 };
 
 export type TabParamList = {
@@ -152,6 +158,17 @@ export function AppNavigator() {
           name="Coherence"
           component={CoherenceScreen}
           options={{ title: 'Coherence', presentation: 'modal' }}
+        />
+        <Stack.Screen name="Import" component={ImportScreen} options={{ title: 'Import Data' }} />
+        <Stack.Screen
+          name="Profiles"
+          component={ProfilesScreen}
+          options={{ title: 'Athlete Profiles' }}
+        />
+        <Stack.Screen
+          name="MorningProtocol"
+          component={MorningProtocolScreen}
+          options={{ title: 'Morning Protocol', presentation: 'modal' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
