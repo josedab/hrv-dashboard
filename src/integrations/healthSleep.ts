@@ -7,33 +7,11 @@
  * code remains experimental.
  */
 import { Platform } from 'react-native';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Health SDK types vary by platform
-let _healthModule: Record<string, any> | null = null;
-let _moduleChecked = false;
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getHealthModule(): Record<string, any> | null {
-  if (_moduleChecked) return _healthModule;
-  _moduleChecked = true;
-  try {
-    if (Platform.OS === 'ios') {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      _healthModule = require('react-native-health');
-    } else if (Platform.OS === 'android') {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      _healthModule = require('react-native-health-connect');
-    }
-  } catch {
-    _healthModule = null;
-  }
-  return _healthModule;
-}
+import { getHealthSdk, _resetHealthSdkCache } from './healthSdk';
 
 /** Test-only reset hook for the cached SDK lookup. */
 export function _resetHealthModuleCache(): void {
-  _healthModule = null;
-  _moduleChecked = false;
+  _resetHealthSdkCache();
 }
 
 /** Last-night sleep summary derived from raw stage samples. */
@@ -80,7 +58,7 @@ function mapStageValue(stage: string): string {
  * fall in the last-18h window. Never throws.
  */
 export async function readLastNightSleep(now: Date = new Date()): Promise<SleepSummary | null> {
-  const health = getHealthModule();
+  const health = getHealthSdk();
   if (!health) return null;
 
   const end = now;

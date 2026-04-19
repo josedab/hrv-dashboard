@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { Session } from '../types';
 import { getRawSetting, setRawSetting } from '../database/settingsRepository';
+import { getHealthSdk } from '../integrations/healthSdk';
 
 /**
  * Health sync service for Apple HealthKit and Android Health Connect.
@@ -22,40 +23,12 @@ export interface HealthSyncSettings {
   syncedSessionCount: number;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Health SDK types vary by platform and version
-let _healthModule: Record<string, any> | null = null;
-let _moduleChecked = false;
-
-/**
- * Attempts to load the platform-specific health module at runtime.
- * Returns the module if available, null if not installed.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Return type varies by platform SDK
-function getHealthModule(): Record<string, any> | null {
-  if (_moduleChecked) return _healthModule;
-  _moduleChecked = true;
-
-  try {
-    if (Platform.OS === 'ios') {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      _healthModule = require('react-native-health');
-    } else if (Platform.OS === 'android') {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      _healthModule = require('react-native-health-connect');
-    }
-  } catch {
-    _healthModule = null;
-  }
-
-  return _healthModule;
-}
-
 /**
  * Checks if the health SDK is installed and the platform supports it.
  */
 export function isHealthSyncAvailable(): boolean {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') return false;
-  return getHealthModule() !== null;
+  return getHealthSdk() !== null;
 }
 
 /**
@@ -63,7 +36,7 @@ export function isHealthSyncAvailable(): boolean {
  * Returns true if permissions were granted.
  */
 export async function requestHealthPermissions(): Promise<boolean> {
-  const health = getHealthModule();
+  const health = getHealthSdk();
   if (!health) return false;
 
   try {
@@ -102,7 +75,7 @@ export async function requestHealthPermissions(): Promise<boolean> {
  * Writes a single session's HRV data to the platform health store.
  */
 export async function syncSessionToHealth(session: Session): Promise<boolean> {
-  const health = getHealthModule();
+  const health = getHealthSdk();
   if (!health) return false;
 
   try {
