@@ -17,6 +17,14 @@ graph TB
         Detail[SessionDetailScreen]
         Onboarding[OnboardingScreen]
         Privacy[PrivacyPolicyScreen]
+        Trends[TrendsScreen]
+        Coherence[CoherenceScreen]
+        Import[ImportScreen]
+        Plugins_UI[PluginsScreen]
+        ProfilesUI[ProfilesScreen]
+        Protocol[MorningProtocolScreen]
+        SyncUI[SyncSettingsScreen]
+        ShareUI[ShareCoachScreen]
     end
 
     subgraph Components["UI Components"]
@@ -27,6 +35,9 @@ graph TB
         Timer[CountdownTimer]
         Slider[ReadinessSlider]
         ErrorBound[ErrorBoundary]
+        WorkoutCard[WorkoutCard]
+        ConnPill[ConnectionPill]
+        Toast[Toast]
     end
 
     subgraph Navigation["Navigation"]
@@ -43,6 +54,15 @@ graph TB
         Analytics[Analytics & Trends]
         Recovery[Recovery Score]
         Orthostatic[Orthostatic Test]
+        Spectral[Spectral Analysis]
+        Prediction[Trend Prediction]
+        Coach[Coach Narrative]
+        TSB[Training Stress Balance]
+        Norms[Population Norms]
+        ANS[ANS Balance]
+        Circadian[Circadian Analysis]
+        SleepArch[Sleep Architecture]
+        Adaptive[Adaptive Thresholds]
     end
 
     subgraph BLE["BLE Layer"]
@@ -51,6 +71,7 @@ graph TB
         Permissions[Permissions]
         Hook[useBleRecording]
         PPG[PPG Processor]
+        DevProfiles[Device Profiles]
     end
 
     subgraph Data["Data Layer"]
@@ -59,19 +80,41 @@ graph TB
         SettingsRepo[Settings Repository]
     end
 
+    subgraph Integrations["Integrations"]
+        HealthSync[Health Sync]
+        SleepPull[Sleep Auto-Pull]
+        TwoWay[Two-Way Health Sync]
+        SleepStrain[Sleep-Strain Fusion]
+        ImportWizard[CSV Import Wizard]
+    end
+
+    subgraph Plugins["Plugin System"]
+        PluginHost[Plugin Host]
+        Marketplace[Marketplace]
+        RefPlugins[Reference Plugins]
+    end
+
     subgraph Utils["Utilities"]
         Backup[Encrypted Backup]
-        HealthSync[Health Sync]
         Notifs[Notifications]
         Profiles[Profiles]
         Widget[Widget Data]
         CSV[CSV Export]
+        Reports[Report Generator]
+        ShareCard[Share Cards]
+    end
+
+    subgraph Hooks["Custom Hooks"]
+        MorningProtocol[Morning Protocol]
+        ReadingFlow[Reading Flow]
+        SessionPersist[Session Persistence]
     end
 
     subgraph External["External"]
         PolarH10[Polar H10 / HR Monitor]
         Camera[Device Camera]
         HealthKit[HealthKit / Health Connect]
+        Strava[Strava / TrainingPeaks]
     end
 
     Home --> Verdict & Sparkline & StatCard
@@ -81,6 +124,7 @@ graph TB
 
     Hook --> BleManager --> Parser
     BleManager --> PolarH10
+    BleManager --> DevProfiles
     Hook --> Permissions
     PPG --> Camera
 
@@ -94,15 +138,30 @@ graph TB
     SettingsRepo --> DB
 
     Home -->|Compute| Baseline --> VerdictLogic
+    Home -->|Adaptive| Adaptive --> VerdictLogic
     Home -->|Recovery| Recovery
+    Home -->|Coach brief| Coach
+    Home -->|Prediction| Prediction
     Reading -->|Compute| Metrics --> Artifacts
+    Reading -->|Spectral| Spectral
     Home -->|Trends| Analytics
+    Home -->|ANS| ANS --> Spectral
+    Home -->|TSB| TSB
+    Home -->|Norms| Norms
+    Home -->|Circadian| Circadian
 
     Settings -->|Backup| Backup --> DB
-    Settings -->|Health| HealthSync --> HealthKit
+    Settings -->|Health| TwoWay --> HealthKit
+    TwoWay --> SleepPull
+    SleepPull --> SleepStrain
+    Settings -->|Import| ImportWizard
     Settings -->|Reminders| Notifs
+    Settings -->|Plugins| PluginHost --> RefPlugins
+    PluginHost --> Marketplace
     Home -->|Widget| Widget --> DB
     Settings -->|Export| CSV
+    Settings -->|Reports| Reports
+    Home -->|Share| ShareCard
     Home -->|Profiles| Profiles
 ```
 
@@ -531,3 +590,70 @@ Optional integration with Apple HealthKit (iOS) and Android Health Connect:
 - Writes HRV (SDNN on iOS, rMSSD on Android) and heart rate samples to the platform health store
 - Tracks synced session IDs in the settings table to avoid duplicate writes
 - All sync is **write-only** — the app never reads health data from the platform
+
+## Advanced HRV Analysis Subsystems
+
+The HRV engine has been extended beyond basic time-domain metrics into several specialized analysis modules:
+
+### Frequency-Domain Analysis (`spectral.ts`)
+
+Uses the Goertzel algorithm (shared with the coherence biofeedback module) to compute VLF, LF, and HF band powers without an FFT dependency. The LF/HF ratio serves as a sympathovagal balance marker.
+
+### ANS Balance (`ansBalance.ts`)
+
+Interprets spectral LF/HF ratios into clinically meaningful zones: parasympathetic (< 0.5), balanced (0.5–2.0), sympathetic (2.0–4.0), and high sympathetic (> 4.0). Tracks zone distribution and trend direction (parasympathetic/sympathetic shift) over time.
+
+### Trend Prediction (`prediction.ts`)
+
+Predicts next-day rMSSD using linear regression on the 7-day rMSSD trend, adjusted by the current Training Stress Balance. Confidence is graded by history depth: low (< 14 days), medium (14–30), high (> 30).
+
+### Training Stress Balance (`trainingStress.ts`)
+
+Implements the Banister Fitness/Fatigue/Form model with exponentially weighted ATL (7-day) and CTL (42-day) averages. TSB = CTL − ATL classifies training status as fresh, optimal, fatigued, or overreaching.
+
+### Population Norms (`norms.ts`)
+
+Age- and sex-stratified HRV percentile tables from Nunan et al. (2010) and Shaffer & Ginsberg (2017). Enables "Your rMSSD is in the 72nd percentile for men aged 30–39" contextual benchmarking.
+
+### Circadian Analysis (`circadian.ts`)
+
+Analyzes recording-time consistency and correlates time-of-day with HRV readings. Recommends an optimal recording window and scores measurement consistency (0–100).
+
+### Sleep Architecture (`sleepArchitecture.ts`)
+
+Transforms raw HealthKit/Health Connect sleep stage samples into structured hypnogram data (awake/REM/light/deep segments). Correlates restorative sleep percentage with next-morning HRV.
+
+### Coach Narrative (`coachNarrative.ts`)
+
+Template-based 2–3 sentence daily brief generated from 6 clause generators (baseline comparison, trend, sleep, training pattern, recovery score, streak) plus a verdict-specific action clause.
+
+## Plugin System
+
+The plugin subsystem (`src/plugins/`) enables user-supplied custom HRV metrics via sandboxed JavaScript execution:
+
+```mermaid
+graph LR
+    Source[JS Source String] --> Host[Plugin Host]
+    Host -->|compile| Sandbox[Function Constructor Sandbox]
+    Sandbox -->|frozen session| Compute[compute&#40;session&#41;]
+    Compute --> Result[Plugin Metrics]
+    Catalog[Static JSON Catalog] --> Marketplace
+    Marketplace -->|install| SQLiteStorage[SQLite Persistence]
+    SQLiteStorage -->|load| Host
+```
+
+- **Sandbox boundaries**: No `globalThis`, `process`, `require`, `import`, `eval`
+- **CPU budget**: Wall-clock timeout + `ctx.tick()` deadline enforcement
+- **Permissions**: `read:session`, `read:baseline`
+- **5 reference plugins**: Poincaré SD1/SD2, FFT LF/HF, DFA-α1, Recovery Velocity, Weekly Z-Score
+
+## Integrations Layer
+
+The `src/integrations/` directory manages health platform data exchange:
+
+- **healthSleep.ts**: Reads last-night sleep stages from HealthKit/Health Connect
+- **healthAutoPull.ts**: Auto-fills sleep data on the Log screen with provenance tracking
+- **healthTwoWay.ts**: Composed controller for bidirectional health store sync
+- **sleepStrain.ts**: Fuses sleep quality + training strain into an enhanced recovery score
+- **import/vendors.ts**: CSV/JSON parsers for Whoop, Oura, Garmin, Elite HRV, HRV4Training
+- **import/wizard.ts**: 3-step pipeline (parse → detect collisions → commit) for idempotent data import

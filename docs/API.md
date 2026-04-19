@@ -38,6 +38,24 @@ Complete reference for all public exports in the HRV Morning Readiness Dashboard
 - [Athlete Profiles](#athlete-profiles)
 - [Widget Data](#widget-data)
 - [Centralized Strings](#centralized-strings)
+- [Frequency-Domain Spectral Analysis](#frequency-domain-spectral-analysis)
+- [AI Coach Narrative](#ai-coach-narrative)
+- [Training Stress Balance](#training-stress-balance)
+- [Population Norms & Benchmarking](#population-norms--benchmarking)
+- [ANS Balance Dashboard](#ans-balance-dashboard)
+- [Trend Prediction](#trend-prediction)
+- [Sleep Architecture](#sleep-architecture)
+- [Baseline Accelerator](#baseline-accelerator)
+- [Circadian Rhythm Analysis](#circadian-rhythm-analysis)
+- [Adaptive Thresholds](#adaptive-thresholds)
+- [Device Profiles](#device-profiles)
+- [Health Integrations](#health-integrations)
+- [CSV Import](#csv-import)
+- [Plugin System](#plugin-system)
+- [Custom Hooks](#custom-hooks)
+- [Report Generator](#report-generator)
+- [Share Cards](#share-cards)
+- [Workout Export](#workout-export)
 
 ---
 
@@ -1382,3 +1400,403 @@ async function refreshWidget(): Promise<void>
 **Module:** `src/constants/strings.ts`
 
 All user-facing UI text is centralized in the `STRINGS` constant for i18n readiness. String values include static strings and template functions (e.g., `dayStreak: (n) => \`🔥 ${n} day streak\``). Covers all screens: Home, Reading, Breathing, History, Trends, Log, Settings, Backup, Onboarding, Orthostatic, Camera, and error states.
+
+---
+
+## Frequency-Domain Spectral Analysis
+
+**Module:** `src/hrv/spectral.ts`
+
+Computes power in the standard ESC/NASPE frequency bands using the Goertzel algorithm (no FFT dependency):
+
+- **VLF** (0.003–0.04 Hz): Thermoregulation, very slow oscillations
+- **LF** (0.04–0.15 Hz): Mixed sympathetic + parasympathetic
+- **HF** (0.15–0.40 Hz): Parasympathetic / vagal tone
+
+### `computeSpectralMetrics(rrIntervals: number[]): SpectralResult`
+
+Returns band powers (absolute + percentage), LF/HF ratio, total power, and VLF reliability flag. Requires ≥ 60 RR intervals. VLF is marked unreliable for recordings < 2 minutes.
+
+```ts
+interface SpectralResult {
+  vlf: BandPower;        // { absolute, percent, peakHz }
+  lf: BandPower;
+  hf: BandPower;
+  lfHfRatio: number;     // Sympathovagal balance marker
+  totalPower: number;
+  vlfReliable: boolean;  // True when recording ≥ 2 min
+  sampleCount: number;
+}
+```
+
+---
+
+## AI Coach Narrative
+
+**Module:** `src/hrv/coachNarrative.ts`
+
+Template-based daily brief generator. Assembles 2–3 sentences from 6 clause generators (baseline, trend, sleep, training, recovery, streak) plus an action clause.
+
+### `generateNarrative(ctx: NarrativeContext): NarrativeBrief`
+
+```ts
+interface NarrativeContext {
+  currentRmssd: number;
+  baseline: BaselineResult;
+  verdict: VerdictType | null;
+  recovery: RecoveryScore | null;
+  trendDirection: 'improving' | 'stable' | 'declining';
+  trendPercent: number;
+  streak: number;
+  recentSessions: Session[];
+}
+
+interface NarrativeBrief {
+  text: string;      // "Your HRV is 12% above baseline... Push hard today."
+  clauses: string[]; // Individual clause strings
+  emoji: string;     // 🟢 / 🟡 / 🔴 / 📊
+}
+```
+
+---
+
+## Training Stress Balance
+
+**Module:** `src/hrv/trainingStress.ts`
+
+Implements the Banister Fitness/Fatigue/Form model:
+
+- **ATL** (Acute Training Load): 7-day exponentially weighted average
+- **CTL** (Chronic Training Load): 42-day exponentially weighted average
+- **TSB** (Training Stress Balance): CTL − ATL
+
+### Key Functions
+
+```ts
+function aggregateDailyLoads(sessions: Session[]): DailyLoad[]
+function computeTsbSeries(dailyLoads: DailyLoad[]): TsbPoint[]
+function computeTsbFromSessions(sessions: Session[]): TsbPoint[]
+function getLatestTsb(sessions: Session[]): TsbPoint | null
+function classifyTsb(tsb: number): TsbZone  // 'fresh' | 'optimal' | 'fatigued' | 'overreaching'
+```
+
+TSB zone classification: `> 15` = fresh, `-10` to `15` = optimal, `-30` to `-10` = fatigued, `< -30` = overreaching.
+
+---
+
+## Population Norms & Benchmarking
+
+**Module:** `src/hrv/norms.ts`
+
+Age- and sex-stratified HRV percentile tables from published meta-analyses (Nunan et al. 2010, Shaffer & Ginsberg 2017). Provides population percentile ranks for rMSSD and SDNN.
+
+### `computeRmssdPercentile(rmssd, age, sex): PercentileResult | null`
+
+```ts
+interface PercentileResult {
+  percentile: number;   // 0–100
+  label: string;        // 'Excellent' | 'Above Average' | 'Average' | 'Below Average' | 'Low'
+  ageGroup: string;     // '30–39'
+  sex: BiologicalSex;
+  source: string;       // Citation
+}
+```
+
+Also: `computeSdnnPercentile()`, `findNormEntry()`. Returns `null` for age < 18 or missing demographics.
+
+---
+
+## ANS Balance Dashboard
+
+**Module:** `src/hrv/ansBalance.ts`
+
+Interprets the LF/HF ratio from spectral analysis into clinically meaningful autonomic nervous system zones.
+
+### Key Functions
+
+```ts
+function classifyAnsZone(lfHfRatio: number): AnsZone
+// 'parasympathetic' (< 0.5) | 'balanced' (0.5–2.0) | 'sympathetic' (2.0–4.0) | 'high_sympathetic' (> 4.0)
+
+function sessionToAnsReading(session: Session): AnsReading | null
+function computeAnsSummary(sessions: Session[]): AnsSummary
+```
+
+`AnsSummary` includes: readings array, average LF/HF ratio, dominant zone, trend direction (parasympathetic/sympathetic shift), and zone distribution percentages.
+
+---
+
+## Trend Prediction
+
+**Module:** `src/hrv/prediction.ts`
+
+On-device next-day HRV prediction using linear regression + TSB trajectory adjustment. No cloud or ML model required.
+
+### `predictNextDay(sessions, baseline, goHard?, moderate?): PredictionResult | null`
+
+Requires ≥ 7 days of history. Returns:
+
+```ts
+interface PredictionResult {
+  predictedRmssd: number;
+  likelyVerdict: VerdictType;
+  confidence: 'low' | 'medium' | 'high';  // <14d / 14–30d / >30d
+  rationale: string;     // "Your HRV is trending upward and your training balance shows good recovery — forecasting Go Hard (108% of baseline)."
+  historyDays: number;
+}
+```
+
+---
+
+## Sleep Architecture
+
+**Module:** `src/hrv/sleepArchitecture.ts`
+
+Transforms raw HealthKit/Health Connect sleep stage samples into structured hypnogram data.
+
+### Key Functions
+
+```ts
+function buildHypnogram(samples: RawSleepSample[]): SleepArchitecture | null
+function correlateSleepHrv(architecture, nextMorningRmssd, avgRmssd): SleepHrvCorrelation
+function normalizeStage(raw: string): SleepStage  // 'awake' | 'rem' | 'light' | 'deep'
+```
+
+`SleepArchitecture` includes: segments (hypnogram bars), stage minutes/percent, restorative percent (deep + REM), sleep efficiency, wake episode count.
+
+---
+
+## Baseline Accelerator
+
+**Module:** `src/hrv/baselineAccelerator.ts`
+
+Pre-computes a baseline from imported sessions so new users see their first verdict immediately after data import (< 5 minutes vs. 5 days).
+
+### `accelerateBaseline(importedSessions, windowDays?): AcceleratorResult`
+
+Filters to chest-strap sessions, deduplicates by day, computes baseline. Returns readiness status and user-facing message.
+
+---
+
+## Circadian Rhythm Analysis
+
+**Module:** `src/hrv/circadian.ts`
+
+Analyzes recording-time patterns to assess measurement consistency and recommend an optimal recording window.
+
+### Key Functions
+
+```ts
+function analyzeCircadian(sessions: Session[]): CircadianAnalysis | null
+function correlateTimeWithHrv(sessions: Session[]): { correlation: number; insight: string } | null
+```
+
+`CircadianAnalysis` includes: average time, standard deviation, consistency score (0–100), optimal window (HH:MM range), hour distribution, and advice text.
+
+---
+
+## Adaptive Thresholds
+
+**Module:** `src/hrv/adaptiveThresholds.ts`
+
+Replaces fixed 95%/80% verdict cutoffs with personal percentile cutoffs derived from the user's own rolling rMSSD distribution. Includes Bayesian nudge from perceived-readiness labels.
+
+### `computeAdaptiveVerdict(currentRmssd, history, baseline, settings, thresholds?): AdaptiveResult`
+
+Cold-start fallback (< 30 days) uses fixed thresholds. Result includes resolved cutoffs in absolute rMSSD and history count.
+
+### `computeVerdictWithMode(currentRmssd, baseline, settings, history?): VerdictResult`
+
+Unified function in `src/hrv/verdict.ts` that routes to fixed or adaptive path based on `settings.verdictMode`.
+
+---
+
+## Device Profiles
+
+**Module:** `src/ble/deviceProfiles.ts`
+
+Per-device HRM classification with vendor-specific tuning for artifact detection.
+
+### Key Functions
+
+```ts
+function resolveProfile(advertisedName: string | null): DeviceProfile
+function getProfileById(id: string): DeviceProfile | null
+function isBaselineEligible(profile: DeviceProfile): boolean
+function listVerifiedDevices(): DeviceProfile[]
+```
+
+Built-in profiles: Polar H10, Polar H9, Polar Verity Sense, Wahoo TICKR, Garmin HRM-Pro, Garmin HRM-Dual, Coros, COOSPO, Apple Watch, plus generic fallback. Each profile defines `artifactToleranceFactor` (multiplier on the deviation threshold).
+
+---
+
+## Health Integrations
+
+**Module:** `src/integrations/`
+
+### Sleep Auto-Pull (`healthAutoPull.ts`)
+
+```ts
+function autoPullSleep(now?: Date): Promise<AutoPullResult>
+function mergeAutoPull(session: Session, pull: AutoPullResult): ProvenancedSession
+```
+
+### Sleep Reader (`healthSleep.ts`)
+
+```ts
+function readLastNightSleep(now?: Date): Promise<SleepSummary | null>
+function summarizeSleep(samples: SleepRecord[]): SleepSummary | null
+```
+
+### Two-Way Sync (`healthTwoWay.ts`)
+
+```ts
+function requestHealthAccess(): Promise<boolean>
+function pullForReading(now?: Date): Promise<TwoWayPull>
+function syncBoth(session, pulled): Promise<{ merged: ProvenancedSession; pushed: boolean }>
+```
+
+### Sleep-Strain Fusion (`sleepStrain.ts`)
+
+```ts
+function readRecentStrain(now?: Date): Promise<StrainSummary | null>
+function applyHealthInputs(session, sleep, strain): Session
+function computeIntegratedRecovery(session, baseline, strain): RecoveryScore | null
+```
+
+---
+
+## CSV Import
+
+**Module:** `src/integrations/import/`
+
+### Vendor Parsers (`vendors.ts`)
+
+```ts
+function parseWhoopCsv(csv: string): ImportResult
+function parseOuraJson(text: string): ImportResult
+function parseGarminCsv(csv: string): ImportResult
+function parseImport(source: ImportSource, content: string): ImportResult
+```
+
+Supported sources: `'whoop' | 'oura' | 'garmin' | 'elite_hrv' | 'hrv4training'`. Session IDs are deterministically derived from source + external ID for idempotent re-import.
+
+### Import Wizard (`wizard.ts`)
+
+```ts
+function planImport(source, content, getExistingIds): Promise<ImportPreview>
+function commitImport(preview, saveSession): Promise<ImportCommitResult>
+```
+
+Three-step flow: parse → diff (detect collisions) → commit (insert non-colliding sessions).
+
+---
+
+## Plugin System
+
+**Module:** `src/plugins/`
+
+### Plugin Host (`host.ts`)
+
+Sandboxed execution engine using the JS Function constructor. Plugins are plain JS source strings exporting a `compute(session)` function.
+
+- No access to `globalThis`, `process`, `require`, `import`, `eval`
+- CPU budget via `ctx.tick()` deadline
+- Read-only frozen session view
+
+```ts
+function compilePlugin(manifest: PluginManifest, source: string): CompiledPlugin
+```
+
+### Marketplace (`marketplace.ts`)
+
+```ts
+function installPluginFromJson(json: string, storage: PluginStorage): Promise<InstalledPlugin>
+function uninstallPlugin(id: string, storage: PluginStorage): Promise<void>
+function loadInstalledPlugins(storage: PluginStorage): Promise<InstalledPlugin[]>
+```
+
+### Reference Plugins (`reference/index.ts`)
+
+5 built-in plugins:
+
+| Plugin | ID | Metrics |
+|--------|----|---------|
+| Poincaré SD1/SD2 | `org.hrv.poincare` | sd1, sd2, sd1Sd2Ratio |
+| FFT LF/HF Power | `org.hrv.fft_lf_hf` | lfPower, hfPower, lfHfRatio |
+| DFA-α1 | `org.hrv.dfa_alpha1` | dfaAlpha1 |
+| Recovery Velocity | `org.hrv.recovery_velocity` | recoveryVelocity |
+| Weekly Z-Score | `org.hrv.weekly_zscore` | zScore, interpretation |
+
+### Open HRV Protocol (`protocol.ts`)
+
+Versioned JSON interchange format (`OhpSession`, `OhpBundle`) for third-party tool compatibility.
+
+---
+
+## Custom Hooks
+
+**Module:** `src/hooks/`
+
+### `useMorningProtocol`
+
+Orchestrates the guided morning flow (breathing → recording → log → complete). Exports pure functions for phase sequencing, auto-advance logic, and state computation.
+
+```ts
+function getPhaseSequence(config: ProtocolConfig): ProtocolPhase[]
+function shouldAutoAdvance(phase, elapsed, config): boolean
+function computeProtocolState(phases, index, elapsed, config): ProtocolState
+```
+
+### `useReadingFlow`
+
+State machine for the BLE recording flow (scanning → connecting → recording → processing → complete).
+
+### `useSessionPersistence`
+
+Manages session save/load lifecycle with SQLite persistence.
+
+---
+
+## Report Generator
+
+**Module:** `src/utils/reportGenerator.ts`
+
+Produces self-contained HTML reports with inline CSS, suitable for rendering to PDF via `expo-print` or sharing as HTML files.
+
+```ts
+function buildReportData(sessions, baseline, period, streak): ReportData
+function renderReportHtml(data: ReportData): string
+```
+
+Reports include: KPI cards (avg rMSSD, median rMSSD, avg HR, session count, baseline, streak), verdict distribution bar chart, and daily values table.
+
+---
+
+## Share Cards
+
+**Module:** `src/utils/shareCard.ts`
+
+Generates branded shareable cards for social media. Privacy-safe: shows verdict, trend, and streak only — no raw rMSSD or RR data.
+
+```ts
+function renderShareCardHtml(data: ShareCardData): string   // 600×340px HTML card
+function renderShareText(data: ShareCardData): string        // Plain-text fallback
+```
+
+---
+
+## Workout Export
+
+**Module:** `src/workout/exporters.ts`
+
+Push structured workout prescriptions to third-party platforms:
+
+```ts
+function pushToStrava(workout, date, config): Promise<ExportResult>
+function pushToTrainingPeaks(workout, date, config): Promise<ExportResult>
+function pushToIntervalsIcu(workout, date, config): Promise<ExportResult>
+function renderPlainText(workout: WorkoutPrescription): string
+```
+
+Network is injected via `fetchImpl` for testing. Strava uses activity description (no structured workout API). TrainingPeaks uses XML upload. Intervals.icu uses workout_doc POST.
