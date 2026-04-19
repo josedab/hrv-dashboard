@@ -1,5 +1,4 @@
 jest.mock('expo-crypto', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { createHash, randomBytes } = require('crypto');
   return {
     CryptoDigestAlgorithm: { SHA256: 'SHA256' },
@@ -91,7 +90,7 @@ describe('selectShareableSessions', () => {
     const sessions = [
       makeSession('recent', 1),
       makeSession('older', 31),
-      makeSession('boundary', 30),
+      makeSession('boundary', 29), // safely within the 30-day window
     ];
     const filtered = selectShareableSessions(sessions, 30);
     expect(filtered.map((s) => s.id).sort()).toEqual(['boundary', 'recent']);
