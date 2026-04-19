@@ -181,3 +181,72 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
     await Notifications.cancelScheduledNotificationAsync(MORNING_REMINDER_ID).catch(() => {});
   }
 }
+
+const WEEKLY_DIGEST_ID = 'weekly-digest';
+
+/**
+ * Infers the user's typical recording time from recent session timestamps.
+ * Returns { hour, minute } from the median of session local times,
+ * or the default if fewer than 3 sessions.
+ */
+export function inferRecordingTime(
+  sessionTimestamps: string[],
+  fallback: { hour: number; minute: number } = {
+    hour: DEFAULT_NOTIFICATION_SETTINGS.morningReminderHour,
+    minute: DEFAULT_NOTIFICATION_SETTINGS.morningReminderMinute,
+  }
+): { hour: number; minute: number } {
+  if (sessionTimestamps.length < 3) return fallback;
+
+  const minutesOfDay = sessionTimestamps.map((ts) => {
+    const d = new Date(ts);
+    return d.getHours() * 60 + d.getMinutes();
+  });
+
+  minutesOfDay.sort((a, b) => a - b);
+  const medianMinutes = minutesOfDay[Math.floor(minutesOfDay.length / 2)];
+
+  // Schedule 5 minutes before typical time
+  const adjusted = Math.max(0, medianMinutes - 5);
+  return {
+    hour: Math.floor(adjusted / 60),
+    minute: adjusted % 60,
+  };
+}
+
+/**
+ * Schedules a weekly digest notification (Sunday 7 PM).
+ * Shows trend direction and streak count.
+ */
+export async function scheduleWeeklyDigest(
+  trendDirection: 'improving' | 'stable' | 'declining',
+  streak: number
+): Promise<void> {
+  await Notifications.cancelScheduledNotificationAsync(WEEKLY_DIGEST_ID).catch(() => {});
+
+  const trendEmoji =
+    trendDirection === 'improving' ? '📈' : trendDirection === 'declining' ? '📉' : '➡️';
+  const trendText =
+    trendDirection === 'improving'
+      ? 'Your HRV is trending up this week!'
+      : trendDirection === 'declining'
+        ? 'Your HRV dipped this week — prioritize recovery.'
+        : 'Your HRV is steady this week.';
+
+  const streakText = streak >= 3 ? ` 🔥 ${streak}-day streak!` : '';
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: WEEKLY_DIGEST_ID,
+    content: {
+      title: `${trendEmoji} Weekly HRV Summary`,
+      body: `${trendText}${streakText}`,
+      sound: false,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+      weekday: 1, // Sunday
+      hour: 19,
+      minute: 0,
+    },
+  });
+}

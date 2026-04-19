@@ -23,6 +23,7 @@ import {
   loadNotificationSettings,
   saveNotificationSettings,
   requestNotificationPermissions,
+  inferRecordingTime,
 } from '../../src/utils/notifications';
 import { getDatabase } from '../../src/database/database';
 
@@ -495,5 +496,63 @@ describe('requestNotificationPermissions', () => {
     const result = await requestNotificationPermissions();
 
     expect(result).toBe(false);
+  });
+});
+
+describe('inferRecordingTime', () => {
+  it('returns fallback for fewer than 3 sessions', () => {
+    const result = inferRecordingTime(['2026-04-15T06:30:00Z', '2026-04-16T07:00:00Z']);
+    expect(result.hour).toBe(DEFAULT_NOTIFICATION_SETTINGS.morningReminderHour);
+  });
+
+  it('infers median recording time from timestamps', () => {
+    // Create timestamps at known local hours to avoid timezone issues
+    const makeLocalTs = (h: number, m: number, dayOffset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() - dayOffset);
+      d.setHours(h, m, 0, 0);
+      return d.toISOString();
+    };
+    const timestamps = [makeLocalTs(6, 30, 3), makeLocalTs(6, 50, 2), makeLocalTs(7, 10, 1)];
+    const result = inferRecordingTime(timestamps);
+    // Median of 6:30, 6:50, 7:10 = 6:50. Minus 5 = 6:45.
+    expect(result.hour).toBe(6);
+    expect(result.minute).toBe(45);
+  });
+
+  it('handles odd number of timestamps (5)', () => {
+    const makeLocalTs = (h: number, m: number, dayOffset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() - dayOffset);
+      d.setHours(h, m, 0, 0);
+      return d.toISOString();
+    };
+    const timestamps = [
+      makeLocalTs(5, 0, 5),
+      makeLocalTs(6, 0, 4),
+      makeLocalTs(6, 30, 3), // median
+      makeLocalTs(7, 0, 2),
+      makeLocalTs(8, 0, 1),
+    ];
+    const result = inferRecordingTime(timestamps);
+    // Median = 6:30, minus 5 = 6:25
+    expect(result.hour).toBe(6);
+    expect(result.minute).toBe(25);
+  });
+
+  it('never goes below 0:00', () => {
+    const timestamps = ['2026-04-10T00:02:00Z', '2026-04-11T00:03:00Z', '2026-04-12T00:04:00Z'];
+    const result = inferRecordingTime(timestamps);
+    // Exact values depend on local timezone, but should never be negative
+    expect(result.hour).toBeGreaterThanOrEqual(0);
+    expect(result.hour).toBeLessThanOrEqual(23);
+    expect(result.minute).toBeGreaterThanOrEqual(0);
+    expect(result.minute).toBeLessThanOrEqual(59);
+  });
+
+  it('uses custom fallback when provided', () => {
+    const result = inferRecordingTime([], { hour: 8, minute: 0 });
+    expect(result.hour).toBe(8);
+    expect(result.minute).toBe(0);
   });
 });
