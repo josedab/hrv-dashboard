@@ -1,12 +1,10 @@
 /**
  * Coherence biofeedback screen.
  *
- * Displays a breathing-pacer ring (no animation library — pure layout)
- * and continuously computes a coherence score from accumulated RR
- * intervals. In this build the RR intervals come from a simulated source
- * if no chest strap is paired; once integrated with the real BLE
- * pipeline, swap `useSimulatedRr` with the live RR stream from
- * {@link ../ble/bleManager}.
+ * Displays a breathing-pacer ring and continuously computes a coherence
+ * score from accumulated RR intervals. Accepts an optional `liveRrIntervals`
+ * prop for real BLE data; falls back to a simulated ~6 brpm signal when
+ * no live data is provided.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
@@ -46,10 +44,23 @@ function useSimulatedRr(intervalMs: number = 1000): number[] {
   return rr;
 }
 
-export function CoherenceScreen({ pacer = RESONANCE_PACER }: { pacer?: PacerConfig }) {
+interface CoherenceScreenProps {
+  pacer?: PacerConfig;
+  /** Live RR intervals from an active BLE recording. When provided, the
+   *  simulated signal is bypassed and the demo badge is hidden. */
+  liveRrIntervals?: number[];
+}
+
+export function CoherenceScreen({
+  pacer = RESONANCE_PACER,
+  liveRrIntervals,
+}: CoherenceScreenProps) {
   const [tick, setTick] = useState(0);
   const startRef = useRef(Date.now());
-  const rr = useSimulatedRr();
+  const simulatedRr = useSimulatedRr();
+
+  const isLive = liveRrIntervals !== undefined && liveRrIntervals.length > 0;
+  const rr = isLive ? liveRrIntervals : simulatedRr;
   const result = computeCoherence(rr);
 
   useEffect(() => {
@@ -68,13 +79,21 @@ export function CoherenceScreen({ pacer = RESONANCE_PACER }: { pacer?: PacerConf
         Breathe with the ring. Inhale {pacer.inhaleSeconds}s · Exhale {pacer.exhaleSeconds}s
       </Text>
 
-      <View style={styles.demoBadge} accessibilityLabel="Demo mode notice">
-        <Text style={styles.demoBadgeText}>DEMO · simulated RR signal</Text>
-      </View>
-      <Text style={styles.demoNote}>
-        The coherence score below is computed from a synthetic ~6 brpm RR signal, not your live
-        chest-strap data. A future build will tap into the BLE recording stream.
-      </Text>
+      {isLive ? (
+        <View style={styles.liveBadge} accessibilityLabel="Live mode notice">
+          <Text style={styles.liveBadgeText}>LIVE · chest strap connected</Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.demoBadge} accessibilityLabel="Demo mode notice">
+            <Text style={styles.demoBadgeText}>DEMO · simulated RR signal</Text>
+          </View>
+          <Text style={styles.demoNote}>
+            The coherence score below is computed from a synthetic ~6 brpm RR signal, not your live
+            chest-strap data. Connect a heart rate monitor to use live data.
+          </Text>
+        </>
+      )}
 
       <View style={styles.ringWrap}>
         <View
@@ -124,6 +143,14 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginTop: 12 },
   subtitle: { fontSize: 13, color: COLORS.textMuted, marginTop: 4, marginBottom: 16 },
+  liveBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: COLORS.success ?? '#22C55E',
+    marginBottom: 24,
+  },
+  liveBadgeText: { color: '#0F172A', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
   demoBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
