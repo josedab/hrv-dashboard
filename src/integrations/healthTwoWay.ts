@@ -1,6 +1,4 @@
 /**
- * @experimental NOT YET SHIPPED — no production importer as of this writing.
- * See CLAUDE.md → "Experimental modules" before relying on this in app code.
  * Two-way HealthKit / Health Connect controller.
  *
  * Composes the existing one-way write pipeline (`utils/healthSync.ts`)
@@ -16,18 +14,13 @@
  * via `mergeAutoPull`.
  */
 import { Platform } from 'react-native';
-import { Session } from '../../types';
+import { Session } from '../types';
 import {
   isHealthSyncAvailable,
   requestHealthPermissions,
   syncSessionToHealth,
-} from '../../utils/healthSync';
-import {
-  autoPullSleep,
-  AutoPullResult,
-  mergeAutoPull,
-  ProvenancedSession,
-} from '../../integrations/healthAutoPull';
+} from '../utils/healthSync';
+import { autoPullSleep, AutoPullResult, mergeAutoPull, ProvenancedSession } from './healthAutoPull';
 
 export interface TwoWayPull extends AutoPullResult {
   restingHr: number | null;
@@ -41,10 +34,8 @@ async function readRestingHr(now: Date): Promise<number | null> {
     let mod: { default?: unknown } | null = null;
     try {
       if (Platform.OS === 'ios') {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         mod = require('react-native-health');
       } else if (Platform.OS === 'android') {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         mod = require('react-native-health-connect');
       }
     } catch {

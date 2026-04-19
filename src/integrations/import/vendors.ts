@@ -1,6 +1,4 @@
 /**
- * @experimental NOT YET SHIPPED — no production importer as of this writing.
- * See CLAUDE.md → "Experimental modules" before relying on this in app code.
  * Vendor importers: convert third-party HRV exports into our Session
  * model so users can preserve historical baselines when switching from
  * Whoop / Oura / Garmin Connect / Elite HRV / HRV4Training.
@@ -8,7 +6,7 @@
  * Every parser is a PURE function (string in → Session[] out) so it can
  * be tested with golden fixtures and run without touching SQLite.
  */
-import { Session } from '../../../types';
+import { Session } from '../../types';
 
 export type ImportSource = 'whoop' | 'oura' | 'garmin' | 'elite_hrv' | 'hrv4training';
 
@@ -188,20 +186,37 @@ function splitCsvRow(row: string): string[] {
   return out;
 }
 
+type ImportParser = (content: string) => ImportResult;
+
+/**
+ * Extensible parser registry. Add new vendors by calling registerParser()
+ * instead of modifying the switch statement (OCP compliance).
+ */
+const PARSER_REGISTRY = new Map<ImportSource, ImportParser>([
+  ['whoop', parseWhoopCsv],
+  ['oura', parseOuraJson],
+  ['garmin', parseGarminCsv],
+]);
+
+/**
+ * Registers a parser for a vendor source. Enables extension without
+ * modifying existing code.
+ */
+export function registerParser(source: ImportSource, parser: ImportParser): void {
+  PARSER_REGISTRY.set(source, parser);
+}
+
+/**
+ * Parses import content using the registered parser for the given source.
+ * @returns ImportResult with parsed sessions and any errors.
+ */
 export function parseImport(source: ImportSource, content: string): ImportResult {
-  switch (source) {
-    case 'whoop':
-      return parseWhoopCsv(content);
-    case 'oura':
-      return parseOuraJson(content);
-    case 'garmin':
-      return parseGarminCsv(content);
-    case 'elite_hrv':
-    case 'hrv4training':
-      return {
-        source,
-        sessions: [],
-        errors: [{ line: 0, reason: `${source} importer not yet implemented` }],
-      };
-  }
+  const parser = PARSER_REGISTRY.get(source);
+  if (parser) return parser(content);
+
+  return {
+    source,
+    sessions: [],
+    errors: [{ line: 0, reason: `${source} importer not yet implemented` }],
+  };
 }

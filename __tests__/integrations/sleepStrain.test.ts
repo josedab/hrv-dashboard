@@ -6,7 +6,7 @@ import {
   _resetHealthModuleCache,
   SleepSummary,
   StrainSummary,
-} from '../../src/experimental/integrations/sleepStrain';
+} from '../../src/integrations/sleepStrain';
 import { Session, BaselineResult } from '../../src/types';
 
 beforeEach(() => {

@@ -4,7 +4,7 @@ import {
   parseGarminCsv,
   parseImport,
   importHash,
-} from '../../src/experimental/integrations/import/vendors';
+} from '../../src/integrations/import/vendors';
 
 describe('parseWhoopCsv', () => {
   const csv = `Cycle start time,Cycle end time,Recovery score %,Resting heart rate (bpm),Heart rate variability (ms)

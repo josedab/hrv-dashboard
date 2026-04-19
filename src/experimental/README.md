@@ -26,15 +26,16 @@ prior art for the eventual feature implementation.
 
 | Path | Status |
 |------|--------|
-| `ble/deviceProfiles.ts` | Per-device HRM tuning; not used by `bleManager` yet. |
 | `web/dashboard.ts` | Pure data shaper for a future browser viewer. |
-| `integrations/healthTwoWay.ts` | Two-way sync prototype. |
-| `integrations/sleepStrain.ts` | Strain fusion + integrated recovery (sleep-only reading was graduated to `src/integrations/healthSleep.ts`). |
-| `integrations/import/{vendors,wizard}.ts` | CSV importers for Whoop/Oura/etc. |
 | `team/aggregation.ts` | Coach roll-up of multi-athlete sessions. |
 | `watch/{index,goldenVectors}.ts` | Watch-side recording pipeline + parity vectors. |
-| `workout/{exporters,pushService}.ts` | .zwo / .fit export + Garmin/Strava push. |
+| `workout/pushService.ts` | Garmin/Strava OAuth push service. |
 
-`src/workout/generator.ts` is **not** experimental — it's used by `WorkoutCard`
-and ships today. Same for `src/integrations/healthSleep.ts` and
-`src/integrations/healthAutoPull.ts`, which power the LogScreen sleep auto-prefill.
+### Graduated to production
+
+The following modules have been moved to their sibling production directories:
+- `ble/deviceProfiles.ts` → `src/ble/deviceProfiles.ts`
+- `integrations/healthTwoWay.ts` → `src/integrations/healthTwoWay.ts`
+- `integrations/sleepStrain.ts` → `src/integrations/sleepStrain.ts`
+- `integrations/import/{vendors,wizard}.ts` → `src/integrations/import/`
+- `workout/exporters.ts` → `src/workout/exporters.ts`

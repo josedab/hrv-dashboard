@@ -1,54 +1,28 @@
 /**
- * @experimental NOT YET SHIPPED — strain fusion is not wired into any UI.
- * See `src/experimental/README.md` before relying on this in app code.
- *
- * Strain fusion + integrated recovery on top of the existing sleep
- * helpers.
+ * Strain fusion + integrated recovery on top of the existing sleep helpers.
  *
  * Note: sleep-only reading (`readLastNightSleep`, `SleepSummary`) was
  * graduated to `src/integrations/healthSleep.ts` once the Log screen
  * began auto-prefilling sleep duration; this module re-exports those
  * symbols for back-compat with existing tests/consumers and continues
- * to own the unwired strain helpers.
+ * to own the strain helpers.
  */
 import { Platform } from 'react-native';
-import { Session, BaselineResult } from '../../types';
-import { computeRecoveryScore, RecoveryScore } from '../../hrv/recovery';
+import { Session, BaselineResult } from '../types';
+import { computeRecoveryScore, RecoveryScore } from '../hrv/recovery';
 import {
   readLastNightSleep,
   summarizeSleep,
   _resetHealthModuleCache as _resetSleepCache,
   SleepSummary,
-} from '../../integrations/healthSleep';
+} from './healthSleep';
+import { getHealthSdk, _resetHealthSdkCache } from './healthSdk';
 
 export { readLastNightSleep, summarizeSleep, SleepSummary };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Health SDK types vary by platform
-let _healthModule: Record<string, any> | null = null;
-let _moduleChecked = false;
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getHealthModule(): Record<string, any> | null {
-  if (_moduleChecked) return _healthModule;
-  _moduleChecked = true;
-  try {
-    if (Platform.OS === 'ios') {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      _healthModule = require('react-native-health');
-    } else if (Platform.OS === 'android') {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      _healthModule = require('react-native-health-connect');
-    }
-  } catch {
-    _healthModule = null;
-  }
-  return _healthModule;
-}
-
 /** Test-only reset hook covering both this module and the graduated sleep helpers. */
 export function _resetHealthModuleCache(): void {
-  _healthModule = null;
-  _moduleChecked = false;
+  _resetHealthSdkCache();
   _resetSleepCache();
 }
 
@@ -63,7 +37,7 @@ export interface StrainSummary {
 
 /** Reads recent workout strain from the platform health store. */
 export async function readRecentStrain(now: Date = new Date()): Promise<StrainSummary | null> {
-  const health = getHealthModule();
+  const health = getHealthSdk();
   if (!health) return null;
 
   const end = now;

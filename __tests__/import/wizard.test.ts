@@ -1,4 +1,4 @@
-import { planImport, commitImport } from '../../src/experimental/integrations/import/wizard';
+import { planImport, commitImport } from '../../src/integrations/import/wizard';
 import { Session } from '../../src/types';
 
 const WHOOP_CSV = `Cycle start time,Heart rate variability (ms),Resting heart rate (bpm),Recovery score %

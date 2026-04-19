@@ -1,6 +1,4 @@
 /**
- * @experimental NOT YET SHIPPED — no production importer as of this writing.
- * See CLAUDE.md → "Experimental modules" before relying on this in app code.
  * Vendor-import wizard pipeline.
  *
  * Three-step flow that the UI drives:
@@ -12,7 +10,7 @@
  * and the session repository. Re-import is idempotent because session
  * IDs are derived deterministically by `vendors.uuidLike(source:extId)`.
  */
-import { Session } from '../../../types';
+import { Session } from '../../types';
 import { ImportResult, ImportSource, parseImport } from './vendors';
 
 export interface ImportPreview {
