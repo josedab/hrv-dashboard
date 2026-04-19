@@ -1,6 +1,4 @@
 /**
- * @experimental NOT YET SHIPPED — no production importer as of this writing.
- * See CLAUDE.md → "Experimental modules" before relying on this in app code.
  * Per-device HRM profiles.
  *
  * Different BLE heart-rate monitors have subtly different quirks:

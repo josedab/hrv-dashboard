@@ -1,4 +1,4 @@
-import { resolveProfile, listVerifiedDevices } from '../../src/experimental/ble/deviceProfiles';
+import { resolveProfile, listVerifiedDevices } from '../../src/ble/deviceProfiles';
 
 describe('device capabilities', () => {
   it('every profile declares capability flags', () => {
