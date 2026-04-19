@@ -1,6 +1,4 @@
 /**
- * @experimental NOT YET SHIPPED — no production importer as of this writing.
- * See CLAUDE.md → "Experimental modules" before relying on this in app code.
  * External workout export adapters.
  *
  * Pushes a {@link WorkoutPrescription} to third-party platforms in their
@@ -15,7 +13,7 @@
  *
  * Network is injected via `fetchImpl` for tests.
  */
-import { WorkoutPrescription, toZwoXml } from '../../workout/generator';
+import { WorkoutPrescription, toZwoXml } from './generator';
 
 export interface ExportConfig {
   accessToken: string;

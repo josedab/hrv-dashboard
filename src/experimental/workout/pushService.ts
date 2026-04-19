@@ -10,7 +10,12 @@
  * module only supplies the OAuth state + a fetch wrapper.
  */
 import { WorkoutPrescription } from '../../workout/generator';
-import { pushToStrava, pushToTrainingPeaks, pushToIntervalsIcu, ExportResult } from './exporters';
+import {
+  pushToStrava,
+  pushToTrainingPeaks,
+  pushToIntervalsIcu,
+  ExportResult,
+} from '../../workout/exporters';
 
 export type PushPlatform = 'strava' | 'trainingpeaks' | 'intervals';
 
