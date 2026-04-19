@@ -1,5 +1,4 @@
 jest.mock('expo-crypto', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { createHash } = require('crypto');
   return {
     CryptoDigestAlgorithm: { SHA256: 'SHA256' },

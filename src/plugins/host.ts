@@ -135,7 +135,6 @@ const Math = $Math, JSON = $JSON, Number = $Number, Array = $Array, Object = $Ob
 ${source}
 return typeof compute === 'function' ? compute : null;`;
 
-  // eslint-disable-next-line no-new-func
   const factory = new Function(...shadowed, wrapper);
   const safeGlobals = { Math, JSON, Number, Array, Object };
   const computeFn = factory.call(undefined, safeGlobals);

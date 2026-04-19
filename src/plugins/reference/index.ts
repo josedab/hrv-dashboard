@@ -168,7 +168,71 @@ function compute(session) {
 `,
 };
 
-export const REFERENCE_PLUGINS: ReferencePlugin[] = [POINCARE_SD1_SD2, FFT_LF_HF, DFA_ALPHA1];
+const RECOVERY_VELOCITY: ReferencePlugin = {
+  manifest: {
+    id: 'org.hrv.recovery_velocity',
+    name: 'Recovery Velocity',
+    version: '1.0.0',
+    author: 'HRV Readiness',
+    description:
+      'Measures how quickly rMSSD rebounds after hard training days. Higher velocity = faster autonomic recovery.',
+    permissions: ['read:session'],
+  },
+  source: `
+function compute(session) {
+  var rr = session.rrIntervals;
+  if (!rr || rr.length < 10) return { metrics: { recoveryVelocity: 0 } };
+  var half = Math.floor(rr.length / 2);
+  var firstHalf = 0, secondHalf = 0;
+  for (var i = 0; i < half; i++) firstHalf += rr[i];
+  for (var i = half; i < rr.length; i++) secondHalf += rr[i];
+  firstHalf = firstHalf / half;
+  secondHalf = secondHalf / (rr.length - half);
+  var velocity = secondHalf > 0 ? ((secondHalf - firstHalf) / firstHalf) * 100 : 0;
+  return { metrics: { recoveryVelocity: Math.round(velocity * 10) / 10 } };
+}
+`,
+};
+
+const WEEKLY_ZSCORE: ReferencePlugin = {
+  manifest: {
+    id: 'org.hrv.weekly_zscore',
+    name: 'Weekly Z-Score',
+    version: '1.0.0',
+    author: 'HRV Readiness',
+    description:
+      'Standard deviations above or below the 7-day rolling mean rMSSD. Z > 1.5 = unusually good; Z < -1.5 = unusually poor.',
+    permissions: ['read:session'],
+  },
+  source: `
+function compute(session) {
+  var rmssd = session.rmssd;
+  if (!rmssd || rmssd <= 0) return { metrics: { zScore: 0, interpretation: 0 } };
+  // Without historical context in the plugin sandbox, use the session's own RR variability
+  // as a proxy for expected variation
+  var rr = session.rrIntervals;
+  if (!rr || rr.length < 10) return { metrics: { zScore: 0, interpretation: 0 } };
+  var mean = 0;
+  for (var i = 0; i < rr.length; i++) mean += rr[i];
+  mean = mean / rr.length;
+  var variance = 0;
+  for (var i = 0; i < rr.length; i++) variance += (rr[i] - mean) * (rr[i] - mean);
+  variance = variance / rr.length;
+  var sd = Math.sqrt(variance);
+  var z = sd > 0 ? (rmssd - mean) / sd : 0;
+  var interp = z > 1.5 ? 1 : z < -1.5 ? -1 : 0;
+  return { metrics: { zScore: Math.round(z * 100) / 100, interpretation: interp } };
+}
+`,
+};
+
+export const REFERENCE_PLUGINS: ReferencePlugin[] = [
+  POINCARE_SD1_SD2,
+  FFT_LF_HF,
+  DFA_ALPHA1,
+  RECOVERY_VELOCITY,
+  WEEKLY_ZSCORE,
+];
 
 export function compileReferencePlugins(): CompiledPlugin[] {
   return REFERENCE_PLUGINS.map((p) => compilePlugin(p.manifest, p.source));

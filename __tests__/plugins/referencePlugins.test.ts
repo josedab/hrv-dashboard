@@ -32,19 +32,25 @@ function syntheticRr(n: number, jitter = 30): number[] {
 }
 
 describe('reference plugins', () => {
-  it('exports exactly 3 reference plugins with stable manifests', () => {
-    expect(REFERENCE_PLUGINS).toHaveLength(3);
+  it('exports exactly 5 reference plugins with stable manifests', () => {
+    expect(REFERENCE_PLUGINS).toHaveLength(5);
     const ids = REFERENCE_PLUGINS.map((p) => p.manifest.id).sort();
-    expect(ids).toEqual(['org.hrv.dfa_alpha1', 'org.hrv.fft_lf_hf', 'org.hrv.poincare']);
+    expect(ids).toEqual([
+      'org.hrv.dfa_alpha1',
+      'org.hrv.fft_lf_hf',
+      'org.hrv.poincare',
+      'org.hrv.recovery_velocity',
+      'org.hrv.weekly_zscore',
+    ]);
     for (const p of REFERENCE_PLUGINS) {
       expect(p.manifest.permissions).toEqual(['read:session']);
       expect(p.manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
     }
   });
 
-  it('all three compile in the sandbox', () => {
+  it('all five compile in the sandbox', () => {
     const compiled = compileReferencePlugins();
-    expect(compiled).toHaveLength(3);
+    expect(compiled).toHaveLength(5);
   });
 
   it('Poincaré returns positive SD1/SD2 for synthetic data', async () => {
