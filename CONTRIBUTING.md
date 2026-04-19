@@ -36,12 +36,14 @@ npm run ios     # or: npm run android
 | Command | Description |
 |---------|-------------|
 | `npm start` | Start Expo dev server |
-| `npm test` | Run all unit tests (~8 seconds) |
+| `npm test` | Run all unit tests (~10 seconds) |
 | `npm run test:coverage` | Run tests with coverage report |
 | `npm run lint` | Lint TypeScript files |
 | `npm run typecheck` | Run TypeScript compiler checks |
 | `npm run format` | Format code with Prettier |
 | `npm run format:check` | Check formatting without writing |
+| `make check` | Run all quality checks at once (lint + typecheck + format + test) |
+| `make help` | Show all available Makefile targets |
 
 ## BLE & Physical Device Notes
 
@@ -60,9 +62,26 @@ npm run ios     # or: npm run android
 
 ## Project Structure
 
-Business logic lives in `src/hrv/` (metrics, artifacts, baseline, verdict) and is pure TypeScript with no React or native dependencies. This makes it easy to test.
+The codebase is organized into focused modules. Key directories:
 
-Refer to `docs/ARCHITECTURE.md` for diagrams and `docs/API.md` for the full API reference.
+| Directory | Purpose | Pure Logic? |
+|-----------|---------|:-----------:|
+| `src/hrv/` | HRV computation engine (17 modules) | ✅ Yes |
+| `src/ble/` | BLE scanning, connection, device profiles | ❌ No (native) |
+| `src/integrations/` | HealthKit, Health Connect, CSV import | ❌ No (native) |
+| `src/hooks/` | Custom React hooks (protocol, recording, persistence) | Partially |
+| `src/plugins/` | Sandboxed custom metric plugin system | ✅ Yes |
+| `src/sync/` | E2E encrypted cloud sync (AES-256-GCM) | ✅ Yes |
+| `src/share/` | Coach share bundles with pairing codes | ✅ Yes |
+| `src/workout/` | Workout generation and platform export | ✅ Yes |
+| `src/utils/` | Backup, notifications, reporting, profiles | Mixed |
+| `src/screens/` | React Native screens (18 total) | ❌ No (UI) |
+| `src/components/` | Reusable UI components (12 total) | ❌ No (UI) |
+| `src/experimental/` | Staged modules not yet wired to production | ✅ Yes |
+
+Pure-logic modules in `src/hrv/`, `src/plugins/`, `src/sync/`, `src/share/`, and `src/workout/` are the easiest places to contribute — they have no React or native dependencies and are straightforward to test.
+
+Refer to `docs/ARCHITECTURE.md` for diagrams and `docs/API.md` for the full API reference (41 sections). Architecture Decision Records are in `docs/adr/`.
 
 ## Writing Tests
 

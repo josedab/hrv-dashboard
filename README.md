@@ -1,5 +1,12 @@
 # HRV Morning Readiness Dashboard
 
+[![CI](https://github.com/josedab/hrv-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/josedab/hrv-dashboard/actions/workflows/ci.yml)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Expo](https://img.shields.io/badge/Expo-52-000020?logo=expo)](https://expo.dev/)
+[![Tests](https://img.shields.io/badge/tests-1016%20passing-brightgreen)]()
+[![Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A React Native (Expo) mobile app that connects to a Polar H10 chest strap via Bluetooth, records RR intervals each morning, computes HRV metrics, and delivers a single, actionable readiness verdict for the day. All data stays on-device — no cloud, no accounts.
 
 ## Readiness Verdicts
@@ -92,22 +99,28 @@ BLE does not work in simulators — a physical device is required.
 
 ```
 src/
+├── biofeedback/      # Real-time HRV biofeedback
+│   └── coherence.ts        # Coherence trainer (Goertzel frequency analysis)
 ├── ble/              # BLE scanning, connection, HR parsing, permissions
 │   ├── bleManager.ts       # Device scanning & connection lifecycle
+│   ├── deviceProfiles.ts   # Per-device HRM profiles & artifact tolerance
 │   ├── heartRateParser.ts  # GATT Heart Rate Measurement (0x2A37) parser
 │   ├── permissions.ts      # Cross-platform BLE permission handling
 │   ├── ppgProcessor.ts     # Camera-based PPG signal processing (no-strap fallback)
 │   └── useBleRecording.ts  # React hook for recording state management
 ├── components/       # Reusable UI components
 │   ├── BreathingExercise.tsx # Guided pre-recording breathing exercise
+│   ├── ConnectionPill.tsx   # BLE connection status indicator
 │   ├── CountdownTimer.tsx   # Circular SVG countdown
 │   ├── ErrorBoundary.tsx    # Error boundary with recovery UI
+│   ├── PassphraseModal.tsx  # Encryption passphrase entry modal
 │   ├── ReadinessSlider.tsx  # 1–5 perceived readiness selector
 │   ├── RRPlot.tsx           # RR interval line chart
 │   ├── Sparkline.tsx        # Compact trend line with optional baseline
 │   ├── StatCard.tsx         # Metric display card
 │   ├── Toast.tsx            # Toast notification component
-│   └── VerdictDisplay.tsx   # Verdict emoji, label, and description
+│   ├── VerdictDisplay.tsx   # Verdict emoji, label, and description
+│   └── WorkoutCard.tsx      # Workout-of-the-day prescription card
 ├── constants/        # App-wide constants
 │   ├── colors.ts            # Dark theme palette & verdict colors
 │   ├── defaults.ts          # Recording durations, thresholds, training types
@@ -117,40 +130,91 @@ src/
 │   ├── database.ts          # DB initialization, migrations, singleton
 │   ├── sessionRepository.ts # Session CRUD & queries
 │   └── settingsRepository.ts# Key-value settings storage
+├── hooks/            # Custom React hooks
+│   ├── useMorningProtocol.ts # Guided morning protocol phase sequencer
+│   ├── useReadingFlow.ts    # Recording flow state management
+│   └── useSessionPersistence.ts # Session save/load lifecycle
 ├── hrv/              # Core HRV computation engine
+│   ├── adaptiveThresholds.ts # Personal percentile-based verdict cutoffs
 │   ├── analytics.ts         # Weekly summaries, trends, correlations
+│   ├── ansBalance.ts        # Autonomic nervous system balance (LF/HF zones)
 │   ├── artifacts.ts         # Artifact detection (5-beat moving median)
 │   ├── baseline.ts          # Rolling median rMSSD baseline
+│   ├── baselineAccelerator.ts # Pre-compute baseline from imported data
+│   ├── circadian.ts         # Recording time consistency & optimal window
+│   ├── coachNarrative.ts    # Template-based AI recovery coach briefs
 │   ├── metrics.ts           # rMSSD, SDNN, mean HR, pNN50
+│   ├── norms.ts             # Age/sex-stratified HRV population percentiles
 │   ├── orthostatic.ts       # Orthostatic test (supine vs. standing)
+│   ├── prediction.ts        # Next-day rMSSD & verdict prediction
 │   ├── recovery.ts          # Composite recovery score & training load
-│   └── verdict.ts           # Threshold-based readiness verdict
+│   ├── sleepArchitecture.ts # Hypnogram builder & sleep-HRV correlation
+│   ├── spectral.ts          # Frequency-domain analysis (VLF/LF/HF bands)
+│   ├── trainingStress.ts    # Training Stress Balance (ATL/CTL/TSB model)
+│   └── verdict.ts           # Threshold-based readiness verdict (fixed + adaptive)
+├── integrations/     # Health platform integrations
+│   ├── healthAutoPull.ts    # Auto-pull sleep data from HealthKit/Health Connect
+│   ├── healthSleep.ts       # Read last-night sleep stages
+│   ├── healthTwoWay.ts      # Two-way HealthKit/Health Connect sync controller
+│   ├── sleepStrain.ts       # Sleep-strain fusion for enhanced recovery
+│   └── import/              # Third-party data import
+│       ├── vendors.ts       # Whoop/Oura/Garmin CSV/JSON parsers
+│       └── wizard.ts        # Import wizard pipeline (parse → plan → commit)
 ├── navigation/       # React Navigation configuration
-│   └── AppNavigator.tsx     # Bottom tabs (4) + modal stack (5 screens)
-├── screens/          # App screens
+│   └── AppNavigator.tsx     # Bottom tabs (4) + modal stack (10+ screens)
+├── plugins/          # Custom metric plugin system
+│   ├── host.ts              # Sandboxed plugin execution engine
+│   ├── marketplace.ts       # Plugin catalog & install management
+│   ├── protocol.ts          # Open HRV Protocol interchange format
+│   ├── sqliteStorage.ts     # SQLite-backed plugin persistence
+│   └── reference/           # Built-in reference plugins
+│       └── index.ts         # Poincaré, FFT LF/HF, DFA-α1, Recovery Velocity, Weekly Z-Score
+├── screens/          # App screens (18 total)
 │   ├── CameraReadingScreen.tsx  # Camera PPG reading (no-strap fallback)
-│   ├── HistoryScreen.tsx    # Session list with sparkline header
-│   ├── HomeScreen.tsx       # Today's verdict, sparkline, recovery score
-│   ├── LogScreen.tsx        # Post-recording subjective log
-│   ├── OnboardingScreen.tsx # First-launch carousel
+│   ├── CoherenceScreen.tsx      # Biofeedback coherence trainer
+│   ├── HistoryScreen.tsx        # Session list with sparkline header
+│   ├── HomeScreen.tsx           # Today's verdict, sparkline, recovery score
+│   ├── ImportScreen.tsx         # CSV import wizard (Whoop/Oura/Garmin)
+│   ├── LogScreen.tsx            # Post-recording subjective log
+│   ├── MorningProtocolScreen.tsx# Guided 3-phase morning recording flow
+│   ├── OnboardingScreen.tsx     # First-launch carousel
 │   ├── OrthostaticScreen.tsx    # Orthostatic HRV test workflow
+│   ├── PluginsScreen.tsx        # Plugin management & marketplace
 │   ├── PrivacyPolicyScreen.tsx  # Local-only privacy policy
-│   ├── ReadingScreen.tsx    # BLE scan → record → complete workflow
+│   ├── ProfilesScreen.tsx       # Multi-athlete profile switching
+│   ├── ReadingScreen.tsx        # BLE scan → record → complete workflow
 │   ├── SessionDetailScreen.tsx  # Full session metrics view
-│   ├── SettingsScreen.tsx   # Baseline, thresholds, export, backup, health sync
-│   └── TrendsScreen.tsx     # Weekly analytics, correlations, trends
+│   ├── SettingsScreen.tsx       # Baseline, thresholds, export, backup, sync
+│   ├── ShareCoachScreen.tsx     # Encrypted coach share bundles
+│   ├── SyncSettingsScreen.tsx   # Cloud sync configuration
+│   └── TrendsScreen.tsx         # Weekly analytics, correlations, trends
+├── share/            # Coach share bundles
+│   └── index.ts             # Seal/unseal encrypted share bundles with pairing codes
+├── sync/             # End-to-end encrypted cloud sync
+│   ├── aesGcm.ts            # AES-256-GCM cipher wrapper
+│   ├── cloudProviders.ts    # Supabase sync provider
+│   ├── crypto.ts            # Encryption/decryption pipeline (protocol v4)
+│   ├── inMemoryProvider.ts  # In-memory sync provider for testing
+│   ├── index.ts             # Sync orchestration & conflict resolution
+│   └── scryptKdf.ts         # Memory-hard scrypt key derivation
 ├── types/            # TypeScript type definitions
-│   └── index.ts             # Session, HrvMetrics, Settings, etc.
-└── utils/            # Utility functions
-    ├── backup.ts            # Encrypted backup/restore (.hrvbak files)
-    ├── crashReporting.ts    # Sentry integration with console fallback
-    ├── csv.ts               # Session-to-CSV export
-    ├── date.ts              # Date formatting & streak calculation
-    ├── healthSync.ts        # Apple HealthKit / Android Health Connect sync
-    ├── notifications.ts     # Morning reminder & streak protection push notifications
-    ├── profiles.ts          # Multi-athlete profiles & verdict sharing
-    ├── uuid.ts              # UUID v4 generator
-    └── widgetData.ts        # iOS WidgetKit / Android Glance widget data
+│   └── index.ts             # Session, HrvMetrics, Settings, VerdictMode, etc.
+├── utils/            # Utility functions
+│   ├── backup.ts            # Encrypted backup/restore (.hrvbak files)
+│   ├── crashReporting.ts    # Sentry integration with console fallback
+│   ├── csv.ts               # Session-to-CSV export
+│   ├── date.ts              # Date formatting & streak calculation
+│   ├── encoding.ts          # Binary encoding utilities
+│   ├── healthSync.ts        # Apple HealthKit / Android Health Connect sync
+│   ├── notifications.ts     # Morning reminder, streak protection, weekly digest
+│   ├── profiles.ts          # Multi-athlete profiles & verdict sharing
+│   ├── reportGenerator.ts   # HTML/PDF report generation
+│   ├── shareCard.ts         # Branded shareable verdict cards
+│   ├── uuid.ts              # UUID v4 generator
+│   └── widgetData.ts        # iOS WidgetKit / Android Glance widget data
+└── workout/          # Workout generation & export
+    ├── exporters.ts         # Strava/TrainingPeaks/Intervals.icu push adapters
+    └── generator.ts         # Verdict → structured workout prescription
 ```
 
 ## Core Algorithm
@@ -261,6 +325,10 @@ Tests are pure logic only (no React component rendering). Jest with ts-jest in N
 - **Optional health platform sync** — write HRV data to Apple HealthKit / Android Health Connect when SDK is installed
 - **Centralized UI strings** — all user-facing text in `constants/strings.ts` for i18n readiness
 
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, coding conventions, and the path from zero to your first PR.
+
 ## License
 
-Private — not yet licensed for distribution.
+[MIT](LICENSE) © Jose David Baena
