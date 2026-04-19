@@ -210,3 +210,32 @@ describe('computeHrvMetrics', () => {
     expect(result).toBeDefined();
   });
 });
+
+describe('NaN safety', () => {
+  it('computeRmssd returns finite for NaN input', () => {
+    expect(Number.isFinite(computeRmssd([NaN, 800]))).toBe(true);
+    expect(Number.isFinite(computeRmssd([800, NaN]))).toBe(true);
+  });
+
+  it('computeSdnn returns finite for NaN input', () => {
+    expect(Number.isFinite(computeSdnn([NaN, 800]))).toBe(true);
+    expect(Number.isFinite(computeSdnn([800, NaN]))).toBe(true);
+  });
+
+  it('computeMeanHr returns finite for NaN input', () => {
+    expect(Number.isFinite(computeMeanHr([NaN]))).toBe(true);
+    expect(Number.isFinite(computeMeanHr([NaN, 800]))).toBe(true);
+  });
+
+  it('computeRmssd returns finite for Infinity input', () => {
+    expect(Number.isFinite(computeRmssd([Infinity, 800]))).toBe(true);
+  });
+
+  it('computeHrvMetrics returns all-finite for corrupted input', () => {
+    const result = computeHrvMetrics([NaN, NaN, NaN, NaN, NaN, NaN]);
+    expect(Number.isFinite(result.rmssd)).toBe(true);
+    expect(Number.isFinite(result.sdnn)).toBe(true);
+    expect(Number.isFinite(result.meanHr)).toBe(true);
+    expect(Number.isFinite(result.pnn50)).toBe(true);
+  });
+});

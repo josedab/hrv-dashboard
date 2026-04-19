@@ -78,7 +78,7 @@ function subjectiveToScore(rating: number | null): number {
  * Computes a composite recovery score from the latest session and baseline.
  *
  * Weights (research-informed) defined in {@link RECOVERY_WEIGHTS}.
- * Returns null if baseline is unavailable (see {@link MIN_BASELINE_DAYS_FOR_RECOVERY}).
+ * @returns RecoveryScore (0–100 with label), or null if baseline is unavailable.
  */
 export function computeRecoveryScore(
   session: Session,
@@ -130,6 +130,7 @@ export function computeRecoveryScore(
 
 /**
  * Estimates daily training load from subjective data.
+ * @returns Estimated load value (0 for rest days, higher for intense sessions).
  * Uses a simplified RPE-based model (training type intensity × perceived effort).
  */
 export function estimateTrainingLoad(session: Session): number {
@@ -148,6 +149,7 @@ export function estimateTrainingLoad(session: Session): number {
 
 /**
  * Computes a 7-day rolling training load sum.
+ * @returns Sum of daily training loads across all sessions.
  */
 export function computeWeeklyLoad(sessions: Session[]): number {
   return sessions.reduce((total, s) => total + estimateTrainingLoad(s), 0);

@@ -4,6 +4,7 @@ import { filterArtifacts } from './artifacts';
 /**
  * Computes all HRV metrics from raw RR intervals.
  * Automatically detects and filters artifacts before computation.
+ * @returns HrvMetrics object with rmssd, sdnn, meanHr, pnn50, and artifactRate.
  */
 export function computeHrvMetrics(rawRrIntervals: number[]): HrvMetrics {
   if (rawRrIntervals.length < 2) {
@@ -40,6 +41,7 @@ export function computeHrvMetrics(rawRrIntervals: number[]): HrvMetrics {
 /**
  * Root Mean Square of Successive Differences.
  * Primary HRV metric for readiness assessment.
+ * @returns rMSSD in milliseconds. 0 if fewer than 2 intervals.
  */
 export function computeRmssd(rrIntervals: number[]): number {
   if (rrIntervals.length < 2) return 0;
@@ -50,12 +52,14 @@ export function computeRmssd(rrIntervals: number[]): number {
     sumSquaredDiffs += diff * diff;
   }
 
-  return Math.sqrt(sumSquaredDiffs / (rrIntervals.length - 1));
+  const result = Math.sqrt(sumSquaredDiffs / (rrIntervals.length - 1));
+  return Number.isFinite(result) ? result : 0;
 }
 
 /**
  * Standard Deviation of NN intervals.
  * Measures overall HRV variability.
+ * @returns SDNN in milliseconds (population std dev). 0 if fewer than 2 intervals.
  */
 export function computeSdnn(rrIntervals: number[]): number {
   if (rrIntervals.length < 2) return 0;
@@ -64,12 +68,14 @@ export function computeSdnn(rrIntervals: number[]): number {
   const squaredDiffs = rrIntervals.map((val) => (val - mean) ** 2);
   const variance = squaredDiffs.reduce((sum, val) => sum + val, 0) / rrIntervals.length;
 
-  return Math.sqrt(variance);
+  const result = Math.sqrt(variance);
+  return Number.isFinite(result) ? result : 0;
 }
 
 /**
  * Computes mean heart rate from RR intervals (in ms).
  * HR (bpm) = 60000 / mean_RR_ms
+ * @returns Heart rate in bpm. 0 for empty input or zero-mean RR.
  */
 export function computeMeanHr(rrIntervals: number[]): number {
   if (rrIntervals.length === 0) return 0;
@@ -77,18 +83,23 @@ export function computeMeanHr(rrIntervals: number[]): number {
   const meanRr = rrIntervals.reduce((sum, val) => sum + val, 0) / rrIntervals.length;
   if (meanRr === 0) return 0;
 
-  return 60000 / meanRr;
+  const hr = 60000 / meanRr;
+  return Number.isFinite(hr) ? hr : 0;
 }
+
+/** Successive-difference threshold for pNN50 computation (ms). */
+const PNN50_THRESHOLD_MS = 50;
 
 /**
  * Percentage of successive RR intervals that differ by more than 50ms.
+ * @returns pNN50 as percentage (0–100).
  */
 export function computePnn50(rrIntervals: number[]): number {
   if (rrIntervals.length < 2) return 0;
 
   let count = 0;
   for (let i = 1; i < rrIntervals.length; i++) {
-    if (Math.abs(rrIntervals[i] - rrIntervals[i - 1]) > 50) {
+    if (Math.abs(rrIntervals[i] - rrIntervals[i - 1]) > PNN50_THRESHOLD_MS) {
       count++;
     }
   }

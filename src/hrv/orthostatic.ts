@@ -56,6 +56,7 @@ function clamp(value: number, min: number, max: number): number {
  *
  * Blunted response (small HR/rMSSD change) may indicate overtraining.
  * Exaggerated response may indicate dehydration or acute fatigue.
+ * @returns OrthostaticResult with supine/standing metrics, reactivity score, and interpretation.
  */
 export function computeOrthostaticResult(
   supineRrIntervals: number[],

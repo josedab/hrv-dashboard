@@ -37,6 +37,7 @@ export interface AdaptiveResult {
   historyN: number;
 }
 
+/** @returns The p-th percentile value. 0 for empty input. */
 export function percentile(values: number[], p: number): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -51,6 +52,7 @@ export function percentile(values: number[], p: number): number {
  * upstream) to fit personal cutoffs. Optionally accepts perceived-
  * readiness labels (1–5) and shifts cutoffs toward the user's reported
  * subjective state via a small Bayesian bump (capped at ±10%).
+ * @returns AdaptiveResult with verdict, cutoffs, cold-start flag, and history count.
  */
 export function computeAdaptiveVerdict(
   currentRmssd: number,

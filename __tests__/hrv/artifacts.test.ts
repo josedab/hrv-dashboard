@@ -125,4 +125,26 @@ describe('filterArtifacts', () => {
     expect(artifacts.length).toBe(rr.length);
     expect(artifacts[2]).toBe(true);
   });
+
+  it('accepts a toleranceFactor to scale the deviation threshold', () => {
+    // 500 vs median ~800 → deviation ~37.5%. Default threshold 20% flags it.
+    const rr = [800, 805, 500, 810, 795, 800, 808];
+
+    const strict = filterArtifacts(rr, 1.0);
+    expect(strict.artifacts[2]).toBe(true);
+    expect(strict.cleanIntervals).not.toContain(500);
+
+    // toleranceFactor 2.0 → effective threshold 40% → 37.5% < 40% → not flagged
+    const lenient = filterArtifacts(rr, 2.0);
+    expect(lenient.artifacts[2]).toBe(false);
+    expect(lenient.cleanIntervals).toContain(500);
+  });
+
+  it('defaults toleranceFactor to 1.0 (standard behavior)', () => {
+    const rr = [800, 805, 200, 810, 795, 800, 808];
+    const defaultResult = filterArtifacts(rr);
+    const explicitResult = filterArtifacts(rr, 1.0);
+    expect(defaultResult.artifactRate).toBe(explicitResult.artifactRate);
+    expect(defaultResult.cleanIntervals).toEqual(explicitResult.cleanIntervals);
+  });
 });

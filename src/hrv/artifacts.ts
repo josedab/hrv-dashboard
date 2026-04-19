@@ -6,7 +6,7 @@ import { computeMedian } from './baseline';
  * An RR interval is flagged as artifact if it deviates more than 20% from
  * the local median of surrounding 5 beats.
  *
- * Returns a boolean array where true = artifact.
+ * @returns Boolean array where true = artifact. Same length as input.
  */
 export function detectArtifacts(
   rrIntervals: number[],
@@ -37,13 +37,20 @@ export function detectArtifacts(
 
 /**
  * Filters out artifact RR intervals and returns only clean intervals.
+ * @param toleranceFactor Per-device multiplier on the deviation threshold (default 1.0).
+ *   Higher values = more lenient filtering, suitable for optical sensors.
+ * @returns Object with cleanIntervals, artifactRate (0–1), and artifacts boolean array.
  */
-export function filterArtifacts(rrIntervals: number[]): {
+export function filterArtifacts(
+  rrIntervals: number[],
+  toleranceFactor: number = 1.0
+): {
   cleanIntervals: number[];
   artifactRate: number;
   artifacts: boolean[];
 } {
-  const artifacts = detectArtifacts(rrIntervals);
+  const effectiveDeviation = ARTIFACT_DEVIATION_FACTOR * toleranceFactor;
+  const artifacts = detectArtifacts(rrIntervals, effectiveDeviation);
   const artifactCount = artifacts.filter(Boolean).length;
   const artifactRate = rrIntervals.length > 0 ? artifactCount / rrIntervals.length : 0;
 

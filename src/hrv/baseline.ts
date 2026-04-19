@@ -4,9 +4,7 @@ import { MIN_BASELINE_DAYS } from '../constants/defaults';
 /**
  * Returns true when a {@link BaselineResult} doesn't carry enough information
  * to compute a verdict or recovery score (too few days, or empty/zero median).
- *
- * Centralises the "magic-zero" guard that previously appeared in multiple
- * call sites.
+ * @returns True if baseline data is insufficient for verdict computation.
  */
 export function isInsufficientBaseline(baseline: BaselineResult): boolean {
   return baseline.dayCount < MIN_BASELINE_DAYS || baseline.median <= 0;
@@ -16,6 +14,7 @@ export function isInsufficientBaseline(baseline: BaselineResult): boolean {
  * Computes the baseline rMSSD using the MEDIAN of daily readings
  * within the specified window. Median is more robust to outliers
  * than mean. Uses noon-based date arithmetic for DST safety.
+ * @returns BaselineResult with median rMSSD, day count, and values array.
  */
 export function computeBaseline(
   dailyReadings: DailyReading[],
@@ -37,6 +36,7 @@ export function computeBaseline(
 
 /**
  * Computes the median of an array of numbers.
+ * @returns Median value, or 0 for empty input.
  */
 export function computeMedian(values: number[]): number {
   if (values.length === 0) return 0;

@@ -43,6 +43,7 @@ export interface WeeklySummary {
 
 /**
  * Computes a weekly summary from sessions.
+ * @returns WeeklySummary with averages, trend, verdicts, and streak.
  * @param currentSessions Sessions from the current 7-day period
  * @param previousSessions Sessions from the prior 7-day period (for trend)
  */
@@ -129,6 +130,7 @@ function computeStreakInSessions(sessions: Session[]): number {
 
 /**
  * Correlation between sleep quality and next-day rMSSD.
+ * @returns CorrelationResult or null if fewer than 5 paired observations.
  * Returns null if insufficient data (< {@link MIN_CORRELATION_SAMPLES} paired observations).
  */
 export interface CorrelationResult {
@@ -180,6 +182,10 @@ export function computeSleepHrvCorrelation(sessions: Session[]): CorrelationResu
   });
 }
 
+/**
+ * Correlation between stress level and rMSSD.
+ * @returns CorrelationResult or null if insufficient data.
+ */
 export function computeStressHrvCorrelation(sessions: Session[]): CorrelationResult | null {
   return computeFactorCorrelation(sessions, 'Stress Level', (s) => s.stressLevel, {
     positive: 'Unexpected positive relationship',
