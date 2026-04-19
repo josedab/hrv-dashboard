@@ -1,5 +1,5 @@
-import { computeVerdict } from '../../src/hrv/verdict';
-import { BaselineResult, Settings, DEFAULT_SETTINGS } from '../../src/types';
+import { computeVerdict, computeVerdictWithMode } from '../../src/hrv/verdict';
+import { BaselineResult, Settings, Session, DEFAULT_SETTINGS } from '../../src/types';
 
 function makeBaseline(median: number, dayCount: number): BaselineResult {
   return {
@@ -145,6 +145,88 @@ describe('computeVerdict', () => {
       expect(computeVerdict(95, baseline)).toBe('go_hard');
       expect(computeVerdict(80, baseline)).toBe('moderate');
       expect(computeVerdict(79, baseline)).toBe('rest');
+    });
+  });
+});
+
+function makeSession(rmssd: number, daysAgo: number, opts?: Partial<Session>): Session {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return {
+    id: `s-${daysAgo}-${rmssd}`,
+    timestamp: d.toISOString(),
+    durationSeconds: 300,
+    rrIntervals: [800],
+    rmssd,
+    sdnn: 40,
+    meanHr: 60,
+    pnn50: 30,
+    artifactRate: 0.01,
+    verdict: null,
+    perceivedReadiness: null,
+    trainingType: null,
+    notes: null,
+    sleepHours: null,
+    sleepQuality: null,
+    stressLevel: null,
+    source: 'chest_strap',
+    ...opts,
+  };
+}
+
+describe('computeVerdictWithMode', () => {
+  const baseline = makeBaseline(100, 7);
+
+  describe('fixed mode (default)', () => {
+    it('delegates to computeVerdict', () => {
+      const result = computeVerdictWithMode(95, baseline, DEFAULT_SETTINGS);
+      expect(result.verdict).toBe('go_hard');
+      expect(result.coldStart).toBe(false);
+      expect(result.cutoffs).toBeUndefined();
+    });
+
+    it('returns rest for low rMSSD', () => {
+      const result = computeVerdictWithMode(50, baseline, DEFAULT_SETTINGS);
+      expect(result.verdict).toBe('rest');
+    });
+
+    it('returns null for insufficient baseline', () => {
+      const insufficientBaseline = makeBaseline(100, 3);
+      const result = computeVerdictWithMode(95, insufficientBaseline, DEFAULT_SETTINGS);
+      expect(result.verdict).toBeNull();
+    });
+  });
+
+  describe('adaptive mode', () => {
+    const adaptiveSettings: Settings = { ...DEFAULT_SETTINGS, verdictMode: 'adaptive' };
+
+    it('falls back to fixed thresholds during cold start (< 30 days)', () => {
+      const history = Array.from({ length: 10 }, (_, i) => makeSession(80 + i, i));
+      const result = computeVerdictWithMode(95, baseline, adaptiveSettings, history);
+      expect(result.coldStart).toBe(true);
+      expect(result.verdict).toBe('go_hard');
+    });
+
+    it('uses adaptive thresholds with sufficient history', () => {
+      const history = Array.from({ length: 40 }, (_, i) => makeSession(60 + i * 2, i));
+      const result = computeVerdictWithMode(100, baseline, adaptiveSettings, history);
+      expect(result.coldStart).toBe(false);
+      expect(result.verdict).not.toBeNull();
+      expect(result.cutoffs).toBeDefined();
+      expect(result.historyN).toBeGreaterThanOrEqual(30);
+    });
+
+    it('returns null when baseline is empty and insufficient history', () => {
+      const emptyBaseline = makeBaseline(0, 0);
+      const result = computeVerdictWithMode(95, emptyBaseline, adaptiveSettings, []);
+      expect(result.verdict).toBeNull();
+      expect(result.coldStart).toBe(true);
+    });
+
+    it('historyN reflects distinct session days', () => {
+      const history = Array.from({ length: 40 }, (_, i) => makeSession(70 + i, i));
+      const result = computeVerdictWithMode(90, baseline, adaptiveSettings, history);
+      expect(result.historyN).toBe(40);
     });
   });
 });
