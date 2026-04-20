@@ -32,7 +32,9 @@ export function SessionDetailScreen() {
   const [toast, setToast] = useState<{ message: string; action?: () => void } | null>(null);
 
   useEffect(() => {
-    getSessionById(route.params.sessionId).then(setSession);
+    getSessionById(route.params.sessionId)
+      .then(setSession)
+      .catch(() => {});
   }, [route.params.sessionId]);
 
   const handleEdit = useCallback(() => {

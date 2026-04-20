@@ -12,7 +12,12 @@ let db: SQLite.SQLiteDatabase | null = null;
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (db) return db;
   db = await SQLite.openDatabaseAsync(DATABASE_NAME);
-  await runMigrations(db);
+  try {
+    await runMigrations(db);
+  } catch (error) {
+    db = null;
+    throw error;
+  }
   return db;
 }
 

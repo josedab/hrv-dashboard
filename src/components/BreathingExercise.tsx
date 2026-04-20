@@ -55,9 +55,11 @@ export function BreathingExercise({
 
   // Check for reduced motion preference
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      reduceMotionRef.current = enabled;
-    });
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => {
+        reduceMotionRef.current = enabled;
+      })
+      .catch(() => {});
   }, []);
 
   const cycleDuration = preset.inhale + preset.hold + preset.exhale;

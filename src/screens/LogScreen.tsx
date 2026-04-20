@@ -94,7 +94,7 @@ export function LogScreen() {
       setToastVisible(true);
       // Brief delay so toast is visible before dismissal
       setTimeout(() => navigation.popToTop(), 700);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to save log.');
     }
   };

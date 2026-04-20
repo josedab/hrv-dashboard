@@ -50,6 +50,7 @@ export function Toast({
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [visible, duration, translateY, opacity, onHide]);
 
   if (!visible) return null;

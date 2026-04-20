@@ -15,11 +15,15 @@ export function initCrashReporting(): void {
   const dsn = process.env.SENTRY_DSN ?? process.env.EXPO_PUBLIC_SENTRY_DSN;
 
   if (dsn) {
-    Sentry.init({
-      dsn,
-      tracesSampleRate: 0.2,
-      enableAutoSessionTracking: true,
-    });
+    try {
+      Sentry.init({
+        dsn,
+        tracesSampleRate: 0.2,
+        enableAutoSessionTracking: true,
+      });
+    } catch {
+      console.error('[CrashReporting] Sentry.init() failed — using console fallback');
+    }
   } else {
     console.log('[CrashReporting] No SENTRY_DSN configured — using console fallback');
   }
