@@ -7,16 +7,16 @@
  * (e.g., in OrthostaticScreen or CoherenceScreen).
  */
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Device } from 'react-native-ble-plx';
-import { scanForDevices } from '../ble/bleManager';
+import { scanForDevices, BleDevice } from '../ble/bleManager';
 import { requestBlePermissions, showPermissionBlockedAlert } from '../ble/permissions';
 import { loadSettings } from '../database/settingsRepository';
+import { fireAndForget } from '../utils/errors';
 
 const DEFAULT_SCAN_TIMEOUT_MS = 15_000;
 
 export interface DeviceScannerState {
   /** Discovered BLE devices. */
-  devices: Device[];
+  devices: BleDevice[];
   /** Whether scan has timed out without finding devices. */
   scanTimedOut: boolean;
   /** Whether a paired device was found and auto-selected. */
@@ -45,7 +45,7 @@ export interface DeviceScannerActions {
 export function useDeviceScanner(
   scanTimeoutMs: number = DEFAULT_SCAN_TIMEOUT_MS
 ): [DeviceScannerState, DeviceScannerActions] {
-  const [devices, setDevices] = useState<Device[]>([]);
+  const [devices, setDevices] = useState<BleDevice[]>([]);
   const [scanTimedOut, setScanTimedOut] = useState(false);
   const [autoConnectedDeviceId, setAutoConnectedDeviceId] = useState<string | null>(null);
   const [breathingEnabled, setBreathingEnabled] = useState(true);
@@ -110,7 +110,7 @@ export function useDeviceScanner(
       setPairedDeviceId(settings.pairedDeviceId);
       await runScan(settings.pairedDeviceId);
     };
-    init().catch(() => {});
+    fireAndForget(init(), 'device-scanner-init');
 
     return () => {
       cancelledRef.current = true;

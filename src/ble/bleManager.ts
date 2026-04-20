@@ -1,9 +1,17 @@
+/**
+ * BLE device scanning, connection, and heart rate subscription.
+ *
+ * Wraps react-native-ble-plx into a focused API for the Heart Rate Service
+ * (0x180D). Handles scan timeouts, connection lifecycle, exponential-backoff
+ * retry, and automatic resource cleanup.
+ */
 import { BleManager, Device, Subscription } from 'react-native-ble-plx';
 import {
   parseHeartRateMeasurement,
   base64ToUint8Array,
   HeartRateMeasurement,
 } from './heartRateParser';
+import { fireAndForget } from '../utils/errors';
 
 const HEART_RATE_SERVICE_UUID = '0000180d-0000-1000-8000-00805f9b34fb';
 const HEART_RATE_MEASUREMENT_UUID = '00002a37-0000-1000-8000-00805f9b34fb';
@@ -13,6 +21,7 @@ const CONNECTION_TIMEOUT_MS = 10000;
 const MAX_RECONNECT_ATTEMPTS = 3;
 const RECONNECT_BASE_DELAY_MS = 1000;
 
+/** Current state of the BLE connection lifecycle. */
 export type BleConnectionState =
   | 'disconnected'
   | 'scanning'
@@ -21,10 +30,22 @@ export type BleConnectionState =
   | 'reconnecting'
   | 'error';
 
+/** Callbacks for BLE state transitions, heart rate data, and errors. */
 export interface BleCallbacks {
   onStateChange: (state: BleConnectionState) => void;
   onHeartRateMeasurement: (measurement: HeartRateMeasurement) => void;
   onError: (error: string) => void;
+}
+
+/**
+ * Minimal device representation exposed to UI layers.
+ *
+ * Decouples screens and hooks from react-native-ble-plx's `Device` type
+ * so the BLE library can be swapped without touching consumer code.
+ */
+export interface BleDevice {
+  id: string;
+  name: string | null;
 }
 
 let manager: BleManager | null = null;
@@ -40,7 +61,7 @@ function getManager(): BleManager {
  * Scans for Polar H10 devices advertising Heart Rate Service.
  */
 export async function scanForDevices(
-  onDeviceFound: (device: Device) => void,
+  onDeviceFound: (device: BleDevice) => void,
   timeoutMs: number = SCAN_TIMEOUT_MS
 ): Promise<() => void> {
   const bleManager = getManager();
@@ -58,7 +79,7 @@ export async function scanForDevices(
         }
         if (device && device.id && !discoveredIds.has(device.id)) {
           discoveredIds.add(device.id);
-          onDeviceFound(device);
+          onDeviceFound({ id: device.id, name: device.name ?? device.localName ?? null });
         }
       }
     );
@@ -90,7 +111,7 @@ async function connectWithTimeout(
     bleManager.connectToDevice(deviceId, { requestMTU: 512 }),
     new Promise<never>((_, reject) => {
       setTimeout(() => {
-        bleManager.cancelDeviceConnection(deviceId).catch(() => {});
+        fireAndForget(bleManager.cancelDeviceConnection(deviceId), 'ble-timeout-cleanup');
         reject(new Error(`Connection timed out after ${timeoutMs / 1000}s`));
       }, timeoutMs);
     }),
@@ -143,7 +164,7 @@ export async function connectAndSubscribe(
   return () => {
     subscription?.remove();
     disconnectSub.remove();
-    bleManager.cancelDeviceConnection(deviceId).catch(() => {});
+    fireAndForget(bleManager.cancelDeviceConnection(deviceId), 'ble-disconnect-cleanup');
   };
 }
 

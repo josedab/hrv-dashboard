@@ -1,7 +1,15 @@
+/**
+ * React hook for managing a BLE heart rate recording session.
+ *
+ * Wraps bleManager's scan/connect/subscribe lifecycle into React state,
+ * tracking connection status, elapsed time, accumulated measurements, and
+ * errors. Enforces the 5-minute recording window with a 2-minute minimum.
+ */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { HeartRateMeasurement } from './heartRateParser';
 import { connectWithRetry, BleConnectionState } from './bleManager';
 import { RECORDING_DURATION_SECONDS, MIN_RECORDING_SECONDS } from '../constants/defaults';
+import { getErrorMessage } from '../utils/errors';
 
 /**
  * Current state of an active BLE recording session.
@@ -135,7 +143,7 @@ export function useBleRecording(): [RecordingState, RecordingActions] {
       cleanupRef.current = cleanup;
     } catch (error) {
       if (!isStoppingRef.current) {
-        const message = error instanceof Error ? error.message : 'Reconnection failed';
+        const message = getErrorMessage(error, 'Reconnection failed');
         setState((prev) => ({
           ...prev,
           connectionState: 'error',
@@ -208,7 +216,7 @@ export function useBleRecording(): [RecordingState, RecordingActions] {
         });
         cleanupRef.current = cleanup;
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to connect';
+        const message = getErrorMessage(error, 'Failed to connect');
         setState((prev) => ({
           ...prev,
           isRecording: false,

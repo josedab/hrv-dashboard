@@ -195,6 +195,9 @@ export const DEVICE_PROFILES: DeviceProfile[] = [
 
 const PROFILE_BY_ID = new Map(DEVICE_PROFILES.map((p) => [p.id, p]));
 
+/** Fallback profile for unrecognised HR monitors. */
+const UNKNOWN_PROFILE: DeviceProfile = DEVICE_PROFILES[DEVICE_PROFILES.length - 1];
+
 /**
  * Resolves a profile by BLE-advertised device name. Always returns a
  * non-null profile (falls back to the generic unknown profile).
@@ -205,7 +208,7 @@ export function resolveProfile(advertisedName: string | null | undefined): Devic
     if (profile.matches(advertisedName)) return profile;
   }
   // Always returns the generic profile
-  return PROFILE_BY_ID.get('unknown-hrm')!;
+  return PROFILE_BY_ID.get('unknown-hrm') ?? UNKNOWN_PROFILE;
 }
 
 export function getProfileById(id: string): DeviceProfile | null {
