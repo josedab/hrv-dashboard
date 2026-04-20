@@ -1,5 +1,4 @@
 jest.mock('expo-crypto', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const nodeCrypto = require('crypto');
   return {
     getRandomBytesAsync: jest.fn(async (n: number) => {

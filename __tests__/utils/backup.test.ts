@@ -8,7 +8,6 @@ jest.mock('expo-file-system', () => ({
   deleteAsync: jest.fn(),
 }));
 jest.mock('expo-crypto', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { createHash, randomBytes } = require('crypto');
   return {
     CryptoDigestAlgorithm: { SHA256: 'SHA256' },
@@ -519,7 +518,6 @@ describe('backup back-compat (v4 client restoring older formats)', () => {
 
   /** Build a real v3 backup file (iterated SHA-256 KDF + AES-GCM, no scrypt). */
   async function buildV3Backup(passphrase: string, payload: object): Promise<string> {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { createHash, randomBytes, createCipheriv } = require('crypto');
     const sha = (b: Uint8Array) =>
       new Uint8Array(createHash('sha256').update(Buffer.from(b)).digest());

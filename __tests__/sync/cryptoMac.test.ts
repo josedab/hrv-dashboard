@@ -1,5 +1,4 @@
 jest.mock('expo-crypto', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { createHash, randomBytes } = require('crypto');
   return {
     CryptoDigestAlgorithm: { SHA256: 'SHA256' },
@@ -110,7 +109,6 @@ describe('sync crypto v2 (legacy HMAC) — backwards compatibility', () => {
    * so we can verify v2 readers still work after the v3 cutover.
    */
   async function encryptV2Legacy(pt: string, pass: string, ctx: string): Promise<EncryptedString> {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { createHash, randomBytes } = require('crypto');
     const sha = (b: Uint8Array) =>
       new Uint8Array(createHash('sha256').update(Buffer.from(b)).digest());
@@ -191,7 +189,6 @@ describe('sync crypto v3 (AES-GCM + iterated SHA-256) — backwards compatibilit
    * cloud copies that were written by older app versions.
    */
   async function encryptV3Legacy(pt: string, pass: string, ctx: string): Promise<EncryptedString> {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { createHash, randomBytes, createCipheriv } = require('crypto');
     const sha = (b: Uint8Array) =>
       new Uint8Array(createHash('sha256').update(Buffer.from(b)).digest());
