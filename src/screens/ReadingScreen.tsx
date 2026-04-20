@@ -1,15 +1,16 @@
+/** Reading screen — BLE scan → device selection → live RR recording → results display. */
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Device } from 'react-native-ble-plx';
+import { BleDevice } from '../ble/bleManager';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { RRPlot } from '../components/RRPlot';
 import { StatCard } from '../components/StatCard';
 import { COLORS } from '../constants/colors';
 import { useBleRecording } from '../ble/useBleRecording';
-import { scanForDevices, isPolarH10 } from '../ble/bleManager';
+import { scanForDevices } from '../ble/bleManager';
 import { requestBlePermissions, showPermissionBlockedAlert } from '../ble/permissions';
 import { computeHrvMetrics } from '../hrv/metrics';
 import { loadSettings } from '../database/settingsRepository';
@@ -19,6 +20,7 @@ import { BreathingExercise, BREATHING_PRESETS } from '../components/BreathingExe
 import { ConnectionPill } from '../components/ConnectionPill';
 import { useSessionPersistence } from '../hooks/useSessionPersistence';
 import { useReadingFlow } from '../hooks/useReadingFlow';
+import { ScanPhase } from './reading/ScanPhase';
 
 type ReadingNavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -27,7 +29,7 @@ const SCAN_TIMEOUT_MS = 15000;
 export function ReadingScreen() {
   const navigation = useNavigation<ReadingNavProp>();
   const flow = useReadingFlow();
-  const [devices, setDevices] = useState<Device[]>([]);
+  const [devices, setDevices] = useState<BleDevice[]>([]);
   const [recording, actions] = useBleRecording();
   const [stopScan, setStopScan] = useState<(() => void) | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -120,7 +122,7 @@ export function ReadingScreen() {
   }, []);
 
   const selectDevice = useCallback(
-    async (device: Device) => {
+    async (device: BleDevice) => {
       if (connecting) return;
       setConnecting(true);
       stopScan?.();
@@ -191,85 +193,15 @@ export function ReadingScreen() {
 
   // Scanning phase
   if (flow.phase.kind === 'scanning') {
-    const polarDevices = devices.filter(isPolarH10);
-    const otherDevices = devices.filter((d) => !isPolarH10(d));
-
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>{STRINGS.connectToSensor}</Text>
-        {pairedDeviceId && <Text style={styles.subtitle}>{STRINGS.lookingForPaired}</Text>}
-        {!scanTimedOut || devices.length > 0 ? (
-          <>
-            <Text style={styles.subtitle}>{STRINGS.scanningForDevices}</Text>
-            <ActivityIndicator size="large" color={COLORS.accent} style={{ marginVertical: 20 }} />
-          </>
-        ) : (
-          <View style={styles.timeoutContainer}>
-            <Text style={styles.timeoutEmoji}>📡</Text>
-            <Text style={styles.timeoutText}>{STRINGS.noDevicesFound}</Text>
-            <Text style={styles.timeoutHint}>
-              Make sure your heart rate monitor is on and nearby
-            </Text>
-            <TouchableOpacity
-              style={styles.rescanButton}
-              activeOpacity={0.7}
-              onPress={restartScan}
-              accessibilityRole="button"
-              accessibilityLabel="Scan again for heart rate monitors"
-            >
-              <Text style={styles.rescanButtonText}>Scan Again</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {polarDevices.length > 0 && (
-          <View>
-            <Text style={styles.sectionLabel}>Polar H10</Text>
-            {polarDevices.map((device) => (
-              <TouchableOpacity
-                key={device.id}
-                style={styles.deviceButton}
-                onPress={() => selectDevice(device)}
-                accessibilityRole="button"
-                accessibilityLabel={`Connect to ${device.name || 'Polar H10'}`}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.deviceName}>{device.name || 'Polar H10'}</Text>
-                <Text style={styles.deviceId}>{device.id.slice(-8)}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {otherDevices.length > 0 && (
-          <View>
-            <Text style={styles.sectionLabel}>Other HR Monitors</Text>
-            {otherDevices.map((device) => (
-              <TouchableOpacity
-                key={device.id}
-                style={styles.deviceButton}
-                onPress={() => selectDevice(device)}
-                accessibilityRole="button"
-                accessibilityLabel={`Connect to ${device.name || 'Unknown Device'}`}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.deviceName}>{device.name || 'Unknown Device'}</Text>
-                <Text style={styles.deviceId}>{device.id.slice(-8)}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Cancel scanning"
-          activeOpacity={0.7}
-        >
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
+      <ScanPhase
+        devices={devices}
+        pairedDeviceId={pairedDeviceId}
+        scanTimedOut={scanTimedOut}
+        onSelectDevice={selectDevice}
+        onRescan={restartScan}
+        onCancel={() => navigation.goBack()}
+      />
     );
   }
 
@@ -358,12 +290,6 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     alignItems: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
   subtitle: {
     fontSize: 16,
     color: COLORS.textSecondary,
@@ -379,44 +305,6 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'flex-start',
     marginBottom: 16,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  deviceButton: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-  },
-  deviceName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  deviceId: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-  },
-  cancelButton: {
-    marginTop: 32,
-    padding: 12,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  cancelText: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
   },
   liveStats: {
     flexDirection: 'row',
@@ -444,38 +332,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   finishButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  timeoutContainer: {
-    alignItems: 'center',
-    paddingVertical: 32,
-  },
-  timeoutEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  timeoutText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: 4,
-  },
-  timeoutHint: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 16,
-  },
-  rescanButton: {
-    backgroundColor: COLORS.accent,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-  },
-  rescanButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
