@@ -8,14 +8,20 @@
  */
 import { Session } from '../../types';
 
+/** Supported third-party HRV data sources for import. */
 export type ImportSource = 'whoop' | 'oura' | 'garmin' | 'elite_hrv' | 'hrv4training';
 
+/** Result of parsing a vendor export file: parsed sessions and per-line errors. */
 export interface ImportResult {
   source: ImportSource;
   sessions: Session[];
   errors: { line: number; reason: string }[];
 }
 
+/**
+ * Generates a deterministic lookup key for deduplication across re-imports.
+ * Format: `${source}:${externalId}` — used by the wizard for collision detection.
+ */
 export function importHash(source: ImportSource, externalId: string): string {
   return `${source}:${externalId}`;
 }
@@ -51,6 +57,13 @@ function emptySession(timestamp: string, externalId: string, source: ImportSourc
   };
 }
 
+/**
+ * Parses a Whoop CSV export.
+ *
+ * Expected columns: "Cycle start time", "Heart rate variability (ms)".
+ * Optional: "Resting heart rate (bpm)", "Recovery score %".
+ * Recovery % is mapped to perceived readiness 1–5 (÷20 and clamped).
+ */
 export function parseWhoopCsv(csv: string): ImportResult {
   const lines = csv.split(/\r?\n/).filter((l) => l.trim().length > 0);
   const errors: { line: number; reason: string }[] = [];
@@ -88,6 +101,13 @@ export function parseWhoopCsv(csv: string): ImportResult {
   return { source: 'whoop', sessions, errors };
 }
 
+/**
+ * Parses an Oura JSON export (`daily_readiness` + `daily_sleep` arrays).
+ *
+ * Extracts `average_hrv` from readiness entries and cross-references sleep
+ * data by day for `sleepHours`. Oura's `score` (0–100) is mapped to
+ * perceived readiness 1–5.
+ */
 export function parseOuraJson(text: string): ImportResult {
   const errors: { line: number; reason: string }[] = [];
   const sessions: Session[] = [];
@@ -126,6 +146,12 @@ export function parseOuraJson(text: string): ImportResult {
   return { source: 'oura', sessions, errors };
 }
 
+/**
+ * Parses a Garmin Connect HRV CSV export.
+ *
+ * Expected columns: "Date", "RMSSD" (or "HRV" or "Last Night Avg").
+ * Optional: "SDNN", "Avg HR" (or "Resting HR" / "RHR").
+ */
 export function parseGarminCsv(csv: string): ImportResult {
   const lines = csv.split(/\r?\n/).filter((l) => l.trim().length > 0);
   const errors: { line: number; reason: string }[] = [];

@@ -16,6 +16,7 @@
  * unsafe identifiers.
  */
 import { Session } from '../types';
+import { getErrorMessage } from '../utils/errors';
 
 export interface PluginManifest {
   id: string;
@@ -77,9 +78,29 @@ export interface CompileOptions {
 
 /**
  * Compiles a plugin from manifest + source. Throws on:
- *   - failed static audit
+ *   - failed static audit (source contains forbidden tokens)
  *   - missing `compute` export
  *   - manifest requesting permissions not granted today
+ *
+ * @param manifest Plugin metadata with id, name, version, and permissions
+ * @param source JavaScript source string exporting a `compute(session)` function
+ * @param opts Compile options (wall-clock timeout per invocation)
+ * @returns Compiled plugin with a sandboxed `compute` method
+ * @throws {Error} If static audit fails, manifest is invalid, or compute is missing
+ * @example
+ * const manifest = {
+ *   id: 'rr-count',
+ *   name: 'RR Count',
+ *   version: '1.0',
+ *   permissions: ['read:session'] as PluginPermission[],
+ * };
+ * const source = `function compute(session) {
+ *   return { metrics: { rrCount: session.rrIntervals.length } };
+ * }`;
+ *
+ * const plugin = compilePlugin(manifest, source, { timeoutMs: 250 });
+ * const result = await plugin.compute(session);
+ * // result.metrics.rrCount → number of RR intervals
  */
 export function compilePlugin(
   manifest: PluginManifest,
@@ -196,7 +217,7 @@ export class PluginRegistry {
       try {
         out[plugin.manifest.id] = await plugin.compute(session);
       } catch (err) {
-        out[plugin.manifest.id] = { error: err instanceof Error ? err.message : String(err) };
+        out[plugin.manifest.id] = { error: getErrorMessage(err) };
       }
     }
     return out;

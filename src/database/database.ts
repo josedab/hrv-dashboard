@@ -1,3 +1,4 @@
+/** SQLite database singleton with WAL mode, migration management, and connection lifecycle. */
 import * as SQLite from 'expo-sqlite';
 
 const DATABASE_NAME = 'hrv_readiness.db';

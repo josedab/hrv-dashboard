@@ -1,3 +1,10 @@
+/**
+ * User settings persistence layer (SQLite key-value store).
+ *
+ * Stores baseline window, verdict thresholds, paired device, notification
+ * preferences, and internal flags (schema_version, onboarding_complete).
+ * Values are JSON-stringified; reads apply validation and safe coercion.
+ */
 import { Settings, DEFAULT_SETTINGS, parseVerdictMode } from '../types';
 import { getDatabase } from './database';
 

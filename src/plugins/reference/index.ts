@@ -6,6 +6,7 @@
  */
 import { PluginManifest, CompiledPlugin, compilePlugin } from '../host';
 
+/** Manifest + source pair for a reference plugin that ships in-tree. */
 export interface ReferencePlugin {
   manifest: PluginManifest;
   source: string;
@@ -226,6 +227,7 @@ function compute(session) {
 `,
 };
 
+/** All 5 reference plugins: Poincaré, FFT LF/HF, DFA-α1, Recovery Velocity, Weekly Z-Score. */
 export const REFERENCE_PLUGINS: ReferencePlugin[] = [
   POINCARE_SD1_SD2,
   FFT_LF_HF,
@@ -234,6 +236,7 @@ export const REFERENCE_PLUGINS: ReferencePlugin[] = [
   WEEKLY_ZSCORE,
 ];
 
+/** Compiles all reference plugins into runnable {@link CompiledPlugin} instances. */
 export function compileReferencePlugins(): CompiledPlugin[] {
   return REFERENCE_PLUGINS.map((p) => compilePlugin(p.manifest, p.source));
 }

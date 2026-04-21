@@ -7,9 +7,16 @@
  */
 import { Session, BaselineResult, VerdictType } from '../types';
 
+/** Current schema version for the Open HRV Protocol wire format. */
 export const OHP_VERSION = 1;
 
-/** Wire-format spec (camelCase, all-string timestamps, ms-valued metrics). */
+/**
+ * Wire-format session representation (camelCase, ISO-8601 timestamps, ms-valued metrics).
+ *
+ * This is the canonical interchange shape that third-party tools, research
+ * platforms, and the coach web dashboard produce or consume. All fields use
+ * SI-compatible units (milliseconds for RR intervals, bpm for heart rate).
+ */
 export interface OhpSession {
   schemaVersion: number;
   id: string;
@@ -35,6 +42,10 @@ export interface OhpSession {
   };
 }
 
+/**
+ * A bundle of sessions with optional baseline, suitable for file export
+ * or network transmission. Includes generator metadata for provenance.
+ */
 export interface OhpBundle {
   schemaVersion: number;
   generatedAt: string;
@@ -43,6 +54,10 @@ export interface OhpBundle {
   sessions: OhpSession[];
 }
 
+/**
+ * Converts an internal {@link Session} to the OHP wire format.
+ * Lossless — all fields are mapped; context fields are grouped under `context`.
+ */
 export function toOhpSession(session: Session): OhpSession {
   return {
     schemaVersion: OHP_VERSION,
@@ -70,6 +85,13 @@ export function toOhpSession(session: Session): OhpSession {
   };
 }
 
+/**
+ * Deserializes an OHP session back into the internal {@link Session} model.
+ *
+ * Applies safe defaults for missing fields and coerces unrecognised `source`
+ * values to `'chest_strap'`. Throws if the schema version is newer than
+ * this client supports.
+ */
 export function fromOhpSession(o: OhpSession): Session {
   if (o.schemaVersion > OHP_VERSION) {
     throw new Error(
@@ -98,6 +120,14 @@ export function fromOhpSession(o: OhpSession): Session {
   };
 }
 
+/**
+ * Packages an array of sessions (and optional baseline) into a complete
+ * OHP bundle ready for serialization to JSON.
+ *
+ * @param sessions - Sessions to include in the bundle.
+ * @param generator - Tool name and version producing the bundle.
+ * @param baseline - Optional baseline snapshot to include for context.
+ */
 export function buildOhpBundle(
   sessions: Session[],
   generator: { name: string; version: string },
@@ -114,6 +144,7 @@ export function buildOhpBundle(
   };
 }
 
+/** Result of validating a parsed JSON object against the OHP bundle schema. */
 export interface OhpValidationResult {
   ok: boolean;
   errors: string[];

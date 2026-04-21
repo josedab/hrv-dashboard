@@ -1,3 +1,11 @@
+/**
+ * Session persistence layer (SQLite).
+ *
+ * CRUD operations for HRV recording sessions, plus query helpers for
+ * date-range filtering, pagination, daily aggregation, and streak
+ * counting. All functions are async and use the singleton database
+ * connection from {@link getDatabase}.
+ */
 import { Session, DailyReading, SessionLogPatch, parseVerdict, parseSessionSource } from '../types';
 import { getDatabase } from './database';
 

@@ -13,6 +13,10 @@
 import { Session } from '../../types';
 import { ImportResult, ImportSource, parseImport } from './vendors';
 
+/**
+ * Preview of a planned import, showing how many sessions will be inserted,
+ * how many collide with existing data, and any parse errors.
+ */
 export interface ImportPreview {
   source: ImportSource;
   total: number;
@@ -23,6 +27,7 @@ export interface ImportPreview {
   sessions: Session[];
 }
 
+/** Result of committing an import: counts of inserted, skipped, and failed sessions. */
 export interface ImportCommitResult {
   source: ImportSource;
   inserted: number;
@@ -30,7 +35,9 @@ export interface ImportCommitResult {
   failed: { id: string; reason: string }[];
 }
 
+/** Callback to persist a single session — injected by the UI layer. */
 export type SaveSessionFn = (s: Session) => Promise<void>;
+/** Callback to retrieve existing session IDs for collision detection. */
 export type GetExistingIdsFn = () => Promise<Set<string>>;
 
 /** Step 1+2: parse and diff. Pure. */

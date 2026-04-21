@@ -73,11 +73,22 @@ async function readRestingHr(now: Date): Promise<number | null> {
   }
 }
 
+/**
+ * Requests unified read + write health permissions.
+ * @returns `true` if all required permissions were granted.
+ */
 export async function requestHealthAccess(): Promise<boolean> {
   if (!isHealthSyncAvailable()) return false;
   return requestHealthPermissions();
 }
 
+/**
+ * Pulls sleep data and resting heart rate for the current morning.
+ *
+ * Composes `autoPullSleep` (for sleep hours/quality) with a best-effort
+ * resting HR read from the native SDK. Returns `null` fields when data
+ * is unavailable rather than throwing.
+ */
 export async function pullForReading(now: Date = new Date()): Promise<TwoWayPull> {
   const sleep = await autoPullSleep(now);
   const restingHr = await readRestingHr(now);

@@ -11,7 +11,9 @@
  */
 import * as Crypto from 'expo-crypto';
 import { CompiledPlugin, PluginManifest, compilePlugin } from './host';
+import { getErrorMessage } from '../utils/errors';
 
+/** A single plugin entry in the marketplace catalog. */
 export interface PluginCatalogEntry {
   manifest: PluginManifest;
   /** Plain JS source for the plugin compute function. */
@@ -22,12 +24,14 @@ export interface PluginCatalogEntry {
   changelog?: string;
 }
 
+/** A versioned collection of plugins available for installation. */
 export interface PluginCatalog {
   schemaVersion: number;
   publishedAt: string;
   entries: PluginCatalogEntry[];
 }
 
+/** Current catalog schema version; incremented on breaking changes to the catalog format. */
 export const CATALOG_SCHEMA_VERSION = 1;
 
 /** Persistent record stored in settings under `plugin_installed:<id>`. */
@@ -40,6 +44,7 @@ export interface InstalledPlugin {
   manifest: PluginManifest;
 }
 
+/** Storage interface for persisting installed plugin data (SQLite or in-memory). */
 export interface PluginStorage {
   list(): Promise<InstalledPlugin[]>;
   upsert(entry: InstalledPlugin): Promise<void>;
@@ -115,6 +120,7 @@ export async function installPlugin(
   return installed;
 }
 
+/** Removes an installed plugin from storage by ID. */
 export async function uninstallPlugin(id: string, storage: PluginStorage): Promise<void> {
   await storage.remove(id);
 }
@@ -141,7 +147,7 @@ export async function installPluginFromJson(
   try {
     parsed = JSON.parse(rawJson);
   } catch (err) {
-    throw new Error(`Invalid JSON: ${err instanceof Error ? err.message : 'parse error'}`);
+    throw new Error(`Invalid JSON: ${getErrorMessage(err, 'parse error')}`);
   }
   if (!parsed || typeof parsed !== 'object') {
     throw new Error('Plugin JSON must be an object.');
@@ -184,7 +190,7 @@ export async function loadInstalledPlugins(storage: PluginStorage): Promise<{
     try {
       plugins.push(compilePlugin(entry.manifest, entry.source));
     } catch (err) {
-      failures.push({ id: entry.id, reason: err instanceof Error ? err.message : String(err) });
+      failures.push({ id: entry.id, reason: getErrorMessage(err) });
     }
   }
   return { plugins, failures };
