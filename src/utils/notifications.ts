@@ -1,8 +1,26 @@
+/**
+ * Scheduled notification management (morning reminder, streak, weekly digest).
+ *
+ * Uses expo-notifications to schedule local notifications at user-configured
+ * times. Morning reminder time can be inferred from session timestamps.
+ * Settings are persisted in the SQLite settings table.
+ */
 import * as Notifications from 'expo-notifications';
 import { getDatabase } from '../database/database';
+import { fireAndForget } from './errors';
 
 const MORNING_REMINDER_ID = 'morning-reminder';
 const STREAK_REMINDER_ID = 'streak-reminder';
+const WEEKLY_DIGEST_ID = 'weekly-digest';
+
+/** Cancel a scheduled notification by ID. Swallows errors because the notification may not exist. */
+async function cancelSafe(id: string): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(id);
+  } catch {
+    // Notification may not exist yet — expected during first schedule
+  }
+}
 
 export interface NotificationSettings {
   morningReminderEnabled: boolean;
@@ -50,7 +68,7 @@ export async function scheduleMorningReminder(hour: number, minute: number): Pro
   const h = Math.max(0, Math.min(23, Math.floor(hour)));
   const m = Math.max(0, Math.min(59, Math.floor(minute)));
 
-  await Notifications.cancelScheduledNotificationAsync(MORNING_REMINDER_ID).catch(() => {});
+  await cancelSafe(MORNING_REMINDER_ID);
 
   await Notifications.scheduleNotificationAsync({
     identifier: MORNING_REMINDER_ID,
@@ -71,7 +89,7 @@ export async function scheduleMorningReminder(hour: number, minute: number): Pro
  * Schedules a streak-protection reminder at 10 AM if no reading today.
  */
 export async function scheduleStreakReminder(currentStreak: number): Promise<void> {
-  await Notifications.cancelScheduledNotificationAsync(STREAK_REMINDER_ID).catch(() => {});
+  await cancelSafe(STREAK_REMINDER_ID);
 
   if (currentStreak < 2) return;
 
@@ -94,8 +112,8 @@ export async function scheduleStreakReminder(currentStreak: number): Promise<voi
  * Cancels all scheduled HRV notifications.
  */
 export async function cancelAllReminders(): Promise<void> {
-  await Notifications.cancelScheduledNotificationAsync(MORNING_REMINDER_ID).catch(() => {});
-  await Notifications.cancelScheduledNotificationAsync(STREAK_REMINDER_ID).catch(() => {});
+  await cancelSafe(MORNING_REMINDER_ID);
+  await cancelSafe(STREAK_REMINDER_ID);
 }
 
 /** Range-clamping integer parser shared with settingsRepository style. */
@@ -178,11 +196,9 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
   if (settings.morningReminderEnabled) {
     await scheduleMorningReminder(hour, minute);
   } else {
-    await Notifications.cancelScheduledNotificationAsync(MORNING_REMINDER_ID).catch(() => {});
+    await cancelSafe(MORNING_REMINDER_ID);
   }
 }
-
-const WEEKLY_DIGEST_ID = 'weekly-digest';
 
 /**
  * Infers the user's typical recording time from recent session timestamps.
@@ -222,7 +238,7 @@ export async function scheduleWeeklyDigest(
   trendDirection: 'improving' | 'stable' | 'declining',
   streak: number
 ): Promise<void> {
-  await Notifications.cancelScheduledNotificationAsync(WEEKLY_DIGEST_ID).catch(() => {});
+  await cancelSafe(WEEKLY_DIGEST_ID);
 
   const trendEmoji =
     trendDirection === 'improving' ? '📈' : trendDirection === 'declining' ? '📉' : '➡️';
