@@ -1,10 +1,34 @@
+/**
+ * Core HRV metric computation: rMSSD, SDNN, mean HR, pNN50.
+ *
+ * All functions accept arrays of RR intervals in milliseconds and
+ * return scalar metric values. SDNN uses population standard deviation
+ * (÷N, not ÷N-1) because the recording represents the complete dataset,
+ * not a sample. pNN50 is expressed as a percentage (0–100).
+ */
 import { HrvMetrics } from '../types';
 import { filterArtifacts } from './artifacts';
 
 /**
  * Computes all HRV metrics from raw RR intervals.
  * Automatically detects and filters artifacts before computation.
+ * @param rawRrIntervals Array of RR intervals in milliseconds (may contain artifacts)
  * @returns HrvMetrics object with rmssd, sdnn, meanHr, pnn50, and artifactRate.
+ *   Returns zeros for all fields if fewer than 2 clean intervals remain.
+ * @example
+ * // Clean recording (no artifacts)
+ * const metrics = computeHrvMetrics([800, 810, 790, 800, 815, 805, 795]);
+ * // → { rmssd: ~12.2, sdnn: ~7.5, meanHr: ~74.5, pnn50: 0, artifactRate: 0 }
+ *
+ * @example
+ * // Recording with a motion artifact (200ms spike)
+ * const metrics = computeHrvMetrics([800, 810, 790, 200, 800, 815, 805, 795, 810, 800]);
+ * // → artifactRate: 0.1, metrics computed on the 9 clean intervals
+ *
+ * @example
+ * // Insufficient data
+ * const metrics = computeHrvMetrics([800]);
+ * // → { rmssd: 0, sdnn: 0, meanHr: 0, pnn50: 0, artifactRate: 0 }
  */
 export function computeHrvMetrics(rawRrIntervals: number[]): HrvMetrics {
   if (rawRrIntervals.length < 2) {

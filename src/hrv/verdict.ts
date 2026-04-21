@@ -1,3 +1,14 @@
+/**
+ * Readiness verdict computation (fixed + adaptive paths).
+ *
+ * Compares the current rMSSD against the rolling baseline to produce
+ * a Go Hard / Moderate / Rest verdict. Supports two modes:
+ *   - **Fixed**: static thresholds (default 95% / 80% of baseline median)
+ *   - **Adaptive**: personal percentile-based cutoffs with Bayesian feedback
+ *
+ * The {@link computeVerdictWithMode} function unifies both paths and
+ * returns a {@link VerdictResult} with the chosen verdict plus metadata.
+ */
 import { VerdictType, BaselineResult, Settings, Session, DEFAULT_SETTINGS } from '../types';
 import { isInsufficientBaseline } from './baseline';
 import { computeAdaptiveVerdict, AdaptiveResult } from './adaptiveThresholds';
@@ -17,7 +28,19 @@ export interface VerdictResult {
 
 /**
  * Determines the readiness verdict based on current rMSSD vs baseline.
- * @returns Verdict type, or null if the baseline is insufficient.
+ * @param currentRmssd Today's rMSSD value in milliseconds
+ * @param baseline Rolling baseline result from {@link computeBaseline}
+ * @param settings User settings with goHardThreshold and moderateThreshold
+ * @returns Verdict type, or null if the baseline is insufficient (< 5 days or median = 0).
+ * @example
+ * const baseline = { median: 40, dayCount: 7, values: [38, 42, 45, 41, 43, 44, 40] };
+ *
+ * computeVerdict(42, baseline);  // → 'go_hard'  (42/40 = 1.05 ≥ 0.95)
+ * computeVerdict(35, baseline);  // → 'moderate' (35/40 = 0.875 ≥ 0.80)
+ * computeVerdict(28, baseline);  // → 'rest'     (28/40 = 0.70 < 0.80)
+ *
+ * // Insufficient baseline
+ * computeVerdict(42, { median: 40, dayCount: 3, values: [] }); // → null
  */
 export function computeVerdict(
   currentRmssd: number,

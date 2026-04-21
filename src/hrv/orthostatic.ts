@@ -1,3 +1,4 @@
+/** Orthostatic HRV test — compares supine vs. standing metrics for autonomic reactivity scoring. */
 import { HrvMetrics } from '../types';
 import { computeHrvMetrics } from './metrics';
 

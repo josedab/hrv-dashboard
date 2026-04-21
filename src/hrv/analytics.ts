@@ -1,3 +1,10 @@
+/**
+ * Weekly and monthly analytics: trend detection, correlations, and summaries.
+ *
+ * Pure functions that operate on arrays of {@link Session} objects and
+ * produce structured analytics results — trend direction, period-over-period
+ * comparisons, sleep/stress correlation insights, and verdict distribution.
+ */
 import { Session, VerdictType } from '../types';
 import { computeMedian } from './baseline';
 

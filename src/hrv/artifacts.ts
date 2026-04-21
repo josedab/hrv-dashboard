@@ -1,3 +1,4 @@
+/** Artifact detection using a 5-beat moving median filter (flags RR intervals deviating >20%). */
 import { ARTIFACT_DEVIATION_FACTOR } from '../constants/defaults';
 import { computeMedian } from './baseline';
 

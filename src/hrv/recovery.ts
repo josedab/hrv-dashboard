@@ -1,3 +1,10 @@
+/**
+ * Composite recovery score and training load estimation.
+ *
+ * Blends objective HRV data (rMSSD vs. baseline) with subjective inputs
+ * (sleep quality, stress level, perceived readiness) into a single 0–100
+ * score. Weights: HRV 40%, sleep 25%, stress 20%, readiness 15%.
+ */
 import { Session, BaselineResult } from '../types';
 import { isInsufficientBaseline } from './baseline';
 

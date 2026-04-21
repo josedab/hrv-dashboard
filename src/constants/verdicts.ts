@@ -1,3 +1,4 @@
+/** Verdict display metadata: labels, emojis, descriptions, and colors per verdict type. */
 import { VerdictType } from '../types';
 
 /** Display metadata for a readiness verdict. */

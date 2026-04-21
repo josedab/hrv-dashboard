@@ -1,3 +1,12 @@
+/**
+ * Rolling rMSSD baseline computation.
+ *
+ * Computes a rolling **median** rMSSD from recent daily readings, using
+ * the user-configured window (5/7/10/14 days). The median is chosen over
+ * the mean for robustness to outlier sessions. A minimum of
+ * {@link MIN_BASELINE_DAYS} readings is required before the baseline is
+ * considered sufficient for verdict computation.
+ */
 import { BaselineResult, DailyReading } from '../types';
 import { MIN_BASELINE_DAYS } from '../constants/defaults';
 

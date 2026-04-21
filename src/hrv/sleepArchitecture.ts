@@ -6,8 +6,10 @@
  * next-morning HRV readings.
  */
 
+/** Canonical sleep stage labels used throughout the app. */
 export type SleepStage = 'awake' | 'rem' | 'light' | 'deep';
 
+/** A contiguous block of a single sleep stage within the hypnogram. */
 export interface HypnogramSegment {
   stage: SleepStage;
   startMinute: number;
@@ -15,6 +17,7 @@ export interface HypnogramSegment {
   durationMinutes: number;
 }
 
+/** Complete sleep architecture derived from HealthKit/Health Connect samples. */
 export interface SleepArchitecture {
   segments: HypnogramSegment[];
   totalMinutes: number;
@@ -27,6 +30,7 @@ export interface SleepArchitecture {
   wakeEpisodes: number;
 }
 
+/** Correlation between sleep architecture and next-morning HRV. */
 export interface SleepHrvCorrelation {
   restorativePercent: number;
   nextMorningRmssd: number;
