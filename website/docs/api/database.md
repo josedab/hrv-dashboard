@@ -342,8 +342,8 @@ saveSettings(settings: Partial<Settings>): Promise<void>
 **Example:**
 ```typescript
 await saveSettings({
-  goHardThreshold: 1.5,
-  moderateThreshold: 0.75,
+  goHardThreshold: 0.95,
+  moderateThreshold: 0.80,
   pairedDeviceId: 'ABC123',
 });
 ```

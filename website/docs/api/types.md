@@ -26,8 +26,10 @@ Complete recording session with HRV metrics and logging data.
 ```typescript
 interface Session {
   id: string;                    // UUID v4
-  date: string;                  // YYYY-MM-DD
+  timestamp: string;             // ISO 8601 UTC
+  durationSeconds: number;
   rrIntervals: number[];         // R-R intervals in ms
+  source: SessionSource;         // 'chest_strap' | 'camera'
   
   // Computed metrics
   rmssd: number;                 // ms, 0-500 typical
@@ -38,17 +40,16 @@ interface Session {
   // Artifact detection
   artifactRate: number;          // 0-1 proportion
   
+  // Verdict
+  verdict: VerdictType | null;
+
   // Logging & context
-  perceivedReadiness?: number;   // 1-5 scale, user-reported
-  trainingType?: string;         // 'easy' | 'moderate' | 'hard' | 'rest'
-  notes?: string;                // User notes
-  sleepHours?: number;           // Hours of sleep
-  sleepQuality?: number;         // 1-5 scale
-  stressLevel?: number;          // 1-5 scale
-  
-  // Timestamps
-  createdAt: string;             // ISO 8601
-  updatedAt: string;             // ISO 8601
+  perceivedReadiness: number | null;  // 1-5 scale
+  trainingType: string | null;        // 'Strength' | 'BJJ' | 'Cycling' | 'Rest' | 'Other'
+  notes: string | null;
+  sleepHours: number | null;          // 0-24
+  sleepQuality: number | null;        // 1-5 scale
+  stressLevel: number | null;         // 1-5 scale
 }
 ```
 
@@ -111,21 +112,22 @@ User preferences and configuration.
 
 ```typescript
 interface Settings {
-  // Verdict thresholds (multipliers of baseline RMSSD)
-  goHardThreshold: number;       // Default: 1.25 (>125% baseline → go_hard)
-  moderateThreshold: number;     // Default: 0.75 (<75% baseline → rest)
+  // Baseline configuration
+  baselineWindowDays: number;    // Default: 7 (options: 5, 7, 10, 14)
+
+  // Verdict thresholds (ratio of current rMSSD to baseline median)
+  goHardThreshold: number;       // Default: 0.95 (≥95% of baseline → go_hard)
+  moderateThreshold: number;     // Default: 0.80 (≥80% of baseline → moderate)
+  
+  // Verdict mode
+  verdictMode: VerdictMode;      // 'fixed' | 'adaptive'
   
   // Device pairing
   pairedDeviceId?: string;       // BLE device UUID
   pairedDeviceName?: string;     // Device name for display
   
   // Recording preferences
-  autoStartRecording: boolean;   // Default: false
-  autoFinishRecording: boolean;  // Default: false
-  
-  // Notifications
-  enableNotifications: boolean;  // Default: true
-  notifyOnLowReadiness: boolean; // Default: true
+  autoFinishRecording: boolean;  // Default: true
   
   // Data & privacy
   enableCrashReporting: boolean; // Default: true
@@ -155,7 +157,7 @@ interface HeartRateMeasurement {
 
 ```typescript
 const VERDICT_COLORS = {
-  'go_hard': '#10B981',           // Emerald green
+  'go_hard': '#22C55E',           // Green
   'moderate': '#F59E0B',          // Amber
   'rest': '#EF4444',              // Red
 } as const;
@@ -163,18 +165,18 @@ const VERDICT_COLORS = {
 const VERDICT_INFO = {
   'go_hard': {
     label: 'Go Hard',
-    description: 'High readiness for intense training',
-    emoji: '🔥',
+    description: 'HRV is at or above baseline. Full intensity training is appropriate.',
+    emoji: '🟢',
   },
   'moderate': {
     label: 'Moderate',
-    description: 'Balanced readiness for mixed training',
-    emoji: '⚖️',
+    description: 'HRV is within normal variance below baseline. Train, but avoid max effort.',
+    emoji: '🟡',
   },
   'rest': {
     label: 'Rest',
-    description: 'Low readiness; recommend recovery',
-    emoji: '😴',
+    description: 'HRV is significantly below baseline. Prioritize recovery.',
+    emoji: '🔴',
   },
 } as const;
 ```
@@ -206,14 +208,13 @@ const ARTIFACT_DEVIATION_FACTOR = 0.20;    // 20% deviation for detection
 
 ```typescript
 const DEFAULT_SETTINGS: Settings = {
-  goHardThreshold: 1.25,
-  moderateThreshold: 0.75,
+  baselineWindowDays: 7,
+  goHardThreshold: 0.95,
+  moderateThreshold: 0.8,
+  verdictMode: 'fixed',
   pairedDeviceId: undefined,
   pairedDeviceName: undefined,
-  autoStartRecording: false,
-  autoFinishRecording: false,
-  enableNotifications: true,
-  notifyOnLowReadiness: true,
+  autoFinishRecording: true,
   enableCrashReporting: true,
 };
 ```
@@ -224,16 +225,14 @@ const DEFAULT_SETTINGS: Settings = {
 
 ```typescript
 const COLORS = {
-  primary: '#1F2937',             // Dark gray
-  secondary: '#6B7280',           // Medium gray
+  background: '#0F172A',          // Dark navy
+  surface: '#1E293B',             // Slate
+  text: '#F8FAFC',                // Light text
+  textSecondary: '#94A3B8',       // Muted text
   accent: '#3B82F6',              // Blue
-  success: '#10B981',             // Green
-  warning: '#F59E0B',             // Amber
-  error: '#EF4444',               // Red
-  background: '#FFFFFF',          // White
-  border: '#E5E7EB',              // Light gray
-  text: '#111827',                // Dark text
-  textSecondary: '#6B7280',       // Secondary text
+  success: '#22C55E',             // Green (verdict: go_hard)
+  warning: '#F59E0B',             // Amber (verdict: moderate)
+  error: '#EF4444',               // Red (verdict: rest)
 } as const;
 ```
 
@@ -242,16 +241,9 @@ const COLORS = {
 ### Training Types
 
 ```typescript
-type TrainingType = 'easy' | 'moderate' | 'hard' | 'rest';
+const TRAINING_TYPES = ['Strength', 'BJJ', 'Cycling', 'Rest', 'Other'] as const;
 
-const TRAINING_TYPES: TrainingType[] = ['easy', 'moderate', 'hard', 'rest'];
-
-const TRAINING_INFO = {
-  'easy': { label: 'Easy', emoji: '🚶', color: '#93C5FD' },
-  'moderate': { label: 'Moderate', emoji: '🏃', color: '#FCD34D' },
-  'hard': { label: 'Hard', emoji: '🏋️', color: '#FB7185' },
-  'rest': { label: 'Rest', emoji: '🛌', color: '#C4B5FD' },
-} as const;
+type TrainingType = (typeof TRAINING_TYPES)[number];
 ```
 
 ---

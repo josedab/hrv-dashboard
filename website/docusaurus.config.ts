@@ -1,5 +1,5 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
+import { themes as prismThemes } from 'prism-react-renderer';
+import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
@@ -78,9 +78,19 @@ const config: Config = {
         {
           title: 'Documentation',
           items: [
-            {label: 'Getting Started', to: '/docs/getting-started'},
-            {label: 'Core Concepts', to: '/docs/core-concepts/hrv-basics'},
-            {label: 'API Reference', to: '/docs/api/hrv-engine'},
+            { label: 'Getting Started', to: '/docs/getting-started' },
+            { label: 'Core Concepts', to: '/docs/core-concepts/hrv-basics' },
+            { label: 'API Reference', to: '/docs/api/hrv-engine' },
+            { label: 'Architecture', to: '/docs/architecture/overview' },
+          ],
+        },
+        {
+          title: 'Guides',
+          items: [
+            { label: 'Cloud Sync', to: '/docs/guides/cloud-sync' },
+            { label: 'Plugins', to: '/docs/guides/plugins' },
+            { label: 'Workout Generation', to: '/docs/guides/workout-generation' },
+            { label: 'Importing Data', to: '/docs/guides/importing-data' },
           ],
         },
         {
@@ -94,6 +104,14 @@ const config: Config = {
               label: 'Issues',
               href: 'https://github.com/josedab/hrv-dashboard/issues',
             },
+            {
+              label: 'Why This Project?',
+              to: '/docs/comparison',
+            },
+            {
+              label: 'Changelog',
+              to: '/docs/changelog',
+            },
           ],
         },
         {
@@ -102,6 +120,10 @@ const config: Config = {
             {
               label: 'Contributing',
               to: '/docs/contributing',
+            },
+            {
+              label: 'License (MIT)',
+              href: 'https://github.com/josedab/hrv-dashboard/blob/main/LICENSE',
             },
           ],
         },

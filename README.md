@@ -3,7 +3,7 @@
 [![CI](https://github.com/josedab/hrv-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/josedab/hrv-dashboard/actions/workflows/ci.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Expo](https://img.shields.io/badge/Expo-52-000020?logo=expo)](https://expo.dev/)
-[![Tests](https://img.shields.io/badge/tests-1016%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-1042%20passing-brightgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -215,6 +215,11 @@ src/
 └── workout/          # Workout generation & export
     ├── exporters.ts         # Strava/TrainingPeaks/Intervals.icu push adapters
     └── generator.ts         # Verdict → structured workout prescription
+
+examples/                    # Standalone TypeScript examples (runnable without React Native)
+apps/coach-web/              # Next.js web app for coaches to monitor athlete data
+watch-app/                   # Apple Watch + Wear OS companion app skeletons
+web-demo/                    # Static single-file web demo (no hardware needed)
 ```
 
 ## Core Algorithm
@@ -256,7 +261,7 @@ Raw RR Intervals (from BLE)
 
 ## Data Model
 
-All data is stored locally in SQLite. No cloud sync, no user accounts.
+All data is stored locally in SQLite. Optional end-to-end encrypted cloud sync is available (see [Crypto docs](docs/CRYPTO.md)), but no user accounts are required for core functionality.
 
 ### Sessions Table
 
@@ -310,6 +315,9 @@ Tests are pure logic only (no React component rendering). Jest with ts-jest in N
 |----------|-------------|
 | [Architecture Overview](docs/ARCHITECTURE.md) | System diagrams, data flow, design decisions |
 | [API Reference](docs/API.md) | Complete reference for all public exports |
+| [Testing Guide](docs/TESTING.md) | Test architecture, coverage, conventions |
+| [Sync Architecture](docs/SYNC.md) | E2E encrypted sync flow, providers, conflict resolution |
+| [Cryptography](docs/CRYPTO.md) | Encryption protocol versions, wire formats, migration notes |
 | [Product Requirements](hrv-readiness-dashboard-prd.md) | Original PRD |
 
 ## Key Design Decisions

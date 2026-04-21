@@ -1,4 +1,4 @@
-import type {ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import clsx from 'clsx';
 import Heading from '@theme/Heading';
 import styles from './styles.module.css';
@@ -15,8 +15,8 @@ const FeatureList: FeatureItem[] = [
     emoji: '🔒',
     description: (
       <>
-        All data stays on your device in SQLite. No cloud, no accounts,
-        no network dependency. Your health data is yours alone.
+        All data stays on your device in SQLite. Optional E2E encrypted sync uses AES-256-GCM +
+        scrypt — the server never sees your data.
       </>
     ),
   },
@@ -25,8 +25,8 @@ const FeatureList: FeatureItem[] = [
     emoji: '🧬',
     description: (
       <>
-        Computes rMSSD, SDNN, pNN50, and mean HR with artifact detection.
-        Rolling 7-day median baseline per ESC guidelines.
+        rMSSD, SDNN, pNN50, mean HR, plus frequency-domain spectral analysis (LF/HF/VLF). Rolling
+        median baseline per ESC guidelines.
       </>
     ),
   },
@@ -35,8 +35,8 @@ const FeatureList: FeatureItem[] = [
     emoji: '📡',
     description: (
       <>
-        Uses the standard Bluetooth Heart Rate Service (0x180D).
-        Polar H10, Garmin HRM-Pro, Wahoo TICKR — any HR strap works.
+        Standard Bluetooth Heart Rate Service (0x180D). Polar H10, Garmin HRM-Pro, Wahoo TICKR — or
+        use camera PPG as a fallback.
       </>
     ),
   },
@@ -45,39 +45,38 @@ const FeatureList: FeatureItem[] = [
     emoji: '🚦',
     description: (
       <>
-        Three clear outcomes every morning: <strong>🟢 Go Hard</strong>,{' '}
-        <strong>🟡 Moderate</strong>, or <strong>🔴 Rest</strong>.
-        No guesswork needed.
+        Three clear outcomes: <strong>🟢 Go Hard</strong>, <strong>🟡 Moderate</strong>, or{' '}
+        <strong>🔴 Rest</strong>. Fixed or adaptive thresholds with AI coach narrative.
       </>
     ),
   },
   {
-    title: 'Cross-Platform',
-    emoji: '📱',
+    title: 'Workout & Platform Export',
+    emoji: '🏋️',
     description: (
       <>
-        React Native with Expo — one codebase for iOS and Android.
-        Dark theme UI designed for morning use.
+        Verdict-based workout prescriptions exported to Strava, TrainingPeaks, and Intervals.icu.
+        Import from Whoop, Oura, Garmin.
       </>
     ),
   },
   {
-    title: 'Export & Own Your Data',
-    emoji: '📊',
+    title: 'Extensible Plugin System',
+    emoji: '🧩',
     description: (
       <>
-        Export sessions to CSV anytime. Full metrics, subjective logs,
-        and RR interval counts for external analysis.
+        Sandboxed custom metric plugins: Poincaré, DFA-α1, FFT LF/HF, Recovery Velocity, Weekly
+        Z-Score — or write your own.
       </>
     ),
   },
 ];
 
-function Feature({title, emoji, description}: FeatureItem) {
+function Feature({ title, emoji, description }: FeatureItem) {
   return (
     <div className={clsx('col col--4')}>
-      <div className="text--center padding-horiz--md" style={{marginBottom: '2rem'}}>
-        <div style={{fontSize: '2.5rem', marginBottom: '0.5rem'}}>{emoji}</div>
+      <div className="text--center padding-horiz--md" style={{ marginBottom: '2rem' }}>
+        <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{emoji}</div>
         <Heading as="h3">{title}</Heading>
         <p>{description}</p>
       </div>

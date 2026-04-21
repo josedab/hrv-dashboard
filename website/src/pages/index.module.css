@@ -64,3 +64,29 @@
   font-size: 3rem;
   margin-bottom: 0.5rem;
 }
+
+.badges {
+  margin-bottom: 1.5rem;
+}
+
+.badges img {
+  height: 20px;
+  vertical-align: middle;
+}
+
+.architectureSection {
+  padding: 4rem 0;
+  background: rgba(255,255,255,0.02);
+}
+
+.archCard {
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+}
+
+.archCard h3 {
+  margin-bottom: 0.5rem;
+}

@@ -41,8 +41,10 @@ npm start
 
 You'll see a menu in your terminal. Choose your target:
 
-- **iOS:** Press `i` to open Xcode simulator or use your physical device via [Expo Go](https://expo.dev/go)
-- **Android:** Press `a` to open Android Emulator or deploy to your physical device
+- **iOS:** Press `i` to run on your connected physical device
+- **Android:** Press `a` to deploy to your connected physical device
+
+> **Important:** This app uses `expo-dev-client` for native module support (BLE, SQLite). The standard Expo Go app will **not** work — you must use a development build on a physical device.
 
 ### 4. Run on Your Device
 
@@ -64,7 +66,7 @@ Your phone must grant the app permission to access Bluetooth. Permissions differ
 
 | Platform | Permissions | Behavior |
 |----------|-----------|----------|
-| **iOS 13+** | `NSBluetoothPeripheralUsageDescription` | System dialog on first run; user taps "Allow" |
+| **iOS 13+** | `NSBluetoothAlwaysUsageDescription` | System dialog on first run; user taps "Allow" |
 | **Android 12+** | `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT` | Requested at app launch (runtime permissions) |
 | **Android 10–11** | `ACCESS_FINE_LOCATION` | Required because BLE scanning uses location APIs |
 | **Android 9 & below** | `BLUETOOTH` (manifest only) | No runtime prompt; always granted |
@@ -113,7 +115,7 @@ Navigate to **History** to see:
 
 ## Running Tests & Quality Checks
 
-The codebase includes 140+ unit tests and a linter for code quality.
+The codebase includes 1,000+ unit tests covering all business logic.
 
 ### Run Unit Tests
 
@@ -122,10 +124,16 @@ npm test
 ```
 
 Tests cover:
-- HRV metric calculations (RMSSD, SDNN, LF/HF)
-- Baseline computation and rolling average logic
-- Verdict logic (recovery state classification)
-- Data persistence (SQLite interactions)
+- HRV metric calculations (rMSSD, SDNN, pNN50, spectral analysis)
+- Artifact detection and filtering
+- Baseline computation and rolling window logic
+- Verdict logic (fixed + adaptive thresholds)
+- BLE heart rate parsing (GATT 0x2A37)
+- Encrypted sync, backup, and share protocols
+- Plugin system (sandbox, marketplace, reference plugins)
+- Data import (Whoop/Oura/Garmin parsers)
+- Recovery scoring, training stress, and prediction
+- CSV export, date utilities, and data persistence
 
 ### Run the Linter
 
@@ -133,11 +141,19 @@ Tests cover:
 npm run lint
 ```
 
-Checks for TypeScript errors, unused imports, and code style issues. Fix automatically:
+### Run Type Checking
 
 ```bash
-npm run lint -- --fix
+npm run typecheck
 ```
+
+### Run All Quality Checks
+
+```bash
+make check
+```
+
+Runs lint + typecheck + format check + tests in one command.
 
 ## Troubleshooting
 

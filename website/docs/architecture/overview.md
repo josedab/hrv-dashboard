@@ -4,122 +4,106 @@ sidebar_position: 1
 
 # Architecture Overview
 
-The HRV Morning Readiness Dashboard follows a **layered architecture** that separates concerns between presentation, domain logic, data access, and hardware communication. This design enables testability, maintainability, and clear dependencies.
+The HRV Morning Readiness Dashboard follows a **layered architecture** that separates concerns between presentation, domain logic, data access, hardware communication, and optional cloud services. This design enables testability, maintainability, and clear dependencies.
 
 ## Architectural Layers
 
 ```mermaid
 graph TB
-    subgraph Presentation["📱 Presentation Layer"]
-        HomeScreen["HomeScreen<br/>(stats, verdicts)"]
-        ReadingScreen["ReadingScreen<br/>(live recording)"]
-        LogScreen["LogScreen<br/>(history)"]
-        SettingsScreen["SettingsScreen<br/>(config)"]
+    subgraph Presentation["📱 Presentation Layer (18 screens)"]
+        HomeScreen["HomeScreen<br/>(verdict, sparkline, recovery)"]
+        ReadingScreen["ReadingScreen<br/>(BLE scan → record)"]
+        MorningProtocol["MorningProtocolScreen<br/>(breathing → record → log)"]
+        HistoryScreen["HistoryScreen<br/>(session list, trends)"]
+        TrendsScreen["TrendsScreen<br/>(analytics, correlations)"]
+        SettingsScreen["SettingsScreen<br/>(config, export, backup)"]
+        OtherScreens["+ 12 more screens"]
     end
 
-    subgraph Domain["🧠 Domain Layer"]
-        HRVEngine["HRV Engine<br/>(RMSSD, SDNN,<br/>mean_hr, pnn50)"]
-        ReadinessLogic["Readiness Logic<br/>(baseline, thresholds,<br/>verdicts)"]
-        ArtifactDetection["Artifact Detection<br/>(noise filtering)"]
+    subgraph Domain["🧠 Domain Layer (17 modules)"]
+        HRVEngine["HRV Engine<br/>(rMSSD, SDNN, pNN50)"]
+        Spectral["Spectral Analysis<br/>(LF/HF/VLF bands)"]
+        ArtifactDetection["Artifact Detection<br/>(5-beat median filter)"]
+        Baseline["Baseline<br/>(rolling median)"]
+        Verdict["Verdict Logic<br/>(fixed + adaptive)"]
+        Recovery["Recovery Score<br/>(composite 0–100)"]
+        TSB["Training Stress<br/>(ATL/CTL/TSB)"]
+        Coach["Coach Narrative<br/>(daily briefs)"]
+        Prediction["Prediction<br/>(next-day rMSSD)"]
+        Norms["Population Norms<br/>(age/sex percentiles)"]
+        Coherence["Coherence Trainer<br/>(Goertzel biofeedback)"]
     end
 
     subgraph Data["💾 Data Layer"]
         SessionRepo["SessionRepository<br/>(CRUD, queries)"]
         SettingsRepo["SettingsRepository<br/>(key-value pairs)"]
-        SQLiteDB["SQLite Database<br/>(sessions, settings)"]
+        SQLiteDB["SQLite Database<br/>(WAL mode)"]
     end
 
-    subgraph BLE["🔗 BLE/External Layer"]
-        BLEHook["useBleRecording Hook<br/>(scan, connect, record)"]
-        BLEManager["BLE Manager<br/>(lifecycle,<br/>permissions)"]
-        PolarH10["Polar H10<br/>(RR intervals)"]
+    subgraph BLE["🔗 BLE Layer"]
+        BLEManager["BLE Manager<br/>(scan, connect, retry)"]
+        HRParser["Heart Rate Parser<br/>(GATT 0x2A37)"]
+        PPG["PPG Processor<br/>(camera fallback)"]
+        DeviceProfiles["Device Profiles<br/>(per-device tolerance)"]
     end
 
-    HomeScreen --> HRVEngine
-    HomeScreen --> ReadinessLogic
-    ReadingScreen --> BLEHook
-    ReadingScreen --> HRVEngine
-    LogScreen --> SessionRepo
-    SettingsScreen --> SettingsRepo
-    ReadinessLogic --> SessionRepo
-    BLEHook --> BLEManager
-    BLEHook --> ArtifactDetection
-    HRVEngine --> Domain
-    BLEManager --> PolarH10
-    SessionRepo --> SQLiteDB
-    SettingsRepo --> SQLiteDB
+    subgraph Integrations["🔌 Integrations"]
+        HealthSync["HealthKit /<br/>Health Connect"]
+        ImportWizard["CSV Import<br/>(Whoop/Oura/Garmin)"]
+        WorkoutExport["Workout Export<br/>(Strava/TP/Intervals)"]
+    end
+
+    subgraph Security["🔐 Security Layer"]
+        Sync["E2E Encrypted Sync<br/>(AES-256-GCM + scrypt)"]
+        Backup["Encrypted Backup<br/>(.hrvbak files)"]
+        Share["Coach Share<br/>(pairing codes)"]
+        Plugins["Plugin Sandbox<br/>(5 reference plugins)"]
+    end
+
+    Presentation --> Domain
+    Presentation --> Data
+    Presentation --> BLE
+    Domain --> Data
+    BLE --> Domain
+    Integrations --> Data
+    Security --> Data
 
     style Presentation fill:#e1f5ff
     style Domain fill:#f3e5f5
     style Data fill:#fff3e0
     style BLE fill:#e8f5e9
+    style Integrations fill:#e8eaf6
+    style Security fill:#fce4ec
 ```
 
 ## Layer Descriptions
 
-### 📱 Presentation Layer
-**Screens and UI components** that display data and handle user interactions.
+### 📱 Presentation Layer (18 screens)
+React Native screens and reusable UI components. Key screens: HomeScreen (today's verdict), ReadingScreen (BLE recording), MorningProtocolScreen (guided 3-phase flow), HistoryScreen (session list), TrendsScreen (weekly analytics), SettingsScreen (configuration), plus CoherenceScreen, OrthostaticScreen, ImportScreen, PluginsScreen, ProfilesScreen, and more.
 
-- **HomeScreen**: Displays today's HRV metrics and readiness verdict; allows starting a new recording
-- **ReadingScreen**: Shows live RR intervals during recording; handles BLE connection feedback
-- **LogScreen**: Lists past sessions with sortable/filterable history
-- **SettingsScreen**: Configure device pairing, threshold adjustments, and other preferences
-
-Dependencies: Domain logic, repositories, BLE hooks
-
----
-
-### 🧠 Domain Layer
-**Pure business logic** that operates on data without side effects. Highly testable.
-
-- **HRV Engine**: Calculates RMSSD, SDNN, mean HR, pNN50 from RR intervals
-- **Readiness Logic**: Compares current metrics against baseline; assigns verdict (Go Hard / Moderate / Rest)
-- **Artifact Detection**: Identifies and filters physiologically implausible RR intervals (> 5-beat median)
-
-Dependencies: None (pure functions)
-
----
+### 🧠 Domain Layer (17 modules)
+Pure business logic with no side effects — highly testable. Covers: HRV metrics, spectral analysis, artifact detection, baseline computation, verdict logic (fixed + adaptive), recovery scoring, training stress (ATL/CTL/TSB), coach narrative, prediction, population norms, ANS balance, sleep architecture, circadian analysis, and coherence biofeedback.
 
 ### 💾 Data Layer
-**Repository pattern** for database access and persistence.
+Repository pattern for SQLite access. SessionRepository handles session CRUD and queries. SettingsRepository provides key-value configuration storage. Database initialization includes migration management and WAL mode.
 
-- **SessionRepository**: Save, retrieve, update sessions; query by date range, export to CSV
-- **SettingsRepository**: Get/set key-value configuration (baseline window, thresholds, device ID, etc.)
-- **SQLite Database**: Local-only storage; no network, no cloud sync
+### 🔗 BLE Layer
+Hardware communication via react-native-ble-plx. Supports any BLE heart rate monitor via standard Heart Rate Service (0x180D). Includes camera PPG processor as a no-strap fallback and device profiles for per-device artifact tolerance tuning.
 
-Dependencies: Data access driver
+### 🔌 Integrations
+Two-way HealthKit/Health Connect sync, CSV import wizard (Whoop/Oura/Garmin/EliteHRV/HRV4Training), and workout export to Strava, TrainingPeaks, and Intervals.icu.
 
----
-
-### 🔗 BLE/External Layer
-**Hardware communication** and sensor integration.
-
-- **useBleRecording Hook**: React hook for scan, connect, record lifecycle; manages BLE state
-- **BLE Manager**: Handles Android/iOS permissions, device lifecycle, connection stability
-- **Polar H10**: Bluetooth LE Heart Rate Service; streams RR intervals as received values
-
-Dependencies: Native modules (react-native-ble-plx), OS permissions
-
----
-
-## Data Flow at a Glance
-
-1. **User opens app** → HomeScreen loads baseline from database
-2. **User taps "Record"** → ReadingScreen activates BLE hook
-3. **BLE scans & connects** to Polar H10 → RR intervals stream in
-4. **HRV Engine processes** RR intervals → calculates metrics
-5. **Recording ends** → SessionRepository saves to SQLite
-6. **HomeScreen displays** new verdict from Readiness Logic
-
-See [Data Flow](./data-flow.md) for detailed sequence diagrams.
+### 🔐 Security Layer
+End-to-end encrypted cloud sync (AES-256-GCM with scrypt KDF), encrypted backup/restore, coach share bundles with CSPRNG pairing codes, and sandboxed plugin execution with static source auditing.
 
 ---
 
 ## Key Design Principles
 
 - **Separation of Concerns**: Each layer has a single responsibility
-- **Testability**: Domain logic is pure; easily unit tested
-- **Modularity**: Components/hooks are composable and reusable
-- **Local-First**: All data stays on device; no network dependency
-- **Type Safety**: Full TypeScript strict mode across codebase
+- **Testability**: Domain logic is pure functions; 1,000+ unit tests
+- **Local-First**: All data on device by default; cloud is opt-in and encrypted
+- **Type Safety**: Full TypeScript strict mode across the codebase
+- **Privacy by Default**: No telemetry, no analytics, no network calls unless user opts in
+- **Extensibility**: Plugin system for custom metrics, open import parsers for new vendors
 

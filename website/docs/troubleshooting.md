@@ -24,6 +24,7 @@ sidebar_position: 7
 **If still not found**: 
 - Polar H10 may need factory reset (see [Polar support](https://support.polar.com/))
 - Contact hardware support; app scan is standard Bluetooth (no app-level filtering)
+- Open an issue at [GitHub](https://github.com/josedab/hrv-dashboard/issues)
 
 ---
 
@@ -31,7 +32,7 @@ sidebar_position: 7
 
 **Problem**: App shows "Building Baseline" instead of readiness verdict.
 
-**Explanation**: The baseline requires at least **5 previous HRV readings** from the past 30 days. On first use, no baseline exists.
+**Explanation**: The baseline requires at least **5 previous HRV readings** within your configured baseline window (default: 7 days). On first use, no baseline exists.
 
 **Solution**: 
 - Record HRV readings for 5+ consecutive mornings
@@ -91,7 +92,7 @@ sidebar_position: 7
 
 **If crash persists**:
 - Check device logs (Android: `adb logcat`, iOS: Console app)
-- Open an issue with logs at [GitHub](https://github.com/yourusername/hrv-dashboard/issues)
+- Open an issue with logs at [GitHub](https://github.com/josedab/hrv-dashboard/issues)
 
 ---
 
@@ -127,9 +128,9 @@ sidebar_position: 7
 
 ### Q: Does the app work with Apple Watch?
 
-**A**: No. The app only supports **BLE Heart Rate Service**, which is not available on Apple Watch. Apple Watch uses HealthKit (proprietary iOS framework), not standard Bluetooth.
+**A**: Not directly for HRV recording — the app uses the **BLE Heart Rate Service**, which Apple Watch does not expose to third-party apps. However, companion watch app skeletons for both watchOS and Wear OS are included in the repository under `watch-app/`.
 
-**Workaround**: Wear a Polar H10 strap in addition to Apple Watch during HRV recording.
+**Workaround**: Wear a Polar H10 or other BLE HR strap during your morning reading. The app also supports a **camera PPG fallback** — use your phone's rear camera to capture pulse data from your fingertip (less accurate than a chest strap).
 
 ---
 
@@ -147,25 +148,28 @@ Simulators: Cannot connect to BLE peripherals.
 
 ### Q: Where is my data stored?
 
-**A**: All data is stored **locally on your device** in a SQLite database. 
+**A**: All data is stored **locally on your device** in a SQLite database by default.
 
-- **No cloud**: Data never leaves your phone
-- **No accounts**: No username/password required
+- **Local-first**: Data lives on your phone with no cloud dependency
+- **No accounts**: No username/password required for core functionality
 - **Private**: Only accessible to this app
-- **Backup**: Automatic via iOS iCloud or Android system backup
+- **Optional E2E encrypted sync**: You can optionally enable cloud sync (via Supabase) with end-to-end AES-256-GCM encryption — the server never sees your plaintext data
+- **Encrypted backup**: Export `.hrvbak` files with AES-256-GCM encryption for offline backup
 
-**Export**: Tap Menu (LogScreen) → "Export to CSV" to download readings as a spreadsheet.
+**Export**: Go to Settings → "Export to CSV" to download readings as a spreadsheet.
 
 ---
 
 ### Q: Can I sync readings across my multiple devices (phone, tablet)?
 
-**A**: No. Each device has its own local database with separate readings and baseline.
+**A**: Yes! The app supports **end-to-end encrypted cloud sync**. Your data is encrypted with AES-256-GCM using a passphrase you choose, so the sync server never sees your plaintext health data.
 
-**Workaround**: 
-- Export readings from one device (CSV)
-- Email or cloud-share the file
-- Import manually to other device (feature may be added in future)
+To set up sync:
+1. Go to **Settings** → **Sync Settings**
+2. Enter a strong passphrase (this encrypts all data before upload)
+3. Sync runs automatically, with last-write-wins conflict resolution
+
+See the [Cloud Sync guide](./guides/cloud-sync.md) for full setup instructions.
 
 ---
 
@@ -213,11 +217,11 @@ Simulators: Cannot connect to BLE peripherals.
 
 ### Q: What's the difference between "Go Hard," "Moderate," and "Rest"?
 
-**A**: Verdicts are based on your **current RMSSD compared to your personal baseline**:
+**A**: Verdicts are based on your **current rMSSD compared to your personal baseline** (median rMSSD over a rolling 7-day window):
 
-- **Go Hard** (RMSSD ≥ 100% of baseline): High parasympathetic tone suggests good recovery; optimal for intense training or testing.
-- **Moderate** (RMSSD 75–100% of baseline): Adequate recovery; suitable for normal training, with potential to push harder.
-- **Rest** (RMSSD < 75% of baseline): Low HRV suggests fatigue or stress; prioritize recovery, lighter training, or rest day.
+- **Go Hard** (rMSSD ≥ 95% of baseline): High parasympathetic tone suggests good recovery; optimal for intense training or testing.
+- **Moderate** (rMSSD 80–95% of baseline): Adequate recovery; suitable for normal training, avoid max effort.
+- **Rest** (rMSSD < 80% of baseline): Low HRV suggests fatigue or stress; prioritize recovery, lighter training, or rest day.
 
 **Not diagnosis**: These are training readiness indicators, not medical advice. If you're unwell, follow your symptoms and judgment.
 
@@ -225,14 +229,17 @@ Simulators: Cannot connect to BLE peripherals.
 
 ### Q: Can I adjust the thresholds for verdicts?
 
-**A**: Yes, in future versions. Currently, thresholds are fixed (1.0× for Go Hard, 0.75× for Moderate). 
+**A**: Yes! The app supports two verdict modes:
 
-**Workaround** (manual interpretation):
-- Note your baseline RMSSD (visible on home screen)
-- Use the formula: `Verdict = RMSSD ÷ baseline`
-- Adjust personal thresholds based on your own experience
+**Fixed thresholds** (default):
+- Go to **Settings** and adjust the Go Hard (default: 95%) and Moderate (default: 80%) thresholds
+- These are expressed as a percentage of your baseline median rMSSD
 
-**Planned feature**: Settings screen will allow threshold customization in v2.
+**Adaptive thresholds** (advanced):
+- Enable adaptive mode in Settings to use personal percentile-based cutoffs
+- The system uses your 30+ day history to compute personalized thresholds
+- With 10+ labeled sessions (where you rated perceived readiness), Bayesian feedback fine-tunes the cutoffs by ±10%
+- Falls back to fixed thresholds if you have fewer than 30 days of data
 
 ---
 
@@ -250,9 +257,10 @@ Simulators: Cannot connect to BLE peripherals.
 ### Q: I want to change my baseline. How?
 
 **A**: 
-- The baseline automatically recalculates every time a new reading is added, using the **most recent 30 days**.
-- To shift baseline quickly, log extra readings for a few days during the state you want to baseline against.
-- Custom baseline window (e.g., 14 days vs. 30) will be configurable in v2.
+- The baseline automatically recalculates every time a new reading is added, using the rolling window you've configured.
+- **Configurable window**: Go to Settings to choose 5, 7 (default), 10, or 14 days for your baseline window.
+- Shorter windows are more responsive; longer windows are more stable.
+- If you're importing data from another app (Whoop, Oura, Garmin), the **baseline accelerator** can pre-compute your baseline from the imported sessions so you get verdicts immediately.
 
 ---
 
@@ -268,5 +276,5 @@ Simulators: Cannot connect to BLE peripherals.
 
 ### Q: I have a question not answered here.
 
-**A**: Great! Please open an issue on [GitHub](https://github.com/yourusername/hrv-dashboard/issues) with details, and the maintainers will help.
+**A**: Great! Please open an issue on [GitHub](https://github.com/josedab/hrv-dashboard/issues) with details, and the maintainers will help.
 

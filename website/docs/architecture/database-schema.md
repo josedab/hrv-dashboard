@@ -22,8 +22,8 @@ erDiagram
         real mean_hr "Average heart rate (bpm)"
         real pnn50 "Percentage of RR > 50ms difference"
         real artifact_rate "Percentage of RR intervals removed"
-        text verdict "Go Hard | Moderate | Rest"
-        int perceived_readiness "User rating 1-10"
+        text verdict "go_hard | moderate | rest | NULL"
+        int perceived_readiness "User rating 1-5"
         text training_type "Optional: training plan, event, etc."
         text notes "Optional: user notes"
         real sleep_hours "Previous night: hours slept"
@@ -57,9 +57,9 @@ erDiagram
 | `mean_hr` | REAL | ✓ | Average heart rate (bpm); calculated as 60000 / mean(RR) |
 | `pnn50` | REAL | ✓ | Percentage of RR intervals with > 50ms difference (0–100) |
 | `artifact_rate` | REAL | ✓ | Percentage of RR intervals removed as artifacts (0–100) |
-| `verdict` | TEXT | ✓ | Readiness verdict: "Go Hard", "Moderate", or "Rest" |
-| `perceived_readiness` | INTEGER | ✗ | User's subjective readiness rating (1–10 scale); NULL if not provided |
-| `training_type` | TEXT | ✗ | Optional: planned training type (e.g., "strength", "cardio", "easy recovery") |
+| `verdict` | TEXT | ✗ | Readiness verdict: `go_hard`, `moderate`, or `rest`; NULL when baseline is insufficient |
+| `perceived_readiness` | INTEGER | ✗ | User's subjective readiness rating (1–5 scale); NULL if not provided |
+| `training_type` | TEXT | ✗ | Optional: planned training type (`Strength`, `BJJ`, `Cycling`, `Rest`, `Other`) |
 | `notes` | TEXT | ✗ | Optional: user notes or context (e.g., "Poor sleep", "Recovered well") |
 | `sleep_hours` | REAL | ✗ | Hours of sleep previous night; NULL if not entered |
 | `sleep_quality` | INTEGER | ✗ | Sleep quality rating (1–5); NULL if not entered |
@@ -79,7 +79,7 @@ erDiagram
   "pnn50": 38.2,
   "artifact_rate": 2.1,
   "verdict": "Go Hard",
-  "perceived_readiness": 8,
+  "perceived_readiness": 4,
   "training_type": "strength",
   "notes": "Great night's sleep",
   "sleep_hours": 8.5,
@@ -105,9 +105,9 @@ erDiagram
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `baselineWindowDays` | Integer | 30 | Number of past days to use for baseline calculation |
-| `goHardThreshold` | Number (JSON) | 1.0 | Multiplier for RMSSD above which verdict is "Go Hard" (baseline × threshold) |
-| `moderateThreshold` | Number (JSON) | 0.75 | Multiplier for RMSSD above which verdict is "Moderate" (baseline × threshold) |
+| `baselineWindowDays` | Integer | 7 | Number of past days to use for baseline calculation (5, 7, 10, or 14) |
+| `goHardThreshold` | Number (JSON) | 0.95 | Ratio threshold for "Go Hard" verdict (rMSSD / baseline ≥ threshold) |
+| `moderateThreshold` | Number (JSON) | 0.80 | Ratio threshold for "Moderate" verdict (rMSSD / baseline ≥ threshold) |
 | `pairedDeviceId` | String | null | UUID of paired Polar device |
 | `pairedDeviceName` | String | null | Display name of paired device (e.g., "Polar H10 ABC123") |
 | `onboarding_complete` | Boolean (JSON) | false | Whether user has completed first-run setup |
@@ -116,11 +116,11 @@ erDiagram
 **Example Settings**:
 ```sql
 -- Baseline window
-INSERT INTO settings (key, value) VALUES ('baselineWindowDays', '30');
+INSERT INTO settings (key, value) VALUES ('baselineWindowDays', '7');
 
 -- Thresholds
-INSERT INTO settings (key, value) VALUES ('goHardThreshold', '1.0');
-INSERT INTO settings (key, value) VALUES ('moderateThreshold', '0.75');
+INSERT INTO settings (key, value) VALUES ('goHardThreshold', '0.95');
+INSERT INTO settings (key, value) VALUES ('moderateThreshold', '0.8');
 
 -- Device pairing
 INSERT INTO settings (key, value) VALUES ('pairedDeviceId', '"A1B2C3D4E5"');
@@ -201,7 +201,7 @@ These indexes optimize:
 - **`rmssd`, `sdnn`, `mean_hr`, `pnn50`, `artifact_rate`**: Must be ≥ 0
 - **`verdict`**: Only "Go Hard", "Moderate", or "Rest"
 - **`sleep_quality`, `stress_level`**: 1–5 scale if provided
-- **`perceived_readiness`**: 1–10 scale if provided
+- **`perceived_readiness`**: 1–5 scale if provided
 - **`rr_intervals`**: Valid JSON array of numbers (ms)
 
 ---

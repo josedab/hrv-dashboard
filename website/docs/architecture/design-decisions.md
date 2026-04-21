@@ -73,20 +73,19 @@ SDNN = sqrt( sum((RR_i - mean_RR)²) / N )  // ÷N, not ÷(N-1)
 
 ---
 
-## 5. Local-Only Storage (No Cloud)
+## 5. Local-First Storage (Cloud Optional)
 
-**Decision**: All data stored **locally on device** (SQLite); no cloud sync or accounts.
+**Decision**: All data stored **locally on device** (SQLite) by default; cloud sync is opt-in and end-to-end encrypted.
 
 **Rationale**:
-- **Privacy first**: Sensitive health data never leaves the device.
+- **Privacy first**: Sensitive health data stays on-device unless the user explicitly enables sync.
 - **No internet dependency**: App works in airplane mode, offline, or with poor connectivity.
-- **No user friction**: No account creation, login, password management, or Terms of Service.
-- **Simpler architecture**: No backend server, authentication, or database maintenance.
-- **Device backup**: iOS and Android OS backups automatically preserve app data.
+- **No user friction**: No account creation or login required for core functionality.
+- **When sync is enabled**: All data is encrypted with AES-256-GCM (scrypt KDF) before leaving the device — the server never sees plaintext.
 
 **Trade-offs**:
-- Users cannot sync across devices (intentional)
-- CSV export available for data portability
+- Users who want multi-device sync must configure a passphrase
+- CSV export available for data portability without sync
 
 ---
 
@@ -132,43 +131,42 @@ Action: Flag 1250 as artifact, exclude from RMSSD/SDNN calculation
 
 **Thresholds**:
 ```
-Go Hard:    RMSSD >= (baseline × 1.0)
-Moderate:   RMSSD >= (baseline × 0.75) AND < (baseline × 1.0)
-Rest:       RMSSD < (baseline × 0.75)
+Go Hard:    RMSSD >= (baseline × 0.95)
+Moderate:   RMSSD >= (baseline × 0.80) AND < (baseline × 0.95)
+Rest:       RMSSD < (baseline × 0.80)
 ```
 
 **Rationale**:
 - **Physiological**: Higher RMSSD indicates parasympathetic tone (rest/recovery); lower RMSSD suggests sympathetic dominance (stress/fatigue).
 - **Personalized**: Thresholds scale to each user's own baseline, not population norms.
 - **Actionable**: Three options cover spectrum from high readiness to recovery needed.
-- **Configurable**: Users can adjust multipliers in Settings if desired.
+- **Configurable**: Users can adjust the ratio thresholds in Settings. Adaptive mode uses personal percentile cutoffs.
 
 **Example**:
 ```
 User's baseline RMSSD: 50 ms
-Today's RMSSD: 52 ms
-52 >= 50 × 1.0? YES → Verdict: "Go Hard"
+Today's RMSSD: 48 ms
+48 / 50 = 0.96 → 0.96 >= 0.95? YES → Verdict: "Go Hard"
 
 User's baseline RMSSD: 50 ms
-Today's RMSSD: 40 ms
-40 >= 50 × 0.75 (37.5)? YES → Verdict: "Moderate"
+Today's RMSSD: 42 ms
+42 / 50 = 0.84 → 0.84 >= 0.80? YES → Verdict: "Moderate"
 
 User's baseline RMSSD: 50 ms
-Today's RMSSD: 30 ms
-30 >= 50 × 0.75 (37.5)? NO → Verdict: "Rest"
+Today's RMSSD: 38 ms
+38 / 50 = 0.76 → 0.76 >= 0.80? NO → Verdict: "Rest"
 ```
 
 ---
 
-## 9. 30-Day Baseline Window (Default)
+## 9. 7-Day Baseline Window (Default)
 
-**Decision**: Use the **last 30 days** of readings to calculate baseline metrics by default.
+**Decision**: Use the **last 7 days** of readings to calculate baseline metrics by default.
 
 **Rationale**:
-- **Trend sensitivity**: 30 days captures seasonal/training phase changes without being overly reactive.
+- **Balanced responsiveness**: 7 days is short enough to reflect recent changes but long enough for stability. Configurable to 5, 10, or 14 days in Settings.
 - **Minimum 5 readings**: Requires at least 5 sessions to compute baseline (prevents misleading metrics with just 1–2 readings).
-- **Consistency**: Aligns with many HRV apps and research standards.
-- **Configurable**: Users can adjust window in Settings if they prefer shorter/longer periods.
+- **Median not mean**: The median of the 7-day window provides robustness against outlier sessions.
 
 ---
 

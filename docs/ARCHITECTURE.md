@@ -578,7 +578,7 @@ Missing subjective inputs default to 50 (neutral) so the score remains functiona
 
 Backups are encrypted `.hrvbak` files containing all sessions and user settings.
 
-**Encryption:** SHA-256 CTR mode stream cipher with PBKDF2-like key derivation (1000 iterations of SHA-256 with salt). The backup file includes a salt, IV, integrity hash, and ciphertext — wrong passphrases are detected via integrity check before import.
+**Encryption:** AES-256-GCM with a memory-hard scrypt KDF (protocol v4). Legacy v1–v3 blobs still decrypt for back-compat — see [`docs/CRYPTO.md`](./CRYPTO.md) for the full wire format, version history, and migration notes. Wrong passphrases are detected via GCM tag verification before import.
 
 **Restore:** Imports only sessions not already present in the database (by UUID). User settings are restored but internal state keys (`schema_version`, `onboarding_complete`, etc.) are preserved from the current installation.
 
@@ -587,9 +587,10 @@ Backups are encrypted `.hrvbak` files containing all sessions and user settings.
 Optional integration with Apple HealthKit (iOS) and Android Health Connect:
 
 - The health SDK modules (`react-native-health`, `react-native-health-connect`) are loaded at runtime via `require()` — the app works fine without them installed
-- Writes HRV (SDNN on iOS, rMSSD on Android) and heart rate samples to the platform health store
+- **Writes** HRV (SDNN on iOS, rMSSD on Android) and heart rate samples to the platform health store
+- **Reads** last-night sleep stages from HealthKit/Health Connect for recovery scoring (`healthSleep.ts`)
+- Bidirectional sync is orchestrated by `healthTwoWay.ts`; sleep-strain fusion (`sleepStrain.ts`) combines sleep quality with training load
 - Tracks synced session IDs in the settings table to avoid duplicate writes
-- All sync is **write-only** — the app never reads health data from the platform
 
 ## Advanced HRV Analysis Subsystems
 

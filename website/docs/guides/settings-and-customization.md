@@ -36,27 +36,40 @@ The baseline window is the time period over which the app calculates your "norma
 
 ## Verdict Thresholds
 
-Verdicts are calculated based on percentile ranks of your baseline rMSSD distribution:
+The app supports two verdict modes: **Fixed** (default) and **Adaptive**.
+
+### Fixed Mode (Default)
+
+Verdicts are calculated based on the **ratio** of your current rMSSD to your baseline median:
 
 - **Go Hard threshold** (default: 95%)
-  - rMSSD ≥ 95th percentile of your baseline = "Go Hard"
-  - This is when you're in the top 5% of your recent baseline — a great day to push hard.
+  - rMSSD ≥ 95% of your baseline median = "Go Hard"
+  - This means your HRV is at or near your personal norm — a great day to push hard.
 
 - **Moderate threshold** (default: 80%)
-  - rMSSD between 80th–95th percentile = "Moderate"
-  - rMSSD < 80th percentile = "Rest"
+  - rMSSD between 80–95% of your baseline = "Moderate"
+  - rMSSD < 80% of your baseline = "Rest"
 
-### Customizing Thresholds
+### Customizing Fixed Thresholds
 
-You can adjust these percentiles to match your goals:
+You can adjust these ratios to match your goals:
 
 - **More aggressive** (e.g., Go Hard at 90%, Moderate at 70%)
-  - You'll get "Go Hard" and "Moderate" verdicts more often. Use this if you want to train harder and recover faster.
+  - You'll get "Go Hard" and "Moderate" verdicts more often. Use this if you want to train harder and tolerate more fatigue.
   - Risk: You might ignore genuine recovery signals and overtrain.
 
-- **More conservative** (e.g., Go Hard at 98%, Moderate at 90%)
-  - "Rest" verdicts appear more frequently. Use this if you're recovering from injury, managing a high-stress life, or prefer to prioritize recovery.
+- **More conservative** (e.g., Go Hard at 100%, Moderate at 90%)
+  - "Rest" verdicts appear more frequently. Use this if you're recovering from injury, managing stress, or prefer to prioritize recovery.
   - Risk: You might miss training opportunities on days you're actually recovered.
+
+### Adaptive Mode
+
+Enable adaptive mode in Settings to switch from fixed ratios to **personal percentile-based cutoffs**:
+
+- Requires **30+ days** of session history to activate
+- Uses your historical rMSSD distribution (20th percentile = Rest, 65th percentile = Go Hard)
+- With **10+ labeled sessions** (where you rated perceived readiness), Bayesian feedback adjusts cutoffs by ±10%
+- Falls back to fixed thresholds if you have fewer than 30 days of data
 
 **Default thresholds (95% and 80%) are science-backed and recommended for most users.** Only adjust if you have specific reasons and experience with HRV training.
 
