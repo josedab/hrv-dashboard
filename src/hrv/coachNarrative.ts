@@ -62,6 +62,7 @@ function baselineClause(ctx: NarrativeContext): string | null {
 }
 
 function trendClause(ctx: NarrativeContext): string | null {
+  if (!Number.isFinite(ctx.trendPercent)) return null;
   const absPct = Math.abs(Math.round(ctx.trendPercent));
   if (absPct < NARRATIVE_THRESHOLDS.trendMinPct) return null;
 

@@ -149,11 +149,13 @@ function interpolatePercentile(value: number, pcts: NormativePercentiles): numbe
 
   // Below p10
   if (value <= points[0][0]) {
+    if (points[0][0] === 0) return 1;
     return Math.max(1, Math.round((value / points[0][0]) * 10));
   }
 
   // Above p90
   if (value >= points[points.length - 1][0]) {
+    if (points[points.length - 1][0] === 0) return 90;
     const excess = (value - points[points.length - 1][0]) / points[points.length - 1][0];
     return Math.min(99, Math.round(90 + excess * 50));
   }
@@ -163,7 +165,9 @@ function interpolatePercentile(value: number, pcts: NormativePercentiles): numbe
     const [v0, p0] = points[i];
     const [v1, p1] = points[i + 1];
     if (value >= v0 && value <= v1) {
-      const t = (value - v0) / (v1 - v0);
+      const span = v1 - v0;
+      if (span === 0) return Math.round((p0 + p1) / 2);
+      const t = (value - v0) / span;
       return Math.round(p0 + t * (p1 - p0));
     }
   }
@@ -191,6 +195,7 @@ export function computeRmssdPercentile(
   sex: BiologicalSex | null
 ): PercentileResult | null {
   if (age === null || sex === null || age < 18) return null;
+  if (!Number.isFinite(rmssd) || rmssd < 0) return null;
 
   const entry = findNormEntry(age, sex);
   if (!entry) return null;
@@ -216,6 +221,7 @@ export function computeSdnnPercentile(
   sex: BiologicalSex | null
 ): PercentileResult | null {
   if (age === null || sex === null || age < 18) return null;
+  if (!Number.isFinite(sdnn) || sdnn < 0) return null;
 
   const entry = findNormEntry(age, sex);
   if (!entry) return null;

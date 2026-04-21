@@ -51,6 +51,10 @@ export function computeVerdict(
     return null;
   }
 
+  if (!Number.isFinite(currentRmssd) || currentRmssd < 0) {
+    return null;
+  }
+
   const ratio = currentRmssd / baseline.median;
 
   if (ratio >= settings.goHardThreshold) {

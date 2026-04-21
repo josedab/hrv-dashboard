@@ -86,6 +86,26 @@ describe('computeVerdict', () => {
     });
   });
 
+  describe('non-finite rMSSD values', () => {
+    const baseline = makeBaseline(100, 7);
+
+    it('returns null for NaN rMSSD', () => {
+      expect(computeVerdict(NaN, baseline)).toBeNull();
+    });
+
+    it('returns null for Infinity rMSSD', () => {
+      expect(computeVerdict(Infinity, baseline)).toBeNull();
+    });
+
+    it('returns null for negative Infinity rMSSD', () => {
+      expect(computeVerdict(-Infinity, baseline)).toBeNull();
+    });
+
+    it('returns null for negative rMSSD', () => {
+      expect(computeVerdict(-10, baseline)).toBeNull();
+    });
+  });
+
   describe('custom threshold settings', () => {
     const baseline = makeBaseline(100, 7);
 

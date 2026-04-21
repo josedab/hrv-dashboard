@@ -88,7 +88,13 @@ export function computeTsbSeries(dailyLoads: DailyLoad[]): TsbPoint[] {
   // Fill in all dates from first to last load
   const firstDate = new Date(dailyLoads[0].date + 'T12:00:00');
   const lastDate = new Date(dailyLoads[dailyLoads.length - 1].date + 'T12:00:00');
+  if (!Number.isFinite(firstDate.getTime()) || !Number.isFinite(lastDate.getTime())) {
+    return [];
+  }
   const totalDays = Math.round((lastDate.getTime() - firstDate.getTime()) / MS_PER_DAY) + 1;
+  if (totalDays <= 0 || totalDays > 365 * 5) {
+    return [];
+  }
 
   const loadMap = new Map(dailyLoads.map((d) => [d.date, d.load]));
 
