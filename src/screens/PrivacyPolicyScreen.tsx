@@ -1,3 +1,4 @@
+/** Privacy policy screen — displays local-only data storage policy. */
 import React from 'react';
 import { ScrollView, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../constants/colors';

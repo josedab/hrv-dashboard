@@ -1,3 +1,4 @@
+/** Home screen stats grid — rMSSD, SDNN, mean HR, pNN50, and artifact rate cards. */
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { StatCard } from '../../../components/StatCard';

@@ -1,3 +1,4 @@
+/** Home screen — today's verdict, sparkline trend, recovery score, and start-reading CTA. */
 import React, { useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

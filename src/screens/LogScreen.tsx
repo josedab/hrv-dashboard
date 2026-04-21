@@ -1,3 +1,4 @@
+/** Log screen — post-recording subjective data entry (readiness, training, sleep, stress, notes). */
 import React, { useState, useEffect } from 'react';
 import {
   View,

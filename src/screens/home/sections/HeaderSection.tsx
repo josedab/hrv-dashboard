@@ -1,3 +1,4 @@
+/** Home screen header — date, streak counter, and greeting text. */
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../../../constants/colors';

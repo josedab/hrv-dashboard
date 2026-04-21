@@ -1,3 +1,4 @@
+/** Settings: morning reminder, streak reminder, and weekly digest notification toggles. */
 import React from 'react';
 import { View, Text, TouchableOpacity, Switch, Alert } from 'react-native';
 import { COLORS } from '../../../constants/colors';

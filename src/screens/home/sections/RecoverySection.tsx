@@ -1,3 +1,4 @@
+/** Home screen recovery score section with progress ring and info button. */
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '../../../constants/colors';

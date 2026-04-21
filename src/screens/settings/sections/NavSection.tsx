@@ -1,3 +1,4 @@
+/** Settings: navigation links to sub-screens (Sync, Profiles, Plugins, Privacy). */
 import React from 'react';
 import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';

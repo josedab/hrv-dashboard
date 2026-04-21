@@ -1,3 +1,4 @@
+/** Modal explaining the composite recovery score breakdown (HRV, sleep, stress, readiness). */
 import React from 'react';
 import { Modal, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '../../constants/colors';

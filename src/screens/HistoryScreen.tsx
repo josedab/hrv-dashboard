@@ -1,3 +1,4 @@
+/** History screen — chronological session list with sparkline header and pull-to-refresh. */
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,

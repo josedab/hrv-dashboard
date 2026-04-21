@@ -1,3 +1,4 @@
+/** Settings: data export (CSV), encrypted backup/restore, and data management. */
 import React from 'react';
 import { Text, TouchableOpacity, Alert, Share } from 'react-native';
 import { getAllSessions } from '../../../database/sessionRepository';

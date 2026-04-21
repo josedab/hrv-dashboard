@@ -1,3 +1,4 @@
+/** Home screen verdict section — displays today's Go Hard / Moderate / Rest verdict. */
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { VerdictDisplay } from '../../../components/VerdictDisplay';

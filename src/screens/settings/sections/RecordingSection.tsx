@@ -1,3 +1,4 @@
+/** Settings: recording duration and auto-finish preferences. */
 import React from 'react';
 import { View, Text, Switch } from 'react-native';
 import { COLORS } from '../../../constants/colors';

@@ -1,3 +1,4 @@
+/** Animated toast notification with optional action button. Supports success/error/info types. */
 import React, { useEffect, useRef } from 'react';
 import { Text, StyleSheet, Animated, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '../constants/colors';

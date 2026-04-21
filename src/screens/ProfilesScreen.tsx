@@ -1,3 +1,4 @@
+/** Multi-athlete profile switching screen — create, select, and delete athlete profiles. */
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,

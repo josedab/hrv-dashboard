@@ -1,3 +1,4 @@
+/** Metric display card showing a label, value, optional unit, and warning state. */
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../constants/colors';

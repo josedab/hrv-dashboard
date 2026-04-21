@@ -1,3 +1,4 @@
+/** Displays the readiness verdict (Go Hard / Moderate / Rest) with emoji, label, and rMSSD context. */
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { VerdictType } from '../types';

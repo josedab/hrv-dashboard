@@ -1,3 +1,4 @@
+/** Settings: baseline window (5/7/10/14 days) and verdict threshold configuration. */
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { Settings, DEFAULT_SETTINGS, VerdictMode } from '../../../types';

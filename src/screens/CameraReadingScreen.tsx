@@ -1,3 +1,4 @@
+/** Camera PPG reading screen — no-strap fallback using phone camera for pulse detection. */
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';

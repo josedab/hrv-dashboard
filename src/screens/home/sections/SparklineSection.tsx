@@ -1,3 +1,4 @@
+/** Home screen sparkline section — 7-day rMSSD trend with baseline overlay. */
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Sparkline } from '../../../components/Sparkline';

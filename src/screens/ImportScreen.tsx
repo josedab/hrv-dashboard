@@ -1,3 +1,4 @@
+/** CSV import wizard screen — file picker, vendor auto-detection, preview, and commit. */
 import React, { useState, useCallback } from 'react';
 import {
   View,

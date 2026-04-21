@@ -1,3 +1,4 @@
+/** Data hook for the Home screen — loads today's session, baseline, verdict, recovery, and sparkline. */
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Session } from '../../types';

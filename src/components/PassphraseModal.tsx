@@ -1,3 +1,4 @@
+/** Modal for entering/confirming encryption passphrases (sync, backup, share). */
 import React, { useEffect, useState } from 'react';
 import {
   Modal,

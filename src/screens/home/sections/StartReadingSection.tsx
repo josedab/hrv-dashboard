@@ -1,3 +1,4 @@
+/** Home screen CTA — "Start Reading" button with connection status and protocol mode picker. */
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '../../../constants/colors';

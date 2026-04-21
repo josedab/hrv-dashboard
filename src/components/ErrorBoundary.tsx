@@ -1,3 +1,4 @@
+/** React error boundary with recovery UI — catches render errors and displays a retry button. */
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '../constants/colors';

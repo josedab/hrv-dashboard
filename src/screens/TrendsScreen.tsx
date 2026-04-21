@@ -1,3 +1,4 @@
+/** Trends screen — weekly analytics, correlations, verdict distribution, and sparkline trends. */
 import React, { useState, useCallback } from 'react';
 import {
   View,

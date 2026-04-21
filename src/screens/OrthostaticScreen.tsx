@@ -1,3 +1,4 @@
+/** Orthostatic HRV test screen — guided supine → standing protocol with reactivity scoring. */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';

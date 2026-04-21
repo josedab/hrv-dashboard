@@ -1,3 +1,4 @@
+/** Settings: paired BLE device display with forget/re-pair controls. */
 import React from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { Settings } from '../../../types';

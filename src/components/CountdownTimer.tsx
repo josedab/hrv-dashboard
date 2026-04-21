@@ -1,3 +1,4 @@
+/** Circular SVG countdown timer with animated progress ring and time display. */
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';

@@ -1,3 +1,4 @@
+/** 1–5 scale perceived readiness selector with labeled buttons. */
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '../constants/colors';

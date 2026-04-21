@@ -1,3 +1,4 @@
+/** Compact SVG trend line with optional baseline overlay, used in Home and History headers. */
 import React from 'react';
 import { View } from 'react-native';
 import Svg, { Polyline, Circle, Line } from 'react-native-svg';

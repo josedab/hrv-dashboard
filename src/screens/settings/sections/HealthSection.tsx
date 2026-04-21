@@ -1,3 +1,4 @@
+/** Settings: HealthKit / Health Connect toggle and permission management. */
 import React from 'react';
 import { View, Text, Switch, Alert, Platform } from 'react-native';
 import { COLORS } from '../../../constants/colors';

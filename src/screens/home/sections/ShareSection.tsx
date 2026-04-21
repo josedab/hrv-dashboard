@@ -1,3 +1,4 @@
+/** Home screen share button — triggers native share sheet with today's verdict. */
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../../../constants/colors';

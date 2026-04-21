@@ -1,3 +1,4 @@
+/** RR interval scatter/line plot showing beat-to-beat timing during a recording. */
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Polyline, Rect } from 'react-native-svg';

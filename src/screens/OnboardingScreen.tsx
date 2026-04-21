@@ -1,3 +1,4 @@
+/** Onboarding screen — first-launch carousel explaining the app, privacy, and BLE permissions. */
 import React, { useState, useRef } from 'react';
 import {
   View,
