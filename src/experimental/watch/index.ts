@@ -16,6 +16,7 @@ import { saveSession, getDailyReadings } from '../../database/sessionRepository'
 import { loadSettings } from '../../database/settingsRepository';
 import { generateId } from '../../utils/uuid';
 import { Session, SessionSource } from '../../types';
+import { getErrorMessage } from '../../utils/errors';
 
 /** Bump when the wire format changes; native ports must check. */
 export const WATCH_BRIDGE_VERSION = 1;
@@ -106,7 +107,7 @@ export async function ingestWatchSession(payload: WatchSessionPayload): Promise<
     await saveSession(session);
     return { sessionId, rmssd: metrics.rmssd, verdict, duplicate: false };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = getErrorMessage(err);
     if (message.includes('UNIQUE') || message.includes('constraint')) {
       return { sessionId, rmssd: metrics.rmssd, verdict, duplicate: true };
     }

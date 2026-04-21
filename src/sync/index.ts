@@ -13,6 +13,7 @@
  */
 import { Session } from '../types';
 import { encryptString, decryptString } from './crypto';
+import { getErrorMessage } from '../utils/errors';
 
 /**
  * Bump 2 → 3: switched the underlying cipher from SHA-256 CTR-XOR + HMAC
@@ -222,7 +223,7 @@ export async function runSync(opts: SyncEngineOptions): Promise<SyncResult> {
     } catch (err) {
       result.errors.push({
         sessionId: entry.session.id,
-        message: err instanceof Error ? err.message : String(err),
+        message: getErrorMessage(err),
       });
     }
   }
@@ -259,7 +260,7 @@ export async function runSync(opts: SyncEngineOptions): Promise<SyncResult> {
     } catch (err) {
       result.errors.push({
         sessionId: remoteId,
-        message: err instanceof Error ? err.message : String(err),
+        message: getErrorMessage(err),
       });
     }
   }
