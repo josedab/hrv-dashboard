@@ -177,3 +177,43 @@ export interface SessionLogPatch {
   sleepQuality?: number | null;
   stressLevel?: number | null;
 }
+
+/**
+ * Repository interface for session persistence.
+ *
+ * Defines the contract that the concrete SQLite implementation fulfils.
+ * Hooks and utilities should program against this interface so the
+ * persistence layer can be swapped (e.g., for testing or watch/web targets)
+ * without changing consumer code.
+ *
+ * The concrete implementation lives in `database/sessionRepository.ts`.
+ */
+export interface ISessionRepository {
+  saveSession(session: Session): Promise<void>;
+  deleteSession(sessionId: string): Promise<void>;
+  getTodaySession(todayDateStr: string): Promise<Session | null>;
+  getAllSessions(): Promise<Session[]>;
+  getSessionById(id: string): Promise<Session | null>;
+  getRecentSessions(days: number): Promise<Session[]>;
+  getDailyReadings(windowDays: number): Promise<DailyReading[]>;
+  getSessionDates(): Promise<string[]>;
+  getSessionCount(): Promise<number>;
+  upsertManySessionsIfMissing(sessions: Session[]): Promise<number>;
+}
+
+/**
+ * Repository interface for user settings persistence.
+ *
+ * See {@link ISessionRepository} for design rationale. The concrete
+ * implementation lives in `database/settingsRepository.ts`.
+ */
+export interface ISettingsRepository {
+  loadSettings(): Promise<Settings>;
+  saveSetting(key: keyof Settings, value: string): Promise<void>;
+  saveSettings(settings: Partial<Settings>): Promise<void>;
+  clearPairedDevice(): Promise<void>;
+  getRawSetting(key: string): Promise<string | null>;
+  setRawSetting(key: string, value: string): Promise<void>;
+  isOnboardingComplete(): Promise<boolean>;
+  setOnboardingComplete(): Promise<void>;
+}
