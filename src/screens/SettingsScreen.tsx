@@ -1,3 +1,4 @@
+/** Settings screen — baseline window, verdict thresholds, device pairing, export, and notifications. */
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -27,6 +28,7 @@ import { PairedDeviceSection } from './settings/sections/PairedDeviceSection';
 import { HealthSection } from './settings/sections/HealthSection';
 import { DataSection } from './settings/sections/DataSection';
 import { NavSection } from './settings/sections/NavSection';
+import { getErrorMessage } from '../utils/errors';
 
 type ToastState = { visible: boolean; message: string; type: 'success' | 'error' };
 type PassphraseState = { visible: boolean; mode: 'create' | 'restore'; fileUri?: string };
@@ -137,7 +139,7 @@ export function SettingsScreen() {
               showToast(STRINGS.backupRestored.replace('{count}', String(count)));
             }
           } catch (err) {
-            showToast(err instanceof Error ? err.message : 'Operation failed.', 'error');
+            showToast(getErrorMessage(err, 'Operation failed.'), 'error');
           }
         }}
       />

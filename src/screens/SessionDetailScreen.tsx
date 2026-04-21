@@ -1,3 +1,4 @@
+/** Session detail screen — full metrics view for a historical recording (RR plot, stats, log). */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -21,6 +22,7 @@ import { Session } from '../types';
 import { getSessionById, deleteSession, saveSession } from '../database/sessionRepository';
 import { formatDateTime } from '../utils/date';
 import { ARTIFACT_WARNING_THRESHOLD } from '../constants/defaults';
+import { fireAndForget } from '../utils/errors';
 
 type DetailRouteProp = RouteProp<RootStackParamList, 'SessionDetail'>;
 type DetailNavProp = NativeStackNavigationProp<RootStackParamList>;
@@ -32,9 +34,7 @@ export function SessionDetailScreen() {
   const [toast, setToast] = useState<{ message: string; action?: () => void } | null>(null);
 
   useEffect(() => {
-    getSessionById(route.params.sessionId)
-      .then(setSession)
-      .catch(() => {});
+    fireAndForget(getSessionById(route.params.sessionId).then(setSession), 'load-session-detail');
   }, [route.params.sessionId]);
 
   const handleEdit = useCallback(() => {

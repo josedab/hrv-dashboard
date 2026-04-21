@@ -1,3 +1,4 @@
+/** Plugin management screen — browse marketplace, install/uninstall plugins, view metrics. */
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
@@ -17,6 +18,7 @@ import {
   InstalledPlugin,
 } from '../plugins/marketplace';
 import { SqlitePluginStorage } from '../plugins/sqliteStorage';
+import { getErrorMessage } from '../utils/errors';
 
 const storage = new SqlitePluginStorage();
 
@@ -81,7 +83,7 @@ export function PluginsScreen() {
       await refresh();
       Alert.alert('Installed', `"${installed.manifest.name}" v${installed.version} added.`);
     } catch (err) {
-      Alert.alert('Install failed', err instanceof Error ? err.message : String(err));
+      Alert.alert('Install failed', getErrorMessage(err));
     } finally {
       setInstalling(false);
     }

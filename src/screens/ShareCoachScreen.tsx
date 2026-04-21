@@ -1,3 +1,4 @@
+/** Coach share screen — generate encrypted share bundles with pairing codes. */
 import React, { useState, useCallback } from 'react';
 import {
   View,
@@ -12,6 +13,7 @@ import {
 import { COLORS } from '../constants/colors';
 import { sealShare } from '../share';
 import { getAllSessions } from '../database/sessionRepository';
+import { getErrorMessage } from '../utils/errors';
 
 export function ShareCoachScreen() {
   const [busy, setBusy] = useState(false);
@@ -32,7 +34,7 @@ export function ShareCoachScreen() {
       setCode(sealed.pairingCode);
       setBundleJson(JSON.stringify(sealed.bundle));
     } catch (err) {
-      Alert.alert('Could not generate code', err instanceof Error ? err.message : String(err));
+      Alert.alert('Could not generate code', getErrorMessage(err));
     } finally {
       setBusy(false);
     }

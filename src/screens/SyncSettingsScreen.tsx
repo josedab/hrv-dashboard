@@ -1,3 +1,4 @@
+/** Sync settings screen — configure E2E encrypted cloud sync passphrase and provider. */
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
@@ -16,6 +17,7 @@ import { SupabaseSyncProvider } from '../sync/cloudProviders';
 import { getAllSessions, upsertManySessionsIfMissing } from '../database/sessionRepository';
 import { Session } from '../types';
 import { getDatabase } from '../database/database';
+import { getErrorMessage } from '../utils/errors';
 
 type Provider = 'none' | 'in-memory' | 'supabase';
 
@@ -109,7 +111,7 @@ export function SyncSettingsScreen() {
       });
       setLastResult(result);
     } catch (err) {
-      Alert.alert('Sync failed', err instanceof Error ? err.message : String(err));
+      Alert.alert('Sync failed', getErrorMessage(err));
     } finally {
       setBusy(false);
     }
