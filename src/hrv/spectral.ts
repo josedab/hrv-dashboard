@@ -44,8 +44,8 @@ export interface SpectralResult {
   vlf: BandPower;
   lf: BandPower;
   hf: BandPower;
-  /** LF / HF power ratio — marker of sympathovagal balance. */
-  lfHfRatio: number;
+  /** LF / HF power ratio — marker of sympathovagal balance. Null when HF is zero (undefined ratio). */
+  lfHfRatio: number | null;
   /** Total power across all three bands. */
   totalPower: number;
   /** Whether VLF data is considered reliable (recording ≥ 2 min). */
@@ -61,7 +61,7 @@ function emptyResult(sampleCount: number): SpectralResult {
     vlf: { ...zeroBand },
     lf: { ...zeroBand },
     hf: { ...zeroBand },
-    lfHfRatio: 0,
+    lfHfRatio: null,
     totalPower: 0,
     vlfReliable: false,
     sampleCount,
@@ -107,7 +107,7 @@ export function computeSpectralMetrics(rrIntervals: number[]): SpectralResult {
     peakHz: scan.peakHz,
   });
 
-  const lfHfRatio = hf.power > 0 ? Math.round((lf.power / hf.power) * 100) / 100 : 0;
+  const lfHfRatio = hf.power > 0 ? Math.round((lf.power / hf.power) * 100) / 100 : null;
 
   return {
     vlf: makeBand(vlf),

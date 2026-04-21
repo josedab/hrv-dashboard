@@ -97,7 +97,8 @@ describe('computeSpectralMetrics', () => {
     const rr = Array(200).fill(800);
     const result = computeSpectralMetrics(rr);
     // Constant signal → near-zero spectral power (only DC component removed)
-    expect(result.lfHfRatio).toBe(0);
+    // lfHfRatio is null when HF power is 0 (undefined ratio)
+    expect(result.lfHfRatio).toBeNull();
   });
 
   it('returns correct sampleCount', () => {

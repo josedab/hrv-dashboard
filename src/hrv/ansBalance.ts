@@ -77,8 +77,8 @@ export function sessionToAnsReading(session: Session): AnsReading | null {
 
   return {
     date: session.timestamp.slice(0, 10),
-    lfHfRatio: spectral.lfHfRatio,
-    zone: classifyAnsZone(spectral.lfHfRatio),
+    lfHfRatio: spectral.lfHfRatio ?? 0,
+    zone: classifyAnsZone(spectral.lfHfRatio ?? 0),
     lfPercent: spectral.lf.percent,
     hfPercent: spectral.hf.percent,
     vlfPercent: spectral.vlf.percent,
@@ -136,9 +136,11 @@ export function computeAnsSummary(sessions: Session[]): AnsSummary {
     const firstHalf = readings.slice(0, mid).reduce((s, r) => s + r.lfHfRatio, 0) / mid;
     const secondHalf =
       readings.slice(mid).reduce((s, r) => s + r.lfHfRatio, 0) / (readings.length - mid);
-    const change = (secondHalf - firstHalf) / firstHalf;
-    if (change > 0.15) trendDirection = 'sympathetic_shift';
-    else if (change < -0.15) trendDirection = 'parasympathetic_shift';
+    if (firstHalf > 0) {
+      const change = (secondHalf - firstHalf) / firstHalf;
+      if (change > 0.15) trendDirection = 'sympathetic_shift';
+      else if (change < -0.15) trendDirection = 'parasympathetic_shift';
+    }
   }
 
   return {

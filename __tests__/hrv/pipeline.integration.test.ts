@@ -147,7 +147,7 @@ describe('end-to-end: RR intervals → verdict → narrative', () => {
   it('step 7: spectral analysis produces frequency-domain metrics', () => {
     const spectral = computeSpectralMetrics(rawRr);
     expect(spectral.totalPower).toBeGreaterThan(0);
-    expect(spectral.lfHfRatio).toBeGreaterThanOrEqual(0);
+    expect(spectral.lfHfRatio === null || spectral.lfHfRatio >= 0).toBe(true);
     expect(spectral.sampleCount).toBe(300);
     expect(spectral.lf.percent + spectral.hf.percent + spectral.vlf.percent).toBeGreaterThan(90);
   });

@@ -125,6 +125,23 @@ describe('computeAnsSummary', () => {
     const summary = computeAnsSummary(sessions);
     expect(summary.readings).toHaveLength(1);
   });
+
+  it('handles readings with zero lfHfRatio without division by zero', () => {
+    // Create sessions with constant RR intervals → lfHfRatio will be 0
+    const sessions = Array.from({ length: 8 }, (_, i) =>
+      makeSession({
+        id: `zero-${i}`,
+        timestamp: `2026-04-${String(i + 10).padStart(2, '0')}T06:30:00Z`,
+        rrIntervals: Array(200).fill(800),
+      })
+    );
+    const summary = computeAnsSummary(sessions);
+    // Should not throw or produce NaN/Infinity
+    expect(Number.isFinite(summary.avgLfHfRatio) || summary.avgLfHfRatio === 0).toBe(true);
+    expect(['parasympathetic_shift', 'stable', 'sympathetic_shift']).toContain(
+      summary.trendDirection
+    );
+  });
 });
 
 describe('ANS_ZONE_LABELS and ANS_ZONE_COLORS', () => {
