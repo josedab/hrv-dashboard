@@ -1,3 +1,4 @@
+/** Animated guided breathing exercise with inhale/hold/exhale cycle and preset support. */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -8,6 +9,7 @@ import {
   AccessibilityInfo,
 } from 'react-native';
 import { COLORS } from '../constants/colors';
+import { fireAndForget } from '../utils/errors';
 
 export interface BreathingPreset {
   name: string;
@@ -55,11 +57,12 @@ export function BreathingExercise({
 
   // Check for reduced motion preference
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((enabled) => {
+    fireAndForget(
+      AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
         reduceMotionRef.current = enabled;
-      })
-      .catch(() => {});
+      }),
+      'a11y-reduce-motion-check'
+    );
   }, []);
 
   const cycleDuration = preset.inhale + preset.hold + preset.exhale;
