@@ -1,5 +1,3 @@
-import { useReducer, useCallback } from 'react';
-
 /**
  * Reading-flow phase state machine.
  *
@@ -19,6 +17,9 @@ import { useReducer, useCallback } from 'react';
  * fast taps where a previous async operation completes after the user
  * has already navigated away.
  */
+import { useReducer, useCallback } from 'react';
+
+/** Discriminated union of reading-flow phases. */
 export type ReadingPhase =
   | { kind: 'scanning' }
   | { kind: 'breathing'; deviceId: string }
@@ -59,6 +60,7 @@ export function readingFlowReducer(state: ReadingPhase, action: FlowAction): Rea
   }
 }
 
+/** Public API surface returned by {@link useReadingFlow}. */
 export interface UseReadingFlow {
   phase: ReadingPhase;
   selectDevice: (deviceId: string, skipBreathing: boolean) => void;
@@ -67,6 +69,13 @@ export interface UseReadingFlow {
   reset: () => void;
 }
 
+/**
+ * React hook providing a phase-based state machine for the reading flow.
+ *
+ * Returns the current {@link ReadingPhase} and action dispatchers.
+ * The reducer is exported separately as {@link readingFlowReducer} for
+ * unit testing without React.
+ */
 export function useReadingFlow(): UseReadingFlow {
   const [phase, dispatch] = useReducer(readingFlowReducer, INITIAL_PHASE);
 

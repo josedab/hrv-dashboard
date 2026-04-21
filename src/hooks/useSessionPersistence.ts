@@ -1,3 +1,10 @@
+/**
+ * Session persistence hook.
+ *
+ * Orchestrates the post-recording pipeline: compute HRV metrics, query
+ * baseline, determine verdict (fixed or adaptive), save session to SQLite,
+ * sync to HealthKit/Health Connect, and navigate to the results screen.
+ */
 import { useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,6 +17,7 @@ import { getDailyReadings, getRecentSessions, saveSession } from '../database/se
 import { loadSettings } from '../database/settingsRepository';
 import { generateId } from '../utils/uuid';
 import { refreshWidget } from '../utils/widgetData';
+import { fireAndForget } from '../utils/errors';
 import type { Session, SessionSource } from '../types';
 
 /** Days of history fed to the adaptive percentile fit (≈ 2 months). */
@@ -91,7 +99,7 @@ export async function finalizeSession(
     };
 
     await saveSession(session);
-    refreshWidget().catch(() => {}); // fire-and-forget
+    fireAndForget(refreshWidget(), 'widget-refresh');
     onSaved(session.id);
     return { kind: 'saved', sessionId: session.id, session };
   } catch (caught) {
