@@ -1,8 +1,16 @@
+/**
+ * Multi-athlete profile management.
+ *
+ * Supports creating, switching, and deleting athlete profiles on a
+ * single device. Each profile has its own session history and baseline.
+ * Deleting a profile removes metadata only — sessions are retained.
+ */
 import { Share } from 'react-native';
 import { getDatabase } from '../database/database';
 import { Session } from '../types';
 import { generateId } from './uuid';
 
+/** An athlete profile for multi-athlete support on a single device. */
 export interface AthleteProfile {
   id: string;
   name: string;

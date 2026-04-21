@@ -298,12 +298,29 @@ function randomWord(): string {
   return PASSPHRASE_WORDS[randomIndex(PASSPHRASE_WORDS.length)];
 }
 
+/**
+ * Generates a CSPRNG-based pairing code for a coach share bundle.
+ *
+ * @returns An object with a 4-char `bundleId` (relay lookup key) and a
+ *          4-word `passphrase` (encryption secret, ~32 bits entropy).
+ *
+ * @example
+ * const { bundleId, passphrase } = generatePairingCode();
+ * // bundleId: "4F2A", passphrase: "octopus-river-cycle-glacier"
+ * // Full code shown to user: "4F2A-octopus-river-cycle-glacier"
+ */
 export function generatePairingCode(): { bundleId: string; passphrase: string } {
   const bundleId = Array.from({ length: 4 }, () => randomChar(ID_ALPHABET)).join('');
   const passphrase = Array.from({ length: 4 }, () => randomWord()).join('-');
   return { bundleId, passphrase };
 }
 
+/**
+ * Parses a pairing code string into its bundleId and passphrase components.
+ *
+ * @param code - Full pairing code (e.g., "4F2A-octopus-river-cycle-glacier").
+ * @returns Parsed `{ bundleId, passphrase }` or `null` if the format is invalid.
+ */
 export function parsePairingCode(code: string): { bundleId: string; passphrase: string } | null {
   if (typeof code !== 'string') return null;
   const trimmed = code.trim().toUpperCase();

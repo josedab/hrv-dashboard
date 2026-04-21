@@ -1,6 +1,14 @@
+/**
+ * Cross-platform BLE permission handling.
+ *
+ * Abstracts the permission differences between iOS (system dialog via
+ * Info.plist) and Android (runtime permissions that vary by API level).
+ * Returns a unified {@link PermissionStatus} for callers.
+ */
 import { Platform, Alert, Linking } from 'react-native';
 import { PermissionsAndroid } from 'react-native';
 
+/** BLE permission status returned by {@link requestBlePermissions}. */
 export type PermissionStatus = 'granted' | 'denied' | 'blocked';
 
 /**

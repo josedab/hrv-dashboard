@@ -1,3 +1,7 @@
+/**
+ * App navigation: bottom tabs (Home, History, Trends, Settings) + modal stack
+ * for Reading, Log, SessionDetail, Onboarding, and 10+ other screens.
+ */
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';

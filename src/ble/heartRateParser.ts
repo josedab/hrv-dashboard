@@ -1,3 +1,11 @@
+/**
+ * GATT Heart Rate Measurement (0x2A37) parser.
+ *
+ * Decodes the Bluetooth SIG-specified binary format into structured
+ * heart rate and RR interval data. Handles both 8-bit and 16-bit HR
+ * formats, optional energy expenditure, and multiple RR intervals per
+ * notification packet.
+ */
 import { MIN_RR_INTERVAL_MS, MAX_RR_INTERVAL_MS } from '../constants/defaults';
 
 /**

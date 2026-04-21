@@ -1,3 +1,10 @@
+/**
+ * Home screen widget data provider (iOS WidgetKit / Android Glance).
+ *
+ * Assembles the data payload that native widgets display: today's verdict,
+ * rMSSD, baseline comparison, streak count, and a 7-day sparkline array.
+ * Data is persisted to the settings table for the native bridge to read.
+ */
 import { getDatabase } from '../database/database';
 import { getTodaySession, getDailyReadings } from '../database/sessionRepository';
 import { loadSettings } from '../database/settingsRepository';

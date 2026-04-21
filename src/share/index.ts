@@ -17,7 +17,9 @@ import { generatePairingCode, parsePairingCode } from './pairingCode';
 import { selectShareableSessions } from './sessions';
 
 // Re-export extracted modules for backward compatibility
+/** @see pairingCode.ts for generation and parsing logic. */
 export { generatePairingCode, parsePairingCode } from './pairingCode';
+/** @see sessions.ts for lookback-window filtering. */
 export { selectShareableSessions } from './sessions';
 
 /** Bumped with AES-GCM migration. v1/v2/v3 bundles still open. */
@@ -52,6 +54,7 @@ export interface SealedShare {
 /** Default 7-day window. */
 export const DEFAULT_SHARE_TTL_DAYS = 7;
 
+/** Options for creating a sealed share bundle. */
 export interface SealOptions {
   athleteName: string;
   lookbackDays?: number;
@@ -59,7 +62,23 @@ export interface SealOptions {
   now?: () => Date;
 }
 
-/** Builds and encrypts a share bundle from local sessions. */
+/**
+ * Builds and encrypts a share bundle from local sessions.
+ * Filters sessions to the lookback window, encrypts with a CSPRNG passphrase,
+ * and returns the sealed bundle with a human-readable pairing code.
+ *
+ * @param allSessions All local sessions to select from
+ * @param opts Seal options (athlete name, lookback window, TTL)
+ * @returns Sealed share with encrypted bundle and pairing code
+ * @example
+ * const sealed = await sealShare(allSessions, {
+ *   athleteName: 'Jose',
+ *   lookbackDays: 30,  // include last 30 days of sessions
+ *   ttlDays: 7,        // bundle expires in 7 days
+ * });
+ * // sealed.pairingCode → "ABC1-oak-river-pine-dawn"
+ * // sealed.bundle → encrypted ShareBundle (send to coach)
+ */
 export async function sealShare(allSessions: Session[], opts: SealOptions): Promise<SealedShare> {
   const now = opts.now ? opts.now() : new Date();
   const ttl = opts.ttlDays ?? DEFAULT_SHARE_TTL_DAYS;
@@ -97,6 +116,7 @@ export async function sealShare(allSessions: Session[], opts: SealOptions): Prom
   };
 }
 
+/** Options for opening (decrypting) a share bundle. */
 export interface OpenOptions {
   now?: () => Date;
 }
@@ -106,6 +126,19 @@ export interface OpenOptions {
  * - expired bundle
  * - wrong passphrase / corrupt ciphertext
  * - protocol version newer than this client
+ * - tampered envelope (expiresAt mismatch between envelope and payload)
+ *
+ * @param bundle The encrypted share bundle received from athlete
+ * @param pairingCode The pairing code string (format: "XXXX-word-word-word-word")
+ * @param opts Options (injectable clock for testing)
+ * @returns Decrypted share payload with sessions and athlete name
+ * @throws {Error} If bundle is expired, passphrase is wrong, or data is tampered
+ * @example
+ * // Coach opens a share bundle with the pairing code
+ * const payload = await openShare(bundle, 'ABC1-oak-river-pine-dawn');
+ * // payload.athleteName → "Jose"
+ * // payload.sessions → Session[] (last 30 days)
+ * // payload.expiresAt → ISO 8601 expiration timestamp
  */
 export async function openShare(
   bundle: ShareBundle,

@@ -1,3 +1,4 @@
+/** CSV export: converts Session arrays to a CSV string with headers and proper escaping. */
 import { Session } from '../types';
 
 /**

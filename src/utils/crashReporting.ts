@@ -8,6 +8,13 @@ import * as Sentry from '@sentry/react-native';
 
 let initialized = false;
 
+/**
+ * Initializes Sentry crash reporting if a DSN is configured.
+ *
+ * Reads from `SENTRY_DSN` or `EXPO_PUBLIC_SENTRY_DSN` environment variables.
+ * When no DSN is set, falls back to `console.error` — the app still works,
+ * but errors are only logged locally. Safe to call multiple times (idempotent).
+ */
 export function initCrashReporting(): void {
   if (initialized) return;
   initialized = true;
@@ -29,6 +36,12 @@ export function initCrashReporting(): void {
   }
 }
 
+/**
+ * Reports an error to Sentry (or console if Sentry is not initialized).
+ *
+ * @param error - An Error object or string message. Strings are wrapped in `new Error()`.
+ * @param context - Optional key-value pairs attached as `extra` data in Sentry.
+ */
 export function reportError(error: Error | string, context?: Record<string, unknown>): void {
   const errorObj = typeof error === 'string' ? new Error(error) : error;
 
@@ -39,12 +52,21 @@ export function reportError(error: Error | string, context?: Record<string, unkn
   }
 }
 
+/**
+ * Associates future error reports with a user ID.
+ * No-op if Sentry is not initialized.
+ */
 export function setUserContext(userId: string): void {
   if (initialized) {
     Sentry.setUser({ id: userId });
   }
 }
 
+/**
+ * Records a breadcrumb for debugging context.
+ * Breadcrumbs are attached to the next captured error in Sentry.
+ * No-op if Sentry is not initialized.
+ */
 export function addBreadcrumb(message: string, data?: Record<string, unknown>): void {
   if (initialized) {
     Sentry.addBreadcrumb({ message, data });

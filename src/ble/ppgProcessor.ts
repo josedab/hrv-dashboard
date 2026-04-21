@@ -51,6 +51,20 @@ export interface PpgResult {
  * @param brightnessValues Array of frame-by-frame average brightness (0–255)
  * @param timestamps Array of frame timestamps in milliseconds
  * @param config PPG configuration
+ * @returns PpgResult with extracted RR intervals, signal quality, and usability flag
+ * @example
+ * // Generate a synthetic 30-second signal at 70 bpm
+ * const fps = 30, duration = 30, bpm = 70;
+ * const brightness: number[] = [];
+ * const timestamps: number[] = [];
+ * for (let i = 0; i < fps * duration; i++) {
+ *   const t = i / fps;
+ *   brightness.push(128 + 40 * Math.sin(2 * Math.PI * (bpm / 60) * t));
+ *   timestamps.push(Math.round(t * 1000));
+ * }
+ * const result = processPpgSignal(brightness, timestamps);
+ * // result.rrIntervals → ~857ms intervals (60000/70)
+ * // result.isUsable → true if signalQuality ≥ 0.6
  */
 export function processPpgSignal(
   brightnessValues: number[],

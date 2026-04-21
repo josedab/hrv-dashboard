@@ -15,11 +15,13 @@
  */
 import { WorkoutPrescription, toZwoXml } from './generator';
 
+/** Configuration for platform export APIs (access token + optional fetch override for tests). */
 export interface ExportConfig {
   accessToken: string;
   fetchImpl?: typeof fetch;
 }
 
+/** Result of a platform export attempt. Check `ok` before reading other fields. */
 export interface ExportResult {
   ok: boolean;
   externalId?: string;

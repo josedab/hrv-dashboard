@@ -11,8 +11,10 @@
 import { Session, BaselineResult, VerdictType } from '../types';
 import { computeMedian } from '../hrv/baseline';
 
+/** Report time range: 'weekly' (last 7 days) or 'monthly' (current month). */
 export type ReportPeriod = 'weekly' | 'monthly';
 
+/** Aggregated data structure fed to {@link renderReportHtml}. */
 export interface ReportData {
   title: string;
   periodLabel: string;

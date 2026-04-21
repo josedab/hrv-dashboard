@@ -1,3 +1,10 @@
+/**
+ * Apple HealthKit / Android Health Connect sync utility.
+ *
+ * Writes HRV session metrics (rMSSD, mean HR) to the platform health
+ * store and provides permission management. The health SDKs are optional
+ * runtime dependencies — when not installed, sync is silently disabled.
+ */
 import { Platform } from 'react-native';
 import { Session } from '../types';
 import { getRawSetting, setRawSetting } from '../database/settingsRepository';
