@@ -1,3 +1,4 @@
+/** Encrypted backup/restore (.hrvbak files) with AES-256-GCM + scrypt KDF (protocol v4). */
 import { Share } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { Paths } from 'expo-file-system';
@@ -175,6 +176,87 @@ export async function createBackup(passphrase: string): Promise<void> {
   });
 }
 
+/** Decrypts backup data based on protocol version. Returns the plaintext JSON. */
+async function decryptBackupPayload(
+  backupFile: {
+    v: number;
+    salt: string;
+    iv: string;
+    integrity?: string;
+    mac?: string;
+    data: string;
+  },
+  passphrase: string
+): Promise<string> {
+  const salt = hexToArray(backupFile.salt);
+  const iv = hexToArray(backupFile.iv);
+
+  if (backupFile.v >= 4) {
+    const aesKey = await scryptDeriveKey(passphrase, salt, 'hrv-backup');
+    try {
+      const pt = aesGcmDecrypt(aesKey, iv, hexToArray(backupFile.data));
+      return new TextDecoder().decode(pt);
+    } catch {
+      throw new Error('Authentication failed — wrong passphrase or tampered file');
+    }
+  }
+
+  if (backupFile.v === 3) {
+    const encKey = await deriveKey(passphrase, salt);
+    const aesKey = encKey.length === AES_KEY_LENGTH ? encKey : encKey.slice(0, AES_KEY_LENGTH);
+    try {
+      const pt = aesGcmDecrypt(aesKey, iv, hexToArray(backupFile.data));
+      return new TextDecoder().decode(pt);
+    } catch {
+      throw new Error('Authentication failed — wrong passphrase or tampered file');
+    }
+  }
+
+  // v1/v2: legacy SHA-256 CTR-XOR cipher
+  const encKey = await deriveKey(passphrase, salt);
+
+  if (backupFile.v >= 2) {
+    if (!backupFile.mac) {
+      throw new Error('Corrupt backup: v2 file missing MAC');
+    }
+    const macKey = await deriveKey(passphrase + MAC_KEY_DOMAIN, salt);
+    const ciphertextBytes = hexToArray(backupFile.data);
+    const macInput = new Uint8Array(iv.length + ciphertextBytes.length);
+    macInput.set(iv);
+    macInput.set(ciphertextBytes, iv.length);
+    const expectedMac = await hmacSha256(macKey, macInput);
+    const providedMac = hexToArray(backupFile.mac);
+    if (!constantTimeEqual(expectedMac, providedMac)) {
+      throw new Error('Authentication failed — wrong passphrase or tampered file');
+    }
+  }
+
+  let json: string;
+  try {
+    json = await decryptData(backupFile.data, encKey, iv);
+  } catch {
+    throw new Error('Decryption failed — wrong passphrase or corrupt file');
+  }
+
+  if (backupFile.v === 1) {
+    if (!backupFile.integrity) {
+      throw new Error('Corrupt backup: v1 file missing integrity hash');
+    }
+    const encoder = new TextEncoder();
+    const hashResult = await Crypto.digest(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      encoder.encode(json)
+    );
+    const computedHash =
+      typeof hashResult === 'string' ? hashResult : arrayToHex(new Uint8Array(hashResult));
+    if (computedHash !== backupFile.integrity) {
+      throw new Error('Integrity check failed — wrong passphrase');
+    }
+  }
+
+  return json;
+}
+
 /**
  * Restores sessions from an encrypted backup file.
  * Validates integrity after decryption to detect wrong passphrases.
@@ -191,9 +273,7 @@ export async function restoreBackup(fileUri: string, passphrase: string): Promis
     v: number;
     salt: string;
     iv: string;
-    /** v1 only: SHA-256 of plaintext JSON (legacy, forgeable). */
     integrity?: string;
-    /** v2+: HMAC-SHA-256 over (iv || ciphertext) with a domain-separated MAC key. */
     mac?: string;
     data: string;
   };
@@ -207,10 +287,6 @@ export async function restoreBackup(fileUri: string, passphrase: string): Promis
     throw new Error('Corrupt or incompatible backup file');
   }
 
-  // Reject non-numeric / non-integer `v` before branching. JS coercion
-  // would otherwise let strings like "4" pass the range check and land
-  // in the wrong restore branch, mirroring the dispatch hardening on the
-  // sync/share envelopes.
   if (typeof backupFile.v !== 'number' || !Number.isInteger(backupFile.v)) {
     throw new Error('Corrupt backup file: version field must be an integer');
   }
@@ -222,75 +298,7 @@ export async function restoreBackup(fileUri: string, passphrase: string): Promis
     );
   }
 
-  const salt = hexToArray(backupFile.salt);
-  const iv = hexToArray(backupFile.iv);
-
-  let json: string;
-
-  if (backupFile.v >= 4) {
-    // v4: scrypt KDF + AES-GCM. Authenticated; tag is part of `data`.
-    const aesKey = await scryptDeriveKey(passphrase, salt, 'hrv-backup');
-    try {
-      const pt = aesGcmDecrypt(aesKey, iv, hexToArray(backupFile.data));
-      json = new TextDecoder().decode(pt);
-    } catch {
-      throw new Error('Authentication failed — wrong passphrase or tampered file');
-    }
-  } else if (backupFile.v === 3) {
-    // v3: iterated-SHA-256 KDF + AES-GCM. Authenticated; tag is part of `data`.
-    const encKey = await deriveKey(passphrase, salt);
-    const aesKey = encKey.length === AES_KEY_LENGTH ? encKey : encKey.slice(0, AES_KEY_LENGTH);
-    try {
-      const pt = aesGcmDecrypt(aesKey, iv, hexToArray(backupFile.data));
-      json = new TextDecoder().decode(pt);
-    } catch {
-      throw new Error('Authentication failed — wrong passphrase or tampered file');
-    }
-  } else {
-    const encKey = await deriveKey(passphrase, salt);
-    // v2: verify HMAC BEFORE decrypting (encrypt-then-MAC discipline).
-    if (backupFile.v >= 2) {
-      if (!backupFile.mac) {
-        throw new Error('Corrupt backup: v2 file missing MAC');
-      }
-      const macKey = await deriveKey(passphrase + MAC_KEY_DOMAIN, salt);
-      const ciphertextBytes = hexToArray(backupFile.data);
-      const macInput = new Uint8Array(iv.length + ciphertextBytes.length);
-      macInput.set(iv);
-      macInput.set(ciphertextBytes, iv.length);
-      const expectedMac = await hmacSha256(macKey, macInput);
-      const providedMac = hexToArray(backupFile.mac);
-      if (!constantTimeEqual(expectedMac, providedMac)) {
-        throw new Error('Authentication failed — wrong passphrase or tampered file');
-      }
-    }
-
-    try {
-      json = await decryptData(backupFile.data, encKey, iv);
-    } catch {
-      throw new Error('Decryption failed — wrong passphrase or corrupt file');
-    }
-
-    // v1 legacy: verify plaintext SHA-256. All historical v1 backups carry
-    // `integrity`; a missing field on a v1 file is treated as tampering
-    // (closes a downgrade attack where v2/v3 metadata is stripped to reach
-    // this unauthenticated path).
-    if (backupFile.v === 1) {
-      if (!backupFile.integrity) {
-        throw new Error('Corrupt backup: v1 file missing integrity hash');
-      }
-      const encoder = new TextEncoder();
-      const hashResult = await Crypto.digest(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        encoder.encode(json)
-      );
-      const computedHash =
-        typeof hashResult === 'string' ? hashResult : arrayToHex(new Uint8Array(hashResult));
-      if (computedHash !== backupFile.integrity) {
-        throw new Error('Integrity check failed — wrong passphrase');
-      }
-    }
-  }
+  const json = await decryptBackupPayload(backupFile, passphrase);
 
   let payload: BackupPayload;
   try {
@@ -304,8 +312,6 @@ export async function restoreBackup(fileUri: string, passphrase: string): Promis
   }
 
   const imported = await upsertManySessionsIfMissing(payload.sessions);
-
-  // Restore user-facing settings; INTERNAL_SETTINGS_KEYS are filtered out.
   await upsertManyRaw(payload.settings ?? {});
 
   return imported;
