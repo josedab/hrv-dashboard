@@ -240,9 +240,24 @@ interface SessionRow {
 function parseRrIntervals(json: string): number[] {
   try {
     const parsed = JSON.parse(json);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    console.error('[sessionRepository] Corrupt rr_intervals JSON, returning empty array');
+    if (!Array.isArray(parsed)) {
+      console.warn(
+        '[sessionRepository] rr_intervals is not an array, returning empty. Got type:',
+        typeof parsed
+      );
+      return [];
+    }
+    return parsed;
+  } catch (e) {
+    console.error(
+      '[sessionRepository] Corrupt rr_intervals JSON, returning empty array.',
+      'Length:',
+      json.length,
+      'Preview:',
+      json.slice(0, 80),
+      'Error:',
+      e instanceof Error ? e.message : String(e)
+    );
     return [];
   }
 }
@@ -273,7 +288,9 @@ function mapRowToSession(row: SessionRow): Session {
  * Bulk-inserts sessions, skipping any whose `id` already exists.
  *
  * Used by backup/restore. Wrapped in a single transaction for atomicity and
- * speed. Returns the count of newly inserted rows.
+ * speed. Uses INSERT OR IGNORE to prevent crashes if a concurrent caller
+ * inserts the same session between our existence check and our INSERT.
+ * Returns the count of newly inserted rows.
  */
 export async function upsertManySessionsIfMissing(sessions: Session[]): Promise<number> {
   if (sessions.length === 0) return 0;
@@ -287,8 +304,10 @@ export async function upsertManySessionsIfMissing(sessions: Session[]): Promise<
         session.id
       );
       if (existing) continue;
+      // INSERT OR IGNORE guards against TOCTOU: if a concurrent caller inserted
+      // this id between our SELECT and this INSERT, we silently skip instead of crashing.
       await db.runAsync(
-        `INSERT INTO sessions (id, timestamp, duration_seconds, rr_intervals, rmssd, sdnn, mean_hr, pnn50, artifact_rate, verdict, perceived_readiness, training_type, notes, sleep_hours, sleep_quality, stress_level, source)
+        `INSERT OR IGNORE INTO sessions (id, timestamp, duration_seconds, rr_intervals, rmssd, sdnn, mean_hr, pnn50, artifact_rate, verdict, perceived_readiness, training_type, notes, sleep_hours, sleep_quality, stress_level, source)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         session.id,
         session.timestamp,

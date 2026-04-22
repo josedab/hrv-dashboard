@@ -21,8 +21,12 @@ export class SqlitePluginStorage implements PluginStorage {
     for (const row of rows) {
       try {
         out.push(JSON.parse(row.value));
-      } catch {
-        // skip corrupt records
+      } catch (e) {
+        console.warn(
+          '[sqliteStorage] Skipping corrupt plugin record:',
+          row.key,
+          e instanceof Error ? e.message : String(e)
+        );
       }
     }
     return out;

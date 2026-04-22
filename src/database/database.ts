@@ -63,7 +63,8 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   const versionRow = await database.getFirstAsync<{ value: string }>(
     `SELECT value FROM settings WHERE key = 'schema_version'`
   );
-  const currentVersion = versionRow ? parseInt(versionRow.value, 10) : 0;
+  const parsedVersion = versionRow ? parseInt(versionRow.value, 10) : 0;
+  const currentVersion = Number.isFinite(parsedVersion) ? parsedVersion : 0;
 
   if (currentVersion < 2) {
     // v2: add sleep/stress/context fields for expanded logging

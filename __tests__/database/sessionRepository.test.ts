@@ -3,7 +3,10 @@ jest.mock('../../src/database/database', () => {
 
   const mockDb = {
     runAsync: jest.fn(async (sql: string, ...args: unknown[]) => {
-      if (sql.startsWith('INSERT INTO sessions')) {
+      if (
+        sql.startsWith('INSERT INTO sessions') ||
+        sql.startsWith('INSERT OR IGNORE INTO sessions')
+      ) {
         const values = args as unknown[];
         rows.push({
           id: values[0],
