@@ -88,19 +88,23 @@ export function computeCoherence(rrIntervals: number[]): CoherenceResult {
 export function resampleRrToFixedHz(rrIntervals: number[], hz: number): number[] {
   if (rrIntervals.length < 2) return [];
 
-  // Build cumulative time stamps for each RR sample
+  // Build cumulative time stamps, skipping non-positive RR values
   const times: number[] = [];
+  const validRr: number[] = [];
   let t = 0;
   for (const rr of rrIntervals) {
+    if (!Number.isFinite(rr) || rr <= 0) continue;
     t += rr / 1000;
     times.push(t);
+    validRr.push(rr);
   }
+  if (validRr.length < 2) return [];
 
   const totalSeconds = times[times.length - 1];
   const sampleCount = Math.floor(totalSeconds * hz);
   if (sampleCount < 2) return [];
 
-  const ihr = rrIntervals.map((rr) => 60000 / rr);
+  const ihr = validRr.map((rr) => 60000 / rr);
   const out: number[] = new Array(sampleCount);
 
   let idx = 0;
