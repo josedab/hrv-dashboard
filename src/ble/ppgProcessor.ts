@@ -163,7 +163,7 @@ function assessSignalQuality(
   // Factor 1: RR interval consistency (low std dev relative to mean = good)
   const mean = rrIntervals.reduce((s, v) => s + v, 0) / rrIntervals.length;
   const variance = rrIntervals.reduce((s, v) => s + (v - mean) ** 2, 0) / rrIntervals.length;
-  const cv = Math.sqrt(variance) / mean; // coefficient of variation
+  const cv = mean > 0 ? Math.sqrt(variance) / mean : 0;
   const consistencyScore = Math.max(0, 1 - cv * 3); // CV of 0.33 → score 0
 
   // Factor 2: Signal amplitude (finger on camera should have high brightness variance)

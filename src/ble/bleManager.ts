@@ -221,8 +221,11 @@ export async function isBleAvailable(): Promise<boolean> {
 
 /**
  * Checks if a specific device is a Polar H10 by name.
+ * Accepts the minimal {@link BleDevice} interface so both UI layers
+ * (which use BleDevice) and internal BLE code (which has full Device)
+ * can call this without a type mismatch.
  */
-export function isPolarH10(device: Device): boolean {
+export function isPolarH10(device: BleDevice): boolean {
   return device.name?.startsWith(POLAR_H10_NAME_PREFIX) ?? false;
 }
 

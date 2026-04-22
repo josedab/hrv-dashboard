@@ -92,8 +92,11 @@ export function useDeviceScanner(
         setTimeout(() => {
           if (!cancelledRef.current) setScanTimedOut(true);
         }, scanTimeoutMs);
-      } catch {
-        // Scan may fail if BLE is off — swallowed, UI shows "no devices"
+      } catch (err) {
+        console.warn(
+          '[useDeviceScanner] BLE scan failed:',
+          err instanceof Error ? err.message : String(err)
+        );
       }
     },
     [scanTimeoutMs]
