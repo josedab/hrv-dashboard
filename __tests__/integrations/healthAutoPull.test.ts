@@ -67,6 +67,36 @@ describe('mergeAutoPull', () => {
     });
     expect(out.provenance.stressLevel).toBe('manual');
   });
+
+  it('clamps out-of-range sleepHours from health SDK', () => {
+    const out = mergeAutoPull(mkSession(), {
+      sleepHours: 30,
+      sleepQuality: 10,
+      source: 'health_kit',
+    });
+    expect(out.sleepHours).toBe(24);
+    expect(out.sleepQuality).toBe(5);
+  });
+
+  it('clamps negative sleepHours to 0', () => {
+    const out = mergeAutoPull(mkSession(), {
+      sleepHours: -5,
+      sleepQuality: -1,
+      source: 'health_kit',
+    });
+    expect(out.sleepHours).toBe(0);
+    expect(out.sleepQuality).toBe(1);
+  });
+
+  it('handles NaN sleepHours from health SDK', () => {
+    const out = mergeAutoPull(mkSession(), {
+      sleepHours: NaN,
+      sleepQuality: NaN,
+      source: 'health_kit',
+    });
+    expect(out.sleepHours).toBeNull();
+    expect(out.sleepQuality).toBeNull();
+  });
 });
 
 describe('autoPullSleep', () => {

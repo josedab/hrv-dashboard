@@ -60,14 +60,16 @@ export function mergeAutoPull(session: Session, pulled: AutoPullResult): Provena
   const provenance: ProvenancedSession['provenance'] = {};
   let merged: Session = session;
   if (session.sleepHours === null && pulled.sleepHours !== null) {
-    merged = { ...merged, sleepHours: pulled.sleepHours };
-    provenance.sleepHours = pulled.source;
+    const clampedHours = Math.max(0, Math.min(24, pulled.sleepHours));
+    merged = { ...merged, sleepHours: Number.isFinite(clampedHours) ? clampedHours : null };
+    if (merged.sleepHours !== null) provenance.sleepHours = pulled.source;
   } else if (session.sleepHours !== null) {
     provenance.sleepHours = 'manual';
   }
   if (session.sleepQuality === null && pulled.sleepQuality !== null) {
-    merged = { ...merged, sleepQuality: pulled.sleepQuality };
-    provenance.sleepQuality = pulled.source;
+    const clampedQuality = Math.max(1, Math.min(5, Math.round(pulled.sleepQuality)));
+    merged = { ...merged, sleepQuality: Number.isFinite(clampedQuality) ? clampedQuality : null };
+    if (merged.sleepQuality !== null) provenance.sleepQuality = pulled.source;
   } else if (session.sleepQuality !== null) {
     provenance.sleepQuality = 'manual';
   }
