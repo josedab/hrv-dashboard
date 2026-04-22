@@ -102,6 +102,10 @@ export function calculateStreak(dates: string[]): number {
  * Using noon avoids DST edge cases.
  */
 function parseDateString(dateStr: string): Date {
-  const [y, m, d] = dateStr.split('-').map(Number);
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length < 3 || parts.some((n) => !Number.isFinite(n))) {
+    return new Date(NaN);
+  }
+  const [y, m, d] = parts;
   return new Date(y, m - 1, d, 12);
 }

@@ -1,6 +1,12 @@
 /** CSV export: converts Session arrays to a CSV string with headers and proper escaping. */
 import { Session } from '../types';
 
+/** Safely formats a number with toFixed, returning '0' for non-finite values. */
+function safeFixed(value: number | null | undefined, digits: number): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '0';
+  return value.toFixed(digits);
+}
+
 /**
  * Exports an array of sessions to CSV format.
  */
@@ -28,16 +34,16 @@ export function sessionsToCSV(sessions: Session[]): string {
     s.id,
     s.timestamp,
     s.durationSeconds,
-    s.rmssd.toFixed(2),
-    s.sdnn.toFixed(2),
-    s.meanHr.toFixed(1),
-    s.pnn50.toFixed(1),
-    s.artifactRate.toFixed(4),
+    safeFixed(s.rmssd, 2),
+    safeFixed(s.sdnn, 2),
+    safeFixed(s.meanHr, 1),
+    safeFixed(s.pnn50, 1),
+    safeFixed(s.artifactRate, 4),
     s.verdict ?? '',
     s.perceivedReadiness ?? '',
     s.trainingType ?? '',
     escapeCsvField(s.notes ?? ''),
-    s.rrIntervals.length,
+    s.rrIntervals?.length ?? 0,
     s.sleepHours ?? '',
     s.sleepQuality ?? '',
     s.stressLevel ?? '',

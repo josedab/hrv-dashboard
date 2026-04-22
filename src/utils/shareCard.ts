@@ -49,8 +49,9 @@ export function renderShareCardHtml(data: ShareCardData): string {
   const label = data.verdict ? VERDICT_LABEL[data.verdict] : 'Building Baseline';
   const bg = data.verdict ? VERDICT_BG[data.verdict] : '#1E293B';
   const arrow = TREND_ARROW[data.trendDirection];
-  const trendText =
-    data.trendDirection === 'improving'
+  const trendText = !Number.isFinite(data.trendPercent)
+    ? 'Stable'
+    : data.trendDirection === 'improving'
       ? `+${Math.abs(data.trendPercent)}%`
       : data.trendDirection === 'declining'
         ? `-${Math.abs(data.trendPercent)}%`

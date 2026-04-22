@@ -132,4 +132,15 @@ describe('constantTimeEqual', () => {
   it('returns true for two empty arrays', () => {
     expect(constantTimeEqual(new Uint8Array(0), new Uint8Array(0))).toBe(true);
   });
+
+  it('returns false for prefix match with different lengths', () => {
+    const a = new Uint8Array([1, 2, 3]);
+    const b = new Uint8Array([1, 2, 3, 0, 0]);
+    expect(constantTimeEqual(a, b)).toBe(false);
+  });
+
+  it('returns false when one array is empty and other is not', () => {
+    expect(constantTimeEqual(new Uint8Array(0), new Uint8Array([1]))).toBe(false);
+    expect(constantTimeEqual(new Uint8Array([1]), new Uint8Array(0))).toBe(false);
+  });
 });

@@ -9,7 +9,7 @@ import * as Crypto from 'expo-crypto';
 
 /** Returns `length` cryptographically secure random bytes. */
 export async function getRandomBytes(length: number): Promise<Uint8Array> {
-  if (length < 0 || !Number.isFinite(length)) {
+  if (!Number.isInteger(length) || length < 0) {
     throw new Error(`Invalid random byte length: ${length}`);
   }
   // expo-crypto returns a Uint8Array on all supported platforms.
@@ -84,13 +84,15 @@ export async function hmacSha256(key: Uint8Array, message: Uint8Array): Promise<
 
 /**
  * Constant-time byte-array equality. Use for MAC verification to avoid
- * timing side channels.
+ * timing side channels. The length comparison itself is constant-time:
+ * we XOR all bytes up to the longer array and also fold a length-mismatch
+ * flag into the diff accumulator.
  */
 export function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a[i] ^ b[i];
+  const len = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < len; i++) {
+    diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
   }
   return diff === 0;
 }

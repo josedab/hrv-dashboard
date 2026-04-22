@@ -44,12 +44,12 @@ export function buildReportData(
       ? `Week of ${formatDate(new Date(now.getTime() - 7 * 86_400_000))} – ${formatDate(now)}`
       : `${now.toLocaleString('en-US', { month: 'long', year: 'numeric' })}`;
 
-  const rmssdValues = sessions.map((s) => s.rmssd);
+  const rmssdValues = sessions.map((s) => s.rmssd).filter(Number.isFinite);
   const avgRmssd =
     rmssdValues.length > 0 ? rmssdValues.reduce((a, b) => a + b, 0) / rmssdValues.length : 0;
   const medianRmssd = computeMedian(rmssdValues);
-  const avgHr =
-    sessions.length > 0 ? sessions.reduce((s, x) => s + x.meanHr, 0) / sessions.length : 0;
+  const hrValues = sessions.map((s) => s.meanHr).filter(Number.isFinite);
+  const avgHr = hrValues.length > 0 ? hrValues.reduce((s, x) => s + x, 0) / hrValues.length : 0;
 
   const verdictCounts: Record<VerdictType, number> = { go_hard: 0, moderate: 0, rest: 0 };
   for (const s of sessions) {
@@ -126,7 +126,7 @@ export function renderReportHtml(data: ReportData): string {
       const label = d.verdict ? VERDICT_LABELS[d.verdict] : '—';
       return `<tr>
         <td style="padding:6px 12px;border-bottom:1px solid #eee;">${d.date}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #eee;font-weight:600;">${d.rmssd.toFixed(1)} ms</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #eee;font-weight:600;">${Number.isFinite(d.rmssd) ? d.rmssd.toFixed(1) : '—'} ms</td>
         <td style="padding:6px 12px;border-bottom:1px solid #eee;"><span style="color:${color};font-weight:600;">${label}</span></td>
       </tr>`;
     })

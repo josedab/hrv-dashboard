@@ -160,4 +160,23 @@ describe('sessionsToCSV', () => {
     expect(fields[14]).toBe('4');
     expect(fields[15]).toBe('2');
   });
+
+  it('handles NaN and undefined numeric fields gracefully', () => {
+    const session = makeSession({
+      rmssd: NaN,
+      sdnn: Infinity,
+      meanHr: -Infinity,
+      pnn50: 0,
+      artifactRate: 0,
+    });
+    const csv = sessionsToCSV([session]);
+    const lines = csv.split('\n');
+    const fields = lines[1].split(',');
+    // NaN/Infinity should become '0'
+    expect(fields[3]).toBe('0');
+    expect(fields[4]).toBe('0');
+    expect(fields[5]).toBe('0');
+    expect(fields[6]).toBe('0.0');
+    expect(fields[7]).toBe('0.0000');
+  });
 });

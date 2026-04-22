@@ -7,7 +7,6 @@
  */
 import * as Notifications from 'expo-notifications';
 import { getDatabase } from '../database/database';
-import { fireAndForget } from './errors';
 
 const MORNING_REMINDER_ID = 'morning-reminder';
 const STREAK_REMINDER_ID = 'streak-reminder';
