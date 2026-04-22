@@ -87,9 +87,18 @@ export function parseWhoopCsv(csv: string): ImportResult {
       errors.push({ line: i, reason: 'Invalid timestamp or HRV value' });
       continue;
     }
+    let isoTimestamp: string;
+    try {
+      const parsed = new Date(ts);
+      if (!Number.isFinite(parsed.getTime())) throw new Error('Invalid date');
+      isoTimestamp = parsed.toISOString();
+    } catch {
+      errors.push({ line: i, reason: `Invalid timestamp: ${ts}` });
+      continue;
+    }
     const rhr = iRhr >= 0 ? parseFloat(cols[iRhr]) : NaN;
     const recovery = iRecovery >= 0 ? parseFloat(cols[iRecovery]) : NaN;
-    const session = emptySession(new Date(ts).toISOString(), `${ts}`, 'whoop');
+    const session = emptySession(isoTimestamp, `${ts}`, 'whoop');
     session.rmssd = hrv;
     session.sdnn = hrv * 1.2;
     session.meanHr = Number.isFinite(rhr) ? rhr : 0;

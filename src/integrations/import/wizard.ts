@@ -77,7 +77,7 @@ export async function commitImport(
       await saveSession(session);
       inserted += 1;
     } catch (e) {
-      failed.push({ id: session.id, reason: (e as Error).message ?? 'unknown' });
+      failed.push({ id: session.id, reason: e instanceof Error ? e.message : String(e) });
     }
   }
   return {
