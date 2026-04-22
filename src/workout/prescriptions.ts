@@ -291,7 +291,7 @@ export function lookupPrescription(
     headline: template.headline,
     intensityStars: template.intensityStars,
     totalMinutes: template.totalMinutes,
-    blocks: template.blocks,
+    blocks: [...template.blocks],
     rationale: template.rationale,
     disclaimer: DISCLAIMER,
   };

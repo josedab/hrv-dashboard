@@ -175,6 +175,7 @@ function zoneMidpointPct(zone: { intensity: { low: number; high: number } }): nu
 
 function base64(s: string): string {
   if (typeof Buffer !== 'undefined') return Buffer.from(s, 'utf-8').toString('base64');
-  // Fallback for environments without Buffer
-  return (globalThis as { btoa?: (s: string) => string }).btoa?.(s) ?? s;
+  const btoa = (globalThis as { btoa?: (s: string) => string }).btoa;
+  if (btoa) return btoa(s);
+  throw new Error('No base64 encoder available (neither Buffer nor btoa)');
 }
