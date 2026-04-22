@@ -2,6 +2,7 @@ import {
   parseHeartRateMeasurement,
   base64ToUint8Array,
   isValidRrInterval,
+  isValidHeartRate,
 } from '../../src/ble/heartRateParser';
 
 describe('parseHeartRateMeasurement', () => {
@@ -250,5 +251,61 @@ describe('parseHeartRateMeasurement RR validation', () => {
     // Only the valid RR should remain
     expect(result.rrIntervals.length).toBe(1);
     expect(result.rrIntervals[0]).toBeGreaterThanOrEqual(300);
+  });
+});
+
+describe('isValidHeartRate', () => {
+  it('accepts normal resting HR values', () => {
+    expect(isValidHeartRate(60)).toBe(true);
+    expect(isValidHeartRate(72)).toBe(true);
+    expect(isValidHeartRate(100)).toBe(true);
+  });
+
+  it('accepts boundary values', () => {
+    expect(isValidHeartRate(20)).toBe(true);
+    expect(isValidHeartRate(300)).toBe(true);
+  });
+
+  it('rejects values below minimum', () => {
+    expect(isValidHeartRate(19)).toBe(false);
+    expect(isValidHeartRate(0)).toBe(false);
+  });
+
+  it('rejects values above maximum', () => {
+    expect(isValidHeartRate(301)).toBe(false);
+    expect(isValidHeartRate(500)).toBe(false);
+  });
+
+  it('rejects negative values', () => {
+    expect(isValidHeartRate(-1)).toBe(false);
+  });
+});
+
+describe('parseHeartRateMeasurement HR range validation', () => {
+  it('returns 0 for out-of-range heart rate (> 300 bpm)', () => {
+    // 16-bit HR: 350 (0x015E) → out of range
+    const data = new Uint8Array([0x01, 0x5e, 0x01]);
+    const result = parseHeartRateMeasurement(data);
+    expect(result.heartRate).toBe(0);
+  });
+
+  it('preserves valid heart rate at boundary (300 bpm)', () => {
+    // 16-bit HR: 300 (0x012C)
+    const data = new Uint8Array([0x01, 0x2c, 0x01]);
+    const result = parseHeartRateMeasurement(data);
+    expect(result.heartRate).toBe(300);
+  });
+
+  it('returns 0 for HR below minimum (< 20 bpm)', () => {
+    // 8-bit HR: 10 → out of range
+    const data = new Uint8Array([0x00, 10]);
+    const result = parseHeartRateMeasurement(data);
+    expect(result.heartRate).toBe(0);
+  });
+
+  it('returns 0 for HR of 0', () => {
+    const data = new Uint8Array([0x00, 0]);
+    const result = parseHeartRateMeasurement(data);
+    expect(result.heartRate).toBe(0);
   });
 });

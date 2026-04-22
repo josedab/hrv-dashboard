@@ -6,7 +6,12 @@
  * formats, optional energy expenditure, and multiple RR intervals per
  * notification packet.
  */
-import { MIN_RR_INTERVAL_MS, MAX_RR_INTERVAL_MS } from '../constants/defaults';
+import {
+  MIN_RR_INTERVAL_MS,
+  MAX_RR_INTERVAL_MS,
+  MIN_HEART_RATE_BPM,
+  MAX_HEART_RATE_BPM,
+} from '../constants/defaults';
 
 /**
  * Result of parsing a Heart Rate Measurement notification.
@@ -16,6 +21,14 @@ export interface HeartRateMeasurement {
   rrIntervals: number[]; // ms (can have 0, 1, or more per notification)
   energyExpended?: number; // kJ
   sensorContact: boolean;
+}
+
+/**
+ * Checks if a heart rate value is within the physiologically plausible range.
+ * 20 bpm (extreme bradycardia) to 300 bpm (extreme tachycardia).
+ */
+export function isValidHeartRate(bpm: number): boolean {
+  return bpm >= MIN_HEART_RATE_BPM && bpm <= MAX_HEART_RATE_BPM;
 }
 
 /**
@@ -84,6 +97,13 @@ export function parseHeartRateMeasurement(data: Uint8Array): HeartRateMeasuremen
       }
       offset += 2;
     }
+  }
+
+  // Clamp heart rate to physiologically plausible range.
+  // Out-of-range values from corrupted/fake sensors are replaced with 0,
+  // signalling to consumers that the reading is unreliable.
+  if (!isValidHeartRate(heartRate)) {
+    heartRate = 0;
   }
 
   const sensorContact = sensorContactSupported ? sensorContactDetected : true;

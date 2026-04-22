@@ -3,6 +3,11 @@ export const MIN_RR_INTERVAL_MS = 300;
 /** RR intervals outside this range (ms) are physiologically implausible. */
 export const MAX_RR_INTERVAL_MS = 2500;
 
+/** Heart rate below this value (bpm) is physiologically implausible. */
+export const MIN_HEART_RATE_BPM = 20;
+/** Heart rate above this value (bpm) is physiologically implausible. */
+export const MAX_HEART_RATE_BPM = 300;
+
 /** Standard recording duration (5 minutes per ESC short-term HRV guidelines). */
 export const RECORDING_DURATION_SECONDS = 300;
 /** Minimum recording time before early finish is allowed. */
