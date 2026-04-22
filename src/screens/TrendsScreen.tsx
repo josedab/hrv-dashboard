@@ -37,6 +37,7 @@ export function TrendsScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      let cancelled = false;
       (async () => {
         try {
           const [currentSessions, previousSessions, allRecent] = await Promise.all([
@@ -44,6 +45,7 @@ export function TrendsScreen() {
             getRecentSessions(14),
             getRecentSessions(30),
           ]);
+          if (cancelled) return;
 
           const previous = previousSessions.filter(
             (s) => !currentSessions.some((c) => c.id === s.id)
@@ -51,15 +53,18 @@ export function TrendsScreen() {
 
           const weeklySummary = computeWeeklySummary(currentSessions, previous);
           setSummary(weeklySummary);
-          setSparklineData(allRecent.map((s) => s.rmssd));
+          setSparklineData(allRecent.map((s) => s.rmssd).filter(Number.isFinite));
           setSleepCorrelation(computeSleepHrvCorrelation(allRecent));
           setStressCorrelation(computeStressHrvCorrelation(allRecent));
         } catch (error) {
           console.error('Failed to load trends:', error);
         } finally {
-          setLoading(false);
+          if (!cancelled) setLoading(false);
         }
       })();
+      return () => {
+        cancelled = true;
+      };
     }, [])
   );
 

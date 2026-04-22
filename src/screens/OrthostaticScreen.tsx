@@ -99,9 +99,17 @@ export function OrthostaticScreen() {
           return;
         }
 
-        const orthoResult = computeOrthostaticResult(supineRR, standingRR);
-        setResult(orthoResult);
-        setPhase('result');
+        try {
+          const orthoResult = computeOrthostaticResult(supineRR, standingRR);
+          setResult(orthoResult);
+          setPhase('result');
+        } catch (err) {
+          Alert.alert(
+            'Analysis Error',
+            `Failed to compute orthostatic result: ${err instanceof Error ? err.message : String(err)}`,
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+        }
       });
     });
   }, [recording.rrIntervals, startTimer, pulseAnim, actions, navigation]);

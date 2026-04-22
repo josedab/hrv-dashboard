@@ -41,6 +41,10 @@ export function ReadingScreen() {
     (deviceId: string) => {
       actions.startRecording(deviceId).catch((err) => {
         console.error('startRecording failed:', err);
+        Alert.alert(
+          'Recording Error',
+          `Failed to start recording: ${err instanceof Error ? err.message : String(err)}`
+        );
       });
     },
     [actions]

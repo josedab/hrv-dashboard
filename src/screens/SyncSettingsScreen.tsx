@@ -63,11 +63,18 @@ export function SyncSettingsScreen() {
 
   useEffect(() => {
     (async () => {
-      setProvider(((await readSetting(STORAGE_KEYS.provider)) as Provider) || 'none');
-      setPassphrase(await readSetting(STORAGE_KEYS.passphrase));
-      setSupabaseUrl(await readSetting(STORAGE_KEYS.supabaseUrl));
-      setSupabaseAnon(await readSetting(STORAGE_KEYS.supabaseAnon));
-      setSupabaseToken(await readSetting(STORAGE_KEYS.supabaseToken));
+      try {
+        setProvider(((await readSetting(STORAGE_KEYS.provider)) as Provider) || 'none');
+        setPassphrase(await readSetting(STORAGE_KEYS.passphrase));
+        setSupabaseUrl(await readSetting(STORAGE_KEYS.supabaseUrl));
+        setSupabaseAnon(await readSetting(STORAGE_KEYS.supabaseAnon));
+        setSupabaseToken(await readSetting(STORAGE_KEYS.supabaseToken));
+      } catch (e) {
+        console.error(
+          '[SyncSettings] Failed to load settings:',
+          e instanceof Error ? e.message : String(e)
+        );
+      }
     })();
   }, []);
 

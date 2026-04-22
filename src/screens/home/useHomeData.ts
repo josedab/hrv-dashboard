@@ -22,6 +22,7 @@ export interface HomeData {
   streak: number;
   loading: boolean;
   refreshing: boolean;
+  error: boolean;
   refresh: () => Promise<void>;
 }
 
@@ -38,9 +39,11 @@ export function useHomeData(): HomeData {
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      setError(false);
       const [session, settings, dates, recentSessions] = await Promise.all([
         getTodaySession(todayString()),
         loadSettings(),
@@ -50,7 +53,7 @@ export function useHomeData(): HomeData {
 
       setTodaySession(session);
       setStreak(calculateStreak(dates));
-      setSparklineData(recentSessions.map((s) => s.rmssd));
+      setSparklineData(recentSessions.map((s) => s.rmssd).filter(Number.isFinite));
 
       const dailyReadings = await getDailyReadings(settings.baselineWindowDays);
       const baseline = computeBaseline(dailyReadings, settings.baselineWindowDays);
@@ -60,8 +63,9 @@ export function useHomeData(): HomeData {
         session && baseline.dayCount >= 5 ? computeRecoveryScore(session, baseline) : null
       );
       setWeeklyLoad(computeWeeklyLoad(recentSessions));
-    } catch (error) {
-      console.error('Failed to load home data:', error);
+    } catch (err) {
+      console.error('Failed to load home data:', err instanceof Error ? err.message : String(err));
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -88,6 +92,7 @@ export function useHomeData(): HomeData {
     streak,
     loading,
     refreshing,
+    error,
     refresh,
   };
 }
