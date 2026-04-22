@@ -169,11 +169,16 @@ export async function createBackup(passphrase: string): Promise<void> {
   const filePath = `${Paths.cache}hrv-backup-${Date.now()}.hrvbak`;
   await FileSystem.writeAsStringAsync(filePath, backupFile);
 
-  await Share.share({
-    url: filePath,
-    title: 'HRV Readiness Backup',
-    message: `HRV Readiness encrypted backup (${sessions.length} sessions)`,
-  });
+  try {
+    await Share.share({
+      url: filePath,
+      title: 'HRV Readiness Backup',
+      message: `HRV Readiness encrypted backup (${sessions.length} sessions)`,
+    });
+  } finally {
+    // Clean up cache file after share sheet closes (regardless of outcome)
+    FileSystem.deleteAsync(filePath, { idempotent: true }).catch(() => {});
+  }
 }
 
 /** Decrypts backup data based on protocol version. Returns the plaintext JSON. */

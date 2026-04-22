@@ -5,7 +5,7 @@ jest.mock('expo-file-system', () => ({
   },
   readAsStringAsync: jest.fn(),
   writeAsStringAsync: jest.fn(),
-  deleteAsync: jest.fn(),
+  deleteAsync: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('expo-crypto', () => {
   const { createHash, randomBytes } = require('crypto');
